@@ -54,7 +54,7 @@ Vikit 已随主仓库构建，不再由 `nav_dependencies.repos` 导入，也不
 
 - 项目维护 fork：`https://github.com/Aldoubt/Ros_Qt5_Gui_App.git`
 - 分支：`agt-navigation-v2`
-- 固定提交：`74d11e0602f00bbf7021ac96a63f00c947807a70`
+- 固定提交：`fb6d810bf7d7cc4bf749784ca976be5f348e7070`
 - 原始上游：`https://github.com/chengyangkj/Ros_Qt5_Gui_App.git`
 - 目录：`third_party/ros_qt5_gui_app`
 - 上游许可证：GPL-2.0，见 `ros_qt5_gui_app/LICENSE`
