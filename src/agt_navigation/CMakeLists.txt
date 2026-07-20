@@ -11,6 +11,7 @@ install(PROGRAMS
   scripts/execute_waypoint_task.py
   scripts/goal_pose_bridge.py
   scripts/waypoint_task_server.py
+  scripts/waypoint_preview_planner.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -23,6 +24,12 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_qt_task_chain test/test_qt_task_chain.py)
   ament_add_pytest_test(
     test_waypoint_task_server test/test_waypoint_task_server.py
+  )
+  ament_add_pytest_test(
+    test_waypoint_preview_planner test/test_waypoint_preview_planner.py
+  )
+  ament_add_pytest_test(
+    test_waypoint_preview_launch test/test_waypoint_preview_launch.py
   )
 endif()
 

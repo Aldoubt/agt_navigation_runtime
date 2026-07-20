@@ -62,6 +62,29 @@ ros2 run agt_navigation execute_waypoint_task.py \
 取消客户端会取消 Nav2 子目标。有限重复可使用 `--loop-count 2`，实车 baseline 验收前
 保持单次执行。接口细节见 `docs/interfaces/waypoint_task_action.md`。
 
+## Qt 离线多点路径预览
+
+离线确定点位时使用 planner-only 入口，不要启动 `offline_navigation.launch.py` 的运动模拟链：
+
+```bash
+MAP_YAML="$(realpath runtime/maps/<map_id>/<map_id>.yaml)"
+PLATFORM_PROFILE="$(realpath profiles/platforms/bunker.yaml)"
+
+ros2 launch agt_navigation waypoint_preview.launch.py \
+  map:="$MAP_YAML" platform_profile:="$PLATFORM_PROFILE"
+```
+
+该入口只启动地图服务器、Planner Server、路径预览适配器和 `offline` Qt profile；不启动
+controller、BT Navigator、Waypoint Follower、安全使能或底盘。Qt 中 Task 的第一行是离线
+预览起点，后续行依次为途经点/终点；至少需要两行。点击“预览离线路径”后，适配器逐段
+调用 `ComputePathToPose`，合并后发布 `/plan`。离线 profile 会硬禁用“开始多点任务”，因此
+预览绝不会转化为运动命令。状态可通过以下命令检查：
+
+```bash
+ros2 topic echo /agt/navigation/waypoint_preview_status
+ros2 topic echo /plan --once
+```
+
 ## 接真实地图
 
 先启动机器人描述、LIO、障碍过滤和重定位，再执行：
