@@ -1,5 +1,6 @@
 """Offline waypoint preview: map + planner + Qt, with no motion stack."""
 
+import json
 from pathlib import Path
 
 import yaml
@@ -31,6 +32,13 @@ def _planner_nodes(context):
             parameters=params,
         ),
         Node(
+            package="agt_navigation",
+            executable="waypoint_preview_planner.py",
+            name="agt_waypoint_preview_planner",
+            output="screen",
+            parameters=[{"footprint_json": json.dumps(footprint)}],
+        ),
+        Node(
             package="nav2_lifecycle_manager",
             executable="lifecycle_manager",
             name="lifecycle_manager_waypoint_preview_planner",
@@ -58,6 +66,7 @@ def generate_launch_description():
                 default_value=str(root / "profiles" / "platforms" / "bunker.yaml"),
             ),
             DeclareLaunchArgument("start_gui", default_value="true"),
+            DeclareLaunchArgument("start_rviz", default_value="true"),
             Node(
                 package="nav2_map_server",
                 executable="map_server",
@@ -87,9 +96,14 @@ def generate_launch_description():
             OpaqueFunction(function=_planner_nodes),
             Node(
                 package="agt_navigation",
-                executable="waypoint_preview_planner.py",
-                name="agt_waypoint_preview_planner",
+                executable="start_waypoint_preview_rviz.sh",
+                name="agt_waypoint_preview_rviz",
                 output="screen",
+                arguments=[
+                    "-d",
+                    str(nav_share / "config" / "waypoint_preview.rviz"),
+                ],
+                condition=IfCondition(LaunchConfiguration("start_rviz")),
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(

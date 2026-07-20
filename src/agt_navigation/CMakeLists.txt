@@ -10,6 +10,7 @@ install(PROGRAMS
   scripts/differential_drive_simulator.py
   scripts/execute_waypoint_task.py
   scripts/goal_pose_bridge.py
+  scripts/start_waypoint_preview_rviz.sh
   scripts/waypoint_task_server.py
   scripts/waypoint_preview_planner.py
   DESTINATION lib/${PROJECT_NAME}

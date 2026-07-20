@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
+import json
 import math
 
 import rclpy
 from action_msgs.msg import GoalStatus
-from geometry_msgs.msg import PoseArray, PoseStamped
+from geometry_msgs.msg import Point32, PolygonStamped, PoseArray, PoseStamped
 from nav2_msgs.action import ComputePathToPose
 from nav_msgs.msg import Path
 from rclpy.action import ActionClient
@@ -42,6 +43,7 @@ class WaypointPreviewPlanner(Node):
         self.declare_parameter("path_topic", "/plan")
         self.declare_parameter("planner_action", "/compute_path_to_pose")
         self.declare_parameter("planner_id", "GridBased")
+        self.declare_parameter("footprint_json", "[]")
         qos = QoSProfile(depth=1)
         qos.reliability = ReliabilityPolicy.RELIABLE
         qos.durability = DurabilityPolicy.TRANSIENT_LOCAL
@@ -50,6 +52,14 @@ class WaypointPreviewPlanner(Node):
         )
         self._status_pub = self.create_publisher(
             String, "/agt/navigation/waypoint_preview_status", 10
+        )
+        self._footprint_pub = self.create_publisher(
+            PolygonStamped,
+            "/agt/navigation/preview_footprint",
+            qos,
+        )
+        self._footprint = json.loads(
+            str(self.get_parameter("footprint_json").value)
         )
         self._client = ActionClient(
             self,
@@ -105,8 +115,27 @@ class WaypointPreviewPlanner(Node):
         self._poses = list(request.poses)
         self._segment_index = 1
         self._joined = []
+        self._publish_footprint(request.poses[0])
         self._status("planning")
         self._send_segment()
+
+    def _publish_footprint(self, pose):
+        output = PolygonStamped()
+        output.header.frame_id = "map"
+        output.header.stamp = self.get_clock().now().to_msg()
+        q = pose.orientation
+        yaw = math.atan2(
+            2.0 * (q.w * q.z + q.x * q.y),
+            1.0 - 2.0 * (q.y * q.y + q.z * q.z),
+        )
+        cosine, sine = math.cos(yaw), math.sin(yaw)
+        for x, y in self._footprint:
+            point = Point32()
+            point.x = float(pose.position.x + cosine * x - sine * y)
+            point.y = float(pose.position.y + sine * x + cosine * y)
+            point.z = 0.05
+            output.polygon.points.append(point)
+        self._footprint_pub.publish(output)
 
     def _stamped(self, pose):
         stamped = PoseStamped()
