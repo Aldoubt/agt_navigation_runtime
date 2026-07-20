@@ -11,8 +11,15 @@ which is included as part of this source code package.
 */
 
 #include "LIVMapper.h"
+#include <chrono>
 #include <filesystem>
 #include <vikit/camera_loader.h>
+
+#ifdef X86_ARCH
+static_assert(
+  EIGEN_DEFAULT_ALIGN_BYTES <= 16,
+  "FAST-LIVO must preserve the 16-byte Eigen ABI used by the system PCL binaries");
+#endif
 
 using namespace Sophus;
 LIVMapper::LIVMapper(rclcpp::Node::SharedPtr &node, std::string node_name, const rclcpp::NodeOptions & options)
@@ -40,6 +47,12 @@ LIVMapper::LIVMapper(rclcpp::Node::SharedPtr &node, std::string node_name, const
   pcl_wait_pub.reset(new PointCloudXYZI());
   pcl_wait_save.reset(new PointCloudXYZRGB());
   pcl_wait_save_intensity.reset(new PointCloudXYZI());
+  if (pcd_save_en && pcd_save_interval < 0 && pcd_save_incremental_voxel_en && !img_en)
+  {
+    localization_voxel_map =
+      std::make_unique<fast_livo::IncrementalVoxelMap>(
+        filter_size_pcd, pcd_save_max_abs_coordinate);
+  }
   voxelmap_manager.reset(new VoxelMapManager(voxel_config, voxel_map));
   vio_manager.reset(new VIOManager());
   root_dir = ROOT_DIR;
@@ -113,7 +126,10 @@ void LIVMapper::readParameters(rclcpp::Node::SharedPtr &node)
   try_declare.template operator()<int>("pcd_save.interval", -1);
   try_declare.template operator()<bool>("pcd_save.pcd_save_en", false);
   try_declare.template operator()<bool>("pcd_save.colmap_output_en", false);
+  try_declare.template operator()<bool>("pcd_save.save_raw_pcd", true);
+  try_declare.template operator()<bool>("pcd_save.incremental_voxel_en", false);
   try_declare.template operator()<double>("pcd_save.filter_size_pcd", 0.5);
+  try_declare.template operator()<double>("pcd_save.max_abs_coordinate", 10000.0);
   try_declare.template operator()<std::string>(
     "pcd_save.output_directory", std::string(ROOT_DIR) + "Log/PCD");
   try_declare.template operator()<vector<double>>("extrin_calib.extrinsic_T", vector<double>{});
@@ -173,7 +189,12 @@ void LIVMapper::readParameters(rclcpp::Node::SharedPtr &node)
   this->node->get_parameter("pcd_save.interval", pcd_save_interval);
   this->node->get_parameter("pcd_save.pcd_save_en", pcd_save_en);
   this->node->get_parameter("pcd_save.colmap_output_en", colmap_output_en);
+  this->node->get_parameter("pcd_save.save_raw_pcd", pcd_save_raw_en);
+  this->node->get_parameter(
+    "pcd_save.incremental_voxel_en", pcd_save_incremental_voxel_en);
   this->node->get_parameter("pcd_save.filter_size_pcd", filter_size_pcd);
+  this->node->get_parameter(
+    "pcd_save.max_abs_coordinate", pcd_save_max_abs_coordinate);
   this->node->get_parameter("pcd_save.output_directory", pcd_output_directory);
   this->node->get_parameter("extrin_calib.extrinsic_T", extrinT);
   this->node->get_parameter("extrin_calib.extrinsic_R", extrinR);
@@ -568,9 +589,112 @@ void LIVMapper::handleLIO()
             << _state.bias_a.transpose() << " " << V3D(_state.inv_expo_time, 0, 0).transpose() << " " << feats_undistort->points.size() << std::endl;
 }
 
-void LIVMapper::savePCD() 
+bool LIVMapper::saveIncrementalLocalizationMap()
 {
-  if (pcd_save_en && (pcl_wait_save->points.size() > 0 || pcl_wait_save_intensity->points.size() > 0) && pcd_save_interval < 0) 
+  if (!localization_voxel_map) return false;
+
+  std::filesystem::create_directories(pcd_output_directory);
+  const std::filesystem::path output_dir(pcd_output_directory);
+  const auto map_path = output_dir / "localization_map.pcd";
+  const auto map_tmp_path = output_dir / "localization_map.pcd.tmp";
+  const auto record_path = output_dir / "localization_map.processing.yaml";
+  const auto record_tmp_path = output_dir / "localization_map.processing.yaml.tmp";
+  std::error_code error;
+  std::filesystem::remove(record_path, error);
+  std::filesystem::remove(map_tmp_path, error);
+  std::filesystem::remove(record_tmp_path, error);
+
+  const auto start = std::chrono::steady_clock::now();
+  const auto cloud = localization_voxel_map->toPointCloud();
+  const auto stats = localization_voxel_map->stats();
+  if (!cloud || cloud->empty() || stats.accepted_points == 0 || !stats.has_bounds)
+  {
+    RCLCPP_ERROR(this->node->get_logger(), "Incremental localization map is empty; no map saved");
+    return false;
+  }
+
+  pcl::PCDWriter writer;
+  if (writer.writeBinary(map_tmp_path.string(), *cloud) != 0)
+  {
+    RCLCPP_ERROR(
+      this->node->get_logger(), "Failed to write localization map: %s",
+      map_tmp_path.c_str());
+    return false;
+  }
+  std::filesystem::rename(map_tmp_path, map_path, error);
+  if (error)
+  {
+    RCLCPP_ERROR(
+      this->node->get_logger(), "Failed to publish localization map: %s", error.message().c_str());
+    std::filesystem::remove(map_tmp_path, error);
+    return false;
+  }
+
+  const auto finish = std::chrono::steady_clock::now();
+  const double finalize_seconds =
+    std::chrono::duration_cast<std::chrono::duration<double>>(finish - start).count();
+  std::ofstream record(record_tmp_path);
+  record << "schema_version: 1\n";
+  record << "state: ready\n";
+  record << "map_file: localization_map.pcd\n";
+  record << "leaf_size: " << localization_voxel_map->leafSize() << "\n";
+  record << "max_abs_coordinate: " << localization_voxel_map->maxAbsCoordinate() << "\n";
+  record << "input_points: " << stats.input_points << "\n";
+  record << "accepted_points: " << stats.accepted_points << "\n";
+  record << "rejected_nonfinite: " << stats.rejected_nonfinite << "\n";
+  record << "rejected_coordinate_range: " << stats.rejected_coordinate_range << "\n";
+  record << "output_points: " << cloud->size() << "\n";
+  record << "min_xyz: [" << stats.min_xyz[0] << ", " << stats.min_xyz[1] << ", " <<
+    stats.min_xyz[2] << "]\n";
+  record << "max_xyz: [" << stats.max_xyz[0] << ", " << stats.max_xyz[1] << ", " <<
+    stats.max_xyz[2] << "]\n";
+  record << "finalize_seconds: " << finalize_seconds << "\n";
+  record.close();
+  if (!record)
+  {
+    RCLCPP_ERROR(
+      this->node->get_logger(), "Failed to write localization map record: %s",
+      record_tmp_path.c_str());
+    return false;
+  }
+  std::filesystem::rename(record_tmp_path, record_path, error);
+  if (error)
+  {
+    RCLCPP_ERROR(
+      this->node->get_logger(), "Failed to publish localization map record: %s",
+      error.message().c_str());
+    std::filesystem::remove(record_tmp_path, error);
+    return false;
+  }
+
+  RCLCPP_INFO(
+    this->node->get_logger(),
+    "Localization map ready: %s input=%lu accepted=%lu rejected_nonfinite=%lu "
+    "rejected_coordinate_range=%lu output=%lu leaf=%.3f finalize_seconds=%.3f",
+    map_path.c_str(), stats.input_points, stats.accepted_points, stats.rejected_nonfinite,
+    stats.rejected_coordinate_range, cloud->size(), localization_voxel_map->leafSize(),
+    finalize_seconds);
+  return true;
+}
+
+void LIVMapper::savePCD()
+{
+  if (!pcd_save_en || pcd_save_interval >= 0) return;
+
+  if (localization_voxel_map)
+  {
+    saveIncrementalLocalizationMap();
+    if (pcd_save_raw_en && !pcl_wait_save_intensity->empty())
+    {
+      std::filesystem::create_directories(pcd_output_directory);
+      const std::string raw_points_dir = pcd_output_directory + "/all_raw_points.pcd";
+      pcl::PCDWriter writer;
+      writer.writeBinary(raw_points_dir, *pcl_wait_save_intensity);
+    }
+    return;
+  }
+
+  if (pcl_wait_save->points.size() > 0 || pcl_wait_save_intensity->points.size() > 0)
   {
     std::filesystem::create_directories(pcd_output_directory);
     std::string raw_points_dir = pcd_output_directory + "/all_raw_points.pcd";
@@ -610,7 +734,7 @@ void LIVMapper::savePCD()
         }
       }
     }
-    else 
+    else
     {
       PointCloudXYZI::Ptr downsampled_cloud(new PointCloudXYZI);
       pcl::VoxelGrid<PointType> voxel_filter;
@@ -1292,7 +1416,17 @@ void LIVMapper::publish_frame_world(const rclcpp::Publisher<sensor_msgs::msg::Po
     }
     else
     {
-      *pcl_wait_save_intensity += *pcl_w_wait_pub;
+      if (localization_voxel_map)
+      {
+        for (const auto & point : pcl_w_wait_pub->points)
+        {
+          localization_voxel_map->addPoint(point.x, point.y, point.z, point.intensity);
+        }
+      }
+      if (pcd_save_raw_en || !localization_voxel_map)
+      {
+        *pcl_wait_save_intensity += *pcl_w_wait_pub;
+      }
     }
     scan_wait_num++;
 

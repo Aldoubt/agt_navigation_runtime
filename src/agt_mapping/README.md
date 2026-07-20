@@ -7,10 +7,17 @@
 - `/agt/mapping/registered_points_lidar`：供射线地图使用的当前帧雷达坐标点云。
 - `odom -> base_footprint`：由当前连续里程计唯一发布。
 
-建图模式由 `agt_bringup` 覆盖 `pcd_save.pcd_save_en=true`，正常退出时输出
-`all_raw_points.pcd` 和按 `filter_size_pcd` 降采样的 `all_downsampled_points.pcd`。
-导航模式明确覆盖为 false，只提供连续里程计和当前帧点云。应通过
+建图模式由 `agt_bringup` 覆盖 `pcd_save.pcd_save_en=true`。LIO-only 模式在运行中使用
+带符号 64 位稀疏体素键累计质心，正常退出时直接输出 `localization_map.pcd` 和
+`localization_map.processing.yaml`，不再为关机降采样保留完整原始点云。Bunker 基线体素为
+`0.25 m`，绝对坐标保护上限为 `10000 m`；非有限点和越界点会被拒绝并写入处理记录。
+只有处理记录为 `state: ready` 的 PCD 才能交给重定位。导航模式明确覆盖保存为 false，
+只提供连续里程计和当前帧点云。应通过
 `agt_bringup/system.launch.py` 切换模式，不要直接修改基础 YAML，避免导航时覆盖地图。
+
+x86 构建固定使用通用 `x86-64` 指令集并仅以 `-mtune=native` 调优，保持 Eigen 与系统
+PCL 的 16 字节对齐 ABI 一致。不要重新加入 `-march=native`，否则 PCL `VoxelGrid`
+分配的点缓冲区可能在 FAST-LIVO 析构时以不同策略释放并崩溃。
 
 算法基线固定为 `Aldoubt/FASTLIVO2_ROS2@a713004`，MID360 使用 Livox
 `CustomMsg` 输入。该版本无条件发布 `camera_init -> aft_mapped`。使用前必须应用

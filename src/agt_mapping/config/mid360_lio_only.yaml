@@ -90,6 +90,9 @@
     pcd_save:
       pcd_save_en: false
       colmap_output_en: false
-      filter_size_pcd: 0.1
+      save_raw_pcd: false
+      incremental_voxel_en: true
+      filter_size_pcd: 0.25
+      max_abs_coordinate: 10000.0
       interval: -1
       output_directory: runtime/maps/fast_livo2

@@ -16,6 +16,7 @@ which is included as part of this source code package.
 #include "IMU_Processing.h"
 #include "vio.h"
 #include "preprocess.h"
+#include "incremental_voxel_map.h"
 #ifdef PRE_ROS_IRON
 #include <cv_bridge/cv_bridge.h>
 #else
@@ -42,6 +43,7 @@ public:
   void handleVIO();
   void handleLIO();
   void savePCD();
+  bool saveIncrementalLocalizationMap();
   void processImu();
   
   bool sync_packages(LidarMeasureGroup &meas);
@@ -91,9 +93,12 @@ public:
   double _first_lidar_time = 0.0;
   double match_time = 0, solve_time = 0, solve_const_H_time = 0;
 
-  bool lidar_map_inited = false, pcd_save_en = false, pub_effect_point_en = false, pose_output_en = false, ros_driver_fix_en = false;
+  bool lidar_map_inited = false, pcd_save_en = false, pcd_save_raw_en = true;
+  bool pcd_save_incremental_voxel_en = false;
+  bool pub_effect_point_en = false, pose_output_en = false, ros_driver_fix_en = false;
   int pcd_save_interval = -1, pcd_index = 0;
   std::string pcd_output_directory;
+  double pcd_save_max_abs_coordinate = 10000.0;
   int pub_scan_num = 1;
 
   StatesGroup imu_propagate, latest_ekf_state;
@@ -145,6 +150,7 @@ public:
   PointCloudXYZI::Ptr pcl_wait_pub;
   PointCloudXYZRGB::Ptr pcl_wait_save;
   PointCloudXYZI::Ptr pcl_wait_save_intensity;
+  std::unique_ptr<fast_livo::IncrementalVoxelMap> localization_voxel_map;
 
   ofstream fout_pre, fout_out, fout_pcd_pos, fout_points;
 

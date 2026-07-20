@@ -35,8 +35,12 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64|ARM|AARCH64)")
   add_definitions(-DARM_ARCH)
 else()
   # x86-64 (Intel/AMD) optimizations
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -mtune=native -funroll-loops") #-flto
-  message(STATUS "Using general x86 optimizations: -O3 -march=native -mtune=native -funroll-loops") 
+  # Keep Eigen's alignment ABI compatible with the distribution PCL binaries.
+  # Enabling AVX through -march=native changes Eigen's heap alignment from 16
+  # to 32 bytes; PCL then allocates VoxelGrid output with one policy and this
+  # process releases it with another, causing a shutdown-time invalid free.
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=x86-64 -mtune=native -funroll-loops") #-flto
+  message(STATUS "Using ABI-safe x86 optimizations: -O3 -march=x86-64 -mtune=native -funroll-loops")
   add_definitions(-DX86_ARCH)
 endif()
 
@@ -142,6 +146,7 @@ add_library(lio src/voxel_map.cpp)
 add_library(pre src/preprocess.cpp)
 add_library(imu_proc src/IMU_Processing.cpp)
 add_library(laser_mapping src/LIVMapper.cpp)
+add_library(incremental_voxel_map src/incremental_voxel_map.cpp)
 add_library(utils src/utils.cpp)
 
 ament_target_dependencies(vio ${dependencies} )
@@ -149,9 +154,11 @@ ament_target_dependencies(lio ${dependencies})
 ament_target_dependencies(pre ${dependencies})
 ament_target_dependencies(imu_proc ${dependencies})
 ament_target_dependencies(laser_mapping ${dependencies})
+target_link_libraries(incremental_voxel_map ${PCL_LIBRARIES})
 
 # linking libraries or executables to public dependencies
 target_link_libraries(laser_mapping 
+    incremental_voxel_map
     vikit_common::vikit_common
     vikit_ros::vikit_ros
     ${COMMON_DEPENDENCIES}
@@ -182,6 +189,17 @@ target_link_libraries(fastlivo_mapping
 # Link mimalloc if found
 if(mimalloc_FOUND)
   target_link_libraries(fastlivo_mapping mimalloc)
+endif()
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(
+    test_incremental_voxel_map
+    test/test_incremental_voxel_map.cpp
+  )
+  if(TARGET test_incremental_voxel_map)
+    target_link_libraries(test_incremental_voxel_map incremental_voxel_map ${PCL_LIBRARIES})
+  endif()
 endif()
 
 # Install the executable
