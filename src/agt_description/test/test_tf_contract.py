@@ -1,5 +1,9 @@
 from pathlib import Path
+import math
 import xml.etree.ElementTree as ET
+
+import pytest
+import yaml
 
 
 XACRO_NS = "http://www.ros.org/wiki/xacro"
@@ -55,3 +59,20 @@ def test_extrinsics_are_launch_overridable():
         "lidar_pitch",
         "lidar_yaw",
     }.issubset(argument_names)
+
+
+def test_bunker_rough_mid360_translation_matches_vehicle_measurement():
+    config = Path(__file__).parents[1] / "config" / "bunker_mid360.yaml"
+    parameters = yaml.safe_load(config.read_text(encoding="utf-8"))["/**"][
+        "ros__parameters"
+    ]
+
+    assert parameters["calibration_verified"] is False
+    assert parameters["lidar_x"] == pytest.approx(
+        parameters["base_length"] / 2.0 - 0.250
+    )
+    assert parameters["lidar_y"] == pytest.approx(0.0)
+    assert parameters["base_link_z"] + parameters["lidar_z"] == pytest.approx(0.500)
+    assert parameters["lidar_roll"] == pytest.approx(0.0)
+    assert parameters["lidar_pitch"] == pytest.approx(math.radians(30.0))
+    assert parameters["lidar_yaw"] == pytest.approx(0.0)

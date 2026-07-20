@@ -25,9 +25,13 @@ ros2 launch agt_description description.launch.py \
   lidar_x:=0.12 lidar_z:=0.63 lidar_pitch:=-0.0872665
 ```
 
-BUNKER 外廓尺寸来自已提供的产品图，但 `base_link` 基准高度和 MID360 外参仍未实测，配置中的
-`calibration_verified: false` 不应在实车验收前改为 `true`。不需要同步修改 Xacro、launch
-或 sensor profile。
+BUNKER 外廓尺寸来自已提供的产品图。2026-07-19 粗测 MID360 中心位于车体纵向中心线、
+车头外沿向后 `0.250 m`、离地 `0.500 m`。按当前几何中心 `base_link` 和暂定的
+`base_link_z=0.200 m`，配置换算为 `base_link -> lidar_link` 平移
+`[0.2615, 0.0, 0.3000] m`；雷达 `+Z` 轴向车头 `+X` 前倾 `30 deg`，按 ROS
+右手系记录为 `rpy=[0.0, 0.5235987756, 0.0] rad`。这些数据仍是粗测值，且
+`base_link` 基准高度尚未精测，因此 `calibration_verified: false` 仍须保留；不需要同步修改
+Xacro、launch 或 sensor profile。
 
 ## Frame 兼容策略
 
