@@ -25,8 +25,9 @@ PCL 的 16 字节对齐 ABI 一致。不要重新加入 `-march=native`，否则
 结合 `agt_description` 外参转换并发布标准 TF。未应用补丁时禁止同时启动机器人描述。
 同时应用 `patches/fast_livo2_cmake_portability.patch`，移除算法仓库对工作区
 `../../install` 布局的硬编码，改用 vikit 导出的 CMake target。算法源码已固定在
-`third_party/fast_livo2_ros2` 并随本项目编译。构建前先 source 旧工作区以提供 vikit 依赖，
-运行时最后 source 本项目 `install/setup.bash`，确保使用本仓库算法版本。
+`third_party/fast_livo2_ros2` 并随本项目编译。`vikit_common` 和 `vikit_ros` 也已按固定提交
+vendor 到 `third_party/rpg_vikit_ros2_fisheye`，全新工作区只需 source ROS 后构建本仓库；
+禁止再 source 旧工作区来提供 vikit，以免隐藏依赖或加载错误 ABI 的共享库。
 该分支在 `common.img_en=false` 时仍初始化相机模型，因此 launch 会额外加载
 `config/camera_disabled_placeholder.yaml`。其中是上游示例占位值，不是 MID360 或机器人
 相机标定，也不会启用图像订阅。
@@ -37,7 +38,6 @@ PCL 的 16 字节对齐 ABI 一致。不要重新加入 `-march=native`，否则
 
 ```bash
 ros2 launch agt_description description.launch.py
-source /home/yangxuan/ros2_ws/install/setup.bash
 source install/setup.bash
 ros2 launch agt_mapping fast_livo2_mapping.launch.py
 ```

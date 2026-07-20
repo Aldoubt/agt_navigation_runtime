@@ -25,6 +25,21 @@
 FAST-LIVO2 已 vendor 到主仓库，不再由 `nav_dependencies.repos` 下载，也不依赖 `/tmp`
 安装空间。算法接口和 topic remap 仍由 `agt_mapping` 管理。
 
+## rpg_vikit_ros2_fisheye
+
+- 来源：`https://github.com/Rhymer-Lcy/rpg_vikit_ros2_fisheye.git`
+- 固定提交：`fee3d50ae2af472fb27eb62b4526dd4b32ede8ef`
+- 目录：`third_party/rpg_vikit_ros2_fisheye`
+- 导入范围：仅 FAST-LIVO 使用的 `vikit_common`、`vikit_ros`；不导入 `vikit_py`、嵌套
+  Git 元数据、备份和上游 `ername` 残留
+- 本地调整：补齐 `ament_cmake` build type，移除失效的 `cmake_modules` manifest 依赖，
+  x86 使用 `-march=x86-64 -mtune=native` 保持与系统 PCL/FAST-LIVO 的 Eigen 对齐 ABI 一致
+- 许可证状态：两个 package manifest 均声明 GPLv3，但固定提交没有独立 LICENSE/COPYING；
+  正式对外发布前必须完成来源和许可证文本审计，详见 `AGT_VENDOR.md`
+
+Vikit 已随主仓库构建，不再由 `nav_dependencies.repos` 导入，也不允许通过旧工作区 overlay
+掩盖缺失依赖。
+
 ## relocalization_core / ndt_omp_ros2
 
 - `relocalization_core` 来源：旧工作区 `relocalization_module/relocalization_core`，Apache-2.0，
@@ -39,7 +54,7 @@ FAST-LIVO2 已 vendor 到主仓库，不再由 `nav_dependencies.repos` 下载�
 
 - 项目维护 fork：`https://github.com/Aldoubt/Ros_Qt5_Gui_App.git`
 - 分支：`agt-navigation-v2`
-- 固定提交：`bee413235b660ce530e07b1d22a07120ffe9e854`
+- 固定提交：`f2a043d3ede8c32f6d01bb77ae0147901fe3abb8`
 - 原始上游：`https://github.com/chengyangkj/Ros_Qt5_Gui_App.git`
 - 目录：`third_party/ros_qt5_gui_app`
 - 上游许可证：GPL-2.0，见 `ros_qt5_gui_app/LICENSE`
