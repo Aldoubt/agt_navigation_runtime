@@ -30,6 +30,13 @@ ros2 launch agt_localization relocalization.launch.py \
 在 RViz2 中使用 `2D Pose Estimate` 发布初值。调试时可将 `backend:=icp`；参数阈值见
 `config/relocalization.yaml`。目前只有 PGM/YAML 栅格图，不能替代重定位所需的三维 PCD。
 
+## NDT 线程参数
+
+`ndt_num_threads` 必须大于等于 `1`，Bunker 实车验证基线固定为 `4`。ROS 参数入口会拒绝
+`0` 和负数；重定位核心与 NDT-OMP 还会将绕过 ROS 参数入口的非正值钳制为 `1`，避免
+按零线程创建工作数组后发生越界。2026-07-19 实车使用 `4` 线程重定位成功，观察到的
+fitness 约为 `0.01`–`0.02`；该结果仍需在完整导航启动前使用最终导航 PCD 复验。
+
 ## 待验证
 
 - 用同一建图数据导出的 PCD 检查 NDT/ICP 收敛率、fitness 和恢复时间。

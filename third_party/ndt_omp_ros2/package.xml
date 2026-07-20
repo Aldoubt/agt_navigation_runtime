@@ -13,6 +13,8 @@
   <build_depend>libpcl-all-dev</build_depend>
   <build_depend>std_msgs</build_depend>
 
+  <test_depend>ament_cmake_gtest</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>

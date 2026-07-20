@@ -87,4 +87,13 @@ ament_export_include_directories(include)
 ament_export_libraries(ndt_omp)
 ament_export_targets(export_ndt_omp_ros2 HAS_LIBRARY_TARGET)
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_ndt_thread_count test/test_ndt_thread_count.cpp)
+  if(TARGET test_ndt_thread_count)
+    target_link_libraries(test_ndt_thread_count ndt_omp ${PCL_LIBRARIES})
+    target_include_directories(test_ndt_thread_count PRIVATE include ${PCL_INCLUDE_DIRS})
+  endif()
+endif()
+
 ament_package()

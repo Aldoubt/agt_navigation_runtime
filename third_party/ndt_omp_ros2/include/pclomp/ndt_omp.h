@@ -109,7 +109,11 @@ namespace pclomp
 		virtual ~NormalDistributionsTransform() {}
 
     void setNumThreads(int n) {
-      num_threads_ = n;
+      num_threads_ = n > 0 ? n : 1;
+    }
+
+    int getNumThreads() const {
+      return num_threads_;
     }
 
 		/** \brief Provide a pointer to the input target (e.g., the point cloud that we want to align the input source to).

@@ -28,5 +28,5 @@
     crop_z_max: 2.0
     ndt_resolution: 1.0
     ndt_step_size: 0.1
-    ndt_num_threads: 0
+    ndt_num_threads: 4
     ndt_search_method: DIRECT7

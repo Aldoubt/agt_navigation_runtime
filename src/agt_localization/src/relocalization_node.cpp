@@ -1,16 +1,16 @@
 #include <chrono>
+#include <exception>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <string>
-
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 
 #include <pcl/common/transforms.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <rcl_interfaces/msg/integer_range.hpp>
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <std_msgs/msg/string.hpp>
@@ -27,13 +27,19 @@ namespace
 using relocalization_core::CloudT;
 using relocalization_core::PointT;
 
-int ompMaxThreads()
+const rcl_interfaces::msg::ParameterDescriptor & ndtNumThreadsDescriptor()
 {
-#ifdef _OPENMP
-  return omp_get_max_threads();
-#else
-  return 1;
-#endif
+  static const auto descriptor = []() {
+      rcl_interfaces::msg::ParameterDescriptor value;
+      value.description = "NDT-OMP worker threads; must be at least 1";
+      rcl_interfaces::msg::IntegerRange range;
+      range.from_value = 1;
+      range.to_value = std::numeric_limits<int>::max();
+      range.step = 1;
+      value.integer_range.push_back(range);
+      return value;
+    }();
+  return descriptor;
 }
 
 std::string statusText(
@@ -97,7 +103,9 @@ public:
     config.crop_box.z_max = declare_parameter<double>("crop_z_max", 2.0);
     config.ndt.resolution = declare_parameter<double>("ndt_resolution", 1.0);
     config.ndt.step_size = declare_parameter<double>("ndt_step_size", 0.1);
-    config.ndt.num_threads = declare_parameter<int>("ndt_num_threads", ompMaxThreads());
+    config.ndt.num_threads = declare_parameter<int>(
+      "ndt_num_threads", relocalization_core::kDefaultNdtNumThreads,
+      ndtNumThreadsDescriptor());
     config.ndt.search_method = parseNdtSearchMethod(
       declare_parameter<std::string>("ndt_search_method", "DIRECT7"));
 
@@ -128,8 +136,10 @@ public:
 
     RCLCPP_INFO(
       get_logger(),
-      "Relocalization node ready. backend=%s cloud_topic=%s initialpose_topic=%s global_map_pcd=%s",
+      "Relocalization node ready. backend=%s ndt_num_threads=%d cloud_topic=%s "
+      "initialpose_topic=%s global_map_pcd=%s",
       relocalization_core::toString(relocalizer_.config().backend).c_str(),
+      relocalizer_.config().ndt.num_threads,
       cloud_topic_.c_str(), initialpose_topic_.c_str(), global_map_pcd_.c_str());
   }
 
@@ -348,7 +358,15 @@ private:
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<RelocalizationNode>());
+  int result = 0;
+  try {
+    rclcpp::spin(std::make_shared<RelocalizationNode>());
+  } catch (const std::exception & error) {
+    RCLCPP_FATAL(
+      rclcpp::get_logger("relocalization_node"), "Failed to start relocalization: %s",
+      error.what());
+    result = 1;
+  }
   rclcpp::shutdown();
-  return 0;
+  return result;
 }

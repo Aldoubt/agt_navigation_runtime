@@ -6,6 +6,13 @@
 namespace relocalization_core
 {
 
+constexpr int kDefaultNdtNumThreads = 4;
+
+constexpr int sanitizeNdtNumThreads(int num_threads)
+{
+  return num_threads > 0 ? num_threads : 1;
+}
+
 struct CropBoxConfig
 {
   bool enabled{true};
@@ -22,7 +29,7 @@ struct NdtConfig
 {
   double resolution{1.0};
   double step_size{0.1};
-  int num_threads{0};
+  int num_threads{kDefaultNdtNumThreads};
   int search_method{2};  // pclomp::DIRECT7
 };
 
@@ -40,6 +47,12 @@ struct RelocalizerConfig
   double max_correspondence_distance{3.0};
   NdtConfig ndt{};
 };
+
+inline RelocalizerConfig sanitizeRelocalizerConfig(RelocalizerConfig config)
+{
+  config.ndt.num_threads = sanitizeNdtNumThreads(config.ndt.num_threads);
+  return config;
+}
 
 }  // namespace relocalization_core
 

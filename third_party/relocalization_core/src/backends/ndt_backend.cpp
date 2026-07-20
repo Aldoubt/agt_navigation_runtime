@@ -13,7 +13,7 @@ NdtOmpBackend::NdtOmpBackend(const RelocalizerConfig & config)
   registration_.setTransformationEpsilon(config_.transform_epsilon);
   registration_.setEuclideanFitnessEpsilon(config_.euclidean_fitness_epsilon);
   registration_.setMaximumIterations(config_.max_iterations);
-  registration_.setNumThreads(config_.ndt.num_threads);
+  registration_.setNumThreads(sanitizeNdtNumThreads(config_.ndt.num_threads));
   registration_.setNeighborhoodSearchMethod(resolveSearchMethod());
 }
 

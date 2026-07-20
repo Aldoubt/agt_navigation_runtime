@@ -80,6 +80,36 @@ TEST(RelocalizerTest, ReturnsMapNotReadyWhenMapMissing)
   EXPECT_EQ(result.status_code, RelocalizationStatusCode::kMapNotReady);
 }
 
+TEST(RelocalizerConfigTest, UsesValidatedFourThreadDefault)
+{
+  const RelocalizerConfig config;
+  EXPECT_EQ(config.ndt.num_threads, 4);
+}
+
+TEST(RelocalizerConfigTest, ClampsNonPositiveNdtThreadCounts)
+{
+  for (const int invalid_threads : {0, -1, -4}) {
+    RelocalizerConfig config;
+    config.ndt.num_threads = invalid_threads;
+    Relocalizer relocalizer(config);
+    EXPECT_EQ(relocalizer.config().ndt.num_threads, 1);
+  }
+}
+
+TEST(RelocalizerConfigTest, SetConfigClampsInvalidAndPreservesValidThreadCounts)
+{
+  Relocalizer relocalizer;
+  RelocalizerConfig config;
+
+  config.ndt.num_threads = 0;
+  relocalizer.setConfig(config);
+  EXPECT_EQ(relocalizer.config().ndt.num_threads, 1);
+
+  config.ndt.num_threads = 4;
+  relocalizer.setConfig(config);
+  EXPECT_EQ(relocalizer.config().ndt.num_threads, 4);
+}
+
 TEST(RelocalizerTest, ReturnsScanTooSmallAfterPreprocessing)
 {
   RelocalizerConfig config;

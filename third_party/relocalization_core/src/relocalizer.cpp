@@ -12,7 +12,7 @@ Relocalizer::Relocalizer()
 }
 
 Relocalizer::Relocalizer(const RelocalizerConfig & config)
-: config_(config), scan_preprocessor_(config)
+: config_(sanitizeRelocalizerConfig(config)), scan_preprocessor_(config_)
 {
   rebuildBackend();
 }
@@ -37,7 +37,7 @@ bool Relocalizer::setGlobalMapFromPcd(const std::string & pcd_path, const std::s
 
 void Relocalizer::setConfig(const RelocalizerConfig & config)
 {
-  config_ = config;
+  config_ = sanitizeRelocalizerConfig(config);
   scan_preprocessor_.setConfig(config_);
   rebuildBackend();
   if (map_store_.hasMap() && backend_) {
