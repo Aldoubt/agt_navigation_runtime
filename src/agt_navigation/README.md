@@ -47,9 +47,10 @@ ros2 launch agt_navigation offline_navigation.launch.py \
 
 ## Qt 多点任务
 
-第三方 Qt 的原生 **Start Task Chain** 按机器人距离轮询，不读取 Nav2 Action 结果，不能
-作为可靠执行入口。Qt 仍用于编辑拓扑点并把任务链保存为 JSON；每次保存使用新文件名，
-然后由项目 Action 校验并执行：
+维护版 Qt 的 **Start Task Chain** 已直接调用
+`/agt/navigation/execute_waypoint_task`，状态来自 Nav2 `FollowWaypoints` Action，而不是机器人
+位姿距离。**Stop Task Chain** 会请求取消；“Repeat twice (finite)”只执行两遍，不存在无限循环。
+终端客户端仍可用于自动化和故障排查：
 
 ```bash
 ros2 run agt_navigation execute_waypoint_task.py \

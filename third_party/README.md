@@ -37,13 +37,15 @@ FAST-LIVO2 已 vendor 到主仓库，不再由 `nav_dependencies.repos` 下载�
 
 ## Ros_Qt5_Gui_App
 
-- 来源：`https://github.com/chengyangkj/Ros_Qt5_Gui_App.git`
-- 固定提交：`b0825e3cba3e7186cba8a6b83ff230be37c8b1fb`
+- 项目维护 fork：`https://github.com/Aldoubt/Ros_Qt5_Gui_App.git`
+- 分支：`agt-navigation-v2`
+- 固定提交：`bee413235b660ce530e07b1d22a07120ffe9e854`
+- 原始上游：`https://github.com/chengyangkj/Ros_Qt5_Gui_App.git`
 - 目录：`third_party/ros_qt5_gui_app`
 - 上游许可证：GPL-2.0，见 `ros_qt5_gui_app/LICENSE`
-- 本地策略：V2 topic 和运行配置放在 `agt_ui_bridge`；vendor 源码仅保留 ROS2 集成所需的
-  最小修复，包括可配置 `FixedFrameId`、通信线程安全退出和幂等 ROS shutdown。构建产物
-  写入 `build/ros_qt5_gui_app`，不提交 Git。
+- 本地策略：主仓库内置 fork 的固定源码快照，配置和构建时不联网；Qt 修改同步到上述
+  分支并同时更新固定提交。源码包含项目多点 Action、地图加载保护、可配置 `FixedFrameId`、
+  通信线程安全退出和幂等 ROS shutdown。构建产物写入 `build/ros_qt5_gui_app`，不提交 Git。
 
 ## BUNKER ROS2
 
