@@ -10,6 +10,7 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/ExecuteCoverageTask.action"
+  "action/ExecuteWaypointTask.action"
   DEPENDENCIES action_msgs std_msgs geometry_msgs nav_msgs
 )
 
@@ -22,6 +23,10 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_execute_coverage_task_serialization
     test/test_execute_coverage_task_serialization.py
+  )
+  ament_add_pytest_test(
+    test_execute_waypoint_task_serialization
+    test/test_execute_waypoint_task_serialization.py
   )
   ament_add_gtest(
     test_execute_coverage_task_cpp

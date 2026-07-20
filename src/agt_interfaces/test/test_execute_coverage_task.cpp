@@ -4,6 +4,7 @@
 #include <string>
 
 #include "agt_interfaces/action/execute_coverage_task.hpp"
+#include "agt_interfaces/action/execute_waypoint_task.hpp"
 
 TEST(ExecuteCoverageTaskInterface, GeneratedTypesAreUsable)
 {
@@ -31,4 +32,28 @@ TEST(ExecuteCoverageTaskInterface, GeneratedTypesAreUsable)
   EXPECT_EQ(result.repaired_segment_count, static_cast<std::uint32_t>(1U));
   EXPECT_EQ(feedback.current_stage, std::string("READY"));
   EXPECT_EQ(feedback.total_swaths, static_cast<std::uint32_t>(8U));
+}
+
+TEST(ExecuteWaypointTaskInterface, GeneratedTypesAreUsable)
+{
+  agt_interfaces::action::ExecuteWaypointTask::Goal goal;
+  goal.task_file = "/runtime/maps/demo/task.json";
+  goal.poses.resize(0U);
+  goal.loop = false;
+  goal.loop_count = 1U;
+
+  agt_interfaces::action::ExecuteWaypointTask::Result result;
+  result.success = false;
+  result.error_code = 42U;
+  result.missed_waypoints = {1, 3};
+
+  agt_interfaces::action::ExecuteWaypointTask::Feedback feedback;
+  feedback.state = "RUNNING";
+  feedback.current_waypoint = 1U;
+  feedback.total_waypoints = 4U;
+
+  EXPECT_EQ(goal.loop_count, static_cast<std::uint32_t>(1U));
+  EXPECT_EQ(result.error_code, static_cast<std::uint16_t>(42U));
+  EXPECT_EQ(result.missed_waypoints.size(), 2U);
+  EXPECT_EQ(feedback.state, std::string("RUNNING"));
 }

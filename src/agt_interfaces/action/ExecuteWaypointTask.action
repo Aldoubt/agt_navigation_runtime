@@ -1,0 +1,19 @@
+# Path to a Qt-compatible task-chain JSON file on the robot computer.
+# Leave empty when poses is supplied.
+string task_file
+# Portable frontend input. Exactly one of task_file and poses must be supplied.
+geometry_msgs/PoseStamped[] poses
+# A loop is always finite. false executes the chain once.
+bool loop
+# Required when loop=true; ignored otherwise.
+uint32 loop_count
+---
+bool success
+uint16 error_code
+string message
+int32[] missed_waypoints
+---
+string state
+uint32 loop_index
+uint32 current_waypoint
+uint32 total_waypoints

@@ -45,6 +45,22 @@ ros2 launch agt_navigation offline_navigation.launch.py \
 也可向 Qt5 使用的 `/goal_pose` 发布 `geometry_msgs/PoseStamped`；`goal_pose_bridge.py`
 会转换为 NavigateToPose action，并在 `/agt/navigation/status` 发布桥接状态。
 
+## Qt 多点任务
+
+第三方 Qt 的原生 **Start Task Chain** 按机器人距离轮询，不读取 Nav2 Action 结果，不能
+作为可靠执行入口。Qt 仍用于编辑拓扑点并把任务链保存为 JSON；每次保存使用新文件名，
+然后由项目 Action 校验并执行：
+
+```bash
+ros2 run agt_navigation execute_waypoint_task.py \
+  /absolute/path/to/task_chain.json
+```
+
+`waypoint_task_server.py` 调用 Nav2 `FollowWaypoints`，检查当前地图边界、重复追加、Action
+状态和 missed waypoints。它要求 `agt_safety` 已由操作员显式使能；自身不会使能运动。
+取消客户端会取消 Nav2 子目标。有限重复可使用 `--loop-count 2`，实车 baseline 验收前
+保持单次执行。接口细节见 `docs/interfaces/waypoint_task_action.md`。
+
 ## 接真实地图
 
 先启动机器人描述、LIO、障碍过滤和重定位，再执行：

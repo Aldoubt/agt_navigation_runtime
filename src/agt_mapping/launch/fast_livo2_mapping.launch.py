@@ -23,6 +23,8 @@ def generate_launch_description():
         Node(
             package="fast_livo", executable="fastlivo_mapping", name="fast_livo2_backend",
             output="screen",
+            sigterm_timeout="30",
+            sigkill_timeout="10",
             parameters=[
                 LaunchConfiguration("params_file"),
                 LaunchConfiguration("camera_params_file"), {
@@ -47,6 +49,8 @@ def generate_launch_description():
         Node(
             package="agt_mapping", executable="fast_livo2_adapter.py",
             name="agt_mapping_fast_livo2_adapter", output="screen",
+            sigterm_timeout="10",
+            sigkill_timeout="5",
             parameters=[str(mapping_share / "config" / "fast_livo2_adapter.yaml"), {
                 "use_sim_time": LaunchConfiguration("use_sim_time")
             }],

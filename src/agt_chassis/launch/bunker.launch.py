@@ -45,6 +45,8 @@ def generate_launch_description():
                 executable="chassis_command_guard.py",
                 name="agt_chassis_command_guard",
                 output="screen",
+                sigterm_timeout="10",
+                sigkill_timeout="5",
                 parameters=[LaunchConfiguration("chassis_config"), {"use_sim_time": use_sim_time}],
             ),
             Node(
@@ -52,6 +54,8 @@ def generate_launch_description():
                 executable="bunker_status_bridge.py",
                 name="agt_bunker_status_bridge",
                 output="screen",
+                sigterm_timeout="10",
+                sigkill_timeout="5",
                 parameters=[LaunchConfiguration("chassis_config"), {"use_sim_time": use_sim_time}],
             ),
             Node(
@@ -60,6 +64,8 @@ def generate_launch_description():
                 name="agt_bunker_base",
                 output="screen",
                 emulate_tty=True,
+                sigterm_timeout="10",
+                sigkill_timeout="5",
                 condition=IfCondition(LaunchConfiguration("start_driver")),
                 parameters=[
                     {
