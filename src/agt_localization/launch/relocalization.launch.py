@@ -17,6 +17,15 @@ def generate_launch_description():
                 default_value=str(package_share / "config" / "relocalization.yaml"),
             ),
             DeclareLaunchArgument("global_map_pcd", default_value=""),
+            DeclareLaunchArgument("global_map_processing_record", default_value=""),
+            DeclareLaunchArgument("configured_candidates_yaml", default_value=""),
+            DeclareLaunchArgument("last_valid_pose_path", default_value=""),
+            DeclareLaunchArgument(
+                "external_coarse_pose_topic", default_value="/agt/localization/coarse_pose"
+            ),
+            DeclareLaunchArgument("manual_initialpose_enabled", default_value="true"),
+            DeclareLaunchArgument("map_id", default_value=""),
+            DeclareLaunchArgument("map_hash", default_value=""),
             DeclareLaunchArgument("backend", default_value="ndt"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             Node(
@@ -28,6 +37,21 @@ def generate_launch_description():
                     LaunchConfiguration("params_file"),
                     {
                         "global_map_pcd": LaunchConfiguration("global_map_pcd"),
+                        "global_map_processing_record": LaunchConfiguration(
+                            "global_map_processing_record"
+                        ),
+                        "configured_candidates_yaml": LaunchConfiguration(
+                            "configured_candidates_yaml"
+                        ),
+                        "last_valid_pose_path": LaunchConfiguration("last_valid_pose_path"),
+                        "external_coarse_pose_topic": LaunchConfiguration(
+                            "external_coarse_pose_topic"
+                        ),
+                        "manual_initialpose_enabled": ParameterValue(
+                            LaunchConfiguration("manual_initialpose_enabled"), value_type=bool
+                        ),
+                        "map_id": LaunchConfiguration("map_id"),
+                        "map_hash": LaunchConfiguration("map_hash"),
                         "backend": LaunchConfiguration("backend"),
                         "use_sim_time": ParameterValue(
                             LaunchConfiguration("use_sim_time"), value_type=bool

@@ -1,15 +1,24 @@
 # agt_localization
 
-使用全局 PCD 与当前 `lidar_link` 点云执行 ICP/NDT 重定位，质量通过后唯一发布
-`map -> odom`。
+使用全局 PCD 与当前 `lidar_link` 点云执行 ICP/NDT 重定位。候选、配准和质量验证都在本节点
+编排，只有通过质量门禁的结果才更新唯一的 `map -> odom`。
 
 ## 接口
 
 - 输入点云：`/agt/mapping/registered_points_lidar` (`sensor_msgs/PointCloud2`)
-- 初值：`/initialpose` (`geometry_msgs/PoseWithCovarianceStamped`，语义为 `map -> base_link`)
-- 状态：`/agt/localization/status` (`std_msgs/String`)
+- 手动对比入口：`/initialpose` (`geometry_msgs/PoseWithCovarianceStamped`，语义为 `map -> base_link`，默认启用)
+- 结构化状态：`/agt/localization/status` (`agt_interfaces/LocalizationStatus`)
+- 兼容文本状态：`/agt/localization/status_text` (`std_msgs/String`)
+- 重定位 Action：`/agt/localization/relocalize` (`agt_interfaces/action/Relocalize`)
+- 外部粗位姿输入：`/agt/localization/coarse_pose`
+- 当前候选调试位姿：`/agt/localization/candidate_pose`
+- 最终全局位姿：`/agt/localization/global_pose`
 - 对齐点云：`/agt/localization/aligned_points`
 - TF：成功后持续发布 `map -> odom`
+
+`LocalizationStatus.map_hash` 是当前定位 PCD 内容的 `sha256:<64位小写十六进制>` 身份。节点在
+加载候选和 last pose 前重新计算该摘要；processing record 如包含 `pcd_sha256`，必须与实际 PCD
+一致。历史记录缺少摘要时仍可读取，但启动日志会明确提示记录级 hash 未验证。
 
 节点会从 TF 查询 `base_link -> lidar_link` 来修正配准初值，因此应先启动
 `agt_description` 并填写车辆到雷达外参。MID360 雷达到内置 IMU 的内部外参仍由
@@ -24,11 +33,36 @@ source /opt/ros/humble/setup.bash
 source /home/yangxuan/ros2_ws/install/setup.bash
 source install/setup.bash
 ros2 launch agt_localization relocalization.launch.py \
-  global_map_pcd:=/absolute/path/to/global_map.pcd backend:=ndt use_sim_time:=true
+  global_map_pcd:=/absolute/path/to/global_map.pcd \
+  global_map_processing_record:=/absolute/path/to/localization_map.processing.yaml \
+  backend:=ndt use_sim_time:=true
 ```
 
-在 RViz2 中使用 `2D Pose Estimate` 发布初值。调试时可将 `backend:=icp`；参数阈值见
-`config/relocalization.yaml`。目前只有 PGM/YAML 栅格图，不能替代重定位所需的三维 PCD。
+在 RViz2/Qt 中使用 `2D Pose Estimate` 发布手动对比初值，或调用
+`/agt/localization/relocalize` Action 执行自动候选搜索。两条路径复用同一个配准和质量门禁，
+但状态来源分别记录为 `manual_initialpose` 与 Action 的候选来源，便于比较成功率、fitness、
+耗时和拒绝原因。调试时可将 `backend:=icp`；参数阈值见
+`config/relocalization.yaml`。候选示例见 `config/candidates.example.yaml`。
+当前只有 PGM/YAML 栅格图，不能替代重定位所需的三维 PCD。
+
+`manual_initialpose_enabled` 默认是 `true`，用于保留原始人工定位基线。只有在需要验证纯
+Action/自动模式时才显式设为 `false`；关闭后 `/initialpose` 会发布明确的拒绝状态，不会静默
+改走自动候选或直接更新 TF。
+
+导航启动自动 Action、候选 YAML、手动 `/initialpose` 和两种方式的技术差异见
+[`docs/workflows/relocalization_usage.md`](../../docs/workflows/relocalization_usage.md)。启动自动
+模式必须显式设置 `auto_relocalize_on_start:=true`，并准备 last pose、configured candidates 或
+external coarse pose 中至少一种有界来源。
+
+## Tracking supervisor
+
+接受一次候选后进入 `TRACKING`，默认每 5 秒使用最近接受的候选做一次只读验证。验证成功只更新
+结构化状态和质量字段，不重新计算或发布 `map -> odom`；验证失败依次进入 `DEGRADED`、
+`RECOVERING`，连续达到阈值后进入 `LOST`。`LOST` 不会自动启动无界搜索，必须由人工
+`/initialpose` 或 Action 请求显式恢复。阈值和验证周期见 `config/relocalization.yaml`。
+
+`tracking_confirmations_required` 默认保持 `1` 以兼容当前 Bunker 单次重定位基线；提高该值后，
+Action 结果会在连续确认完成前保持非导航有效状态，适合后续接入重复扫描验证。
 
 ## NDT 线程参数
 
@@ -42,3 +76,6 @@ fitness 约为 `0.01`–`0.02`；该结果仍需在完整导航启动前使用�
 - 用同一建图数据导出的 PCD 检查 NDT/ICP 收敛率、fitness 和恢复时间。
 - 标定 `base_link -> lidar_link` 后验证非零外参下的 `map -> odom`。
 - 检查系统中没有第二个 `map -> odom` 发布者，并对错误初值执行拒绝测试。
+- 用 `LocalizationStatus` 和 Action result 验证候选歧义、取消、超时和地图身份拒绝。
+- 对同一 bag 先执行手动 `/initialpose` 基线，再执行自动 Action；按 `candidate_source` 分组
+  比较 `fitness_score`、`runtime_ms`、`tested_candidates`、最终状态和失败原因。

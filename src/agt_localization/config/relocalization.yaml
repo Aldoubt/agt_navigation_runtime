@@ -1,14 +1,38 @@
 /**:
   ros__parameters:
     global_map_pcd: ""
+    global_map_processing_record: ""
     global_frame: map
     odom_frame: odom
     base_frame: base_link
     tracking_frame: lidar_link
     cloud_topic: /agt/mapping/registered_points_lidar
     initialpose_topic: /initialpose
+    relocalize_action_name: /agt/localization/relocalize
+    configured_candidates_yaml: ""
+    last_valid_pose_path: ""
+    external_coarse_pose_topic: /agt/localization/coarse_pose
+    external_coarse_max_age_s: 2.0
+    external_coarse_future_tolerance_s: 0.5
+    manual_initialpose_enabled: true
+    map_id: ""
+    map_hash: ""
     publish_tf: true
     publish_aligned_cloud: true
+    candidate_max: 128
+    max_expanded_candidates: 4096
+    candidate_position_dedup_tolerance: 1.0e-3
+    candidate_yaw_dedup_tolerance: 1.0e-3
+    ambiguity_ratio: 0.10
+    action_timeout_s: 30.0
+    max_translation_innovation: 5.0
+    max_yaw_innovation: 1.5707963268
+    tracking_validation_enabled: true
+    tracking_validation_period_s: 5.0
+    tracking_validation_timeout_s: 3.0
+    tracking_confirmations_required: 1
+    tracking_failures_to_recover: 2
+    tracking_failures_to_lost: 3
     backend: ndt
     map_voxel_leaf_size: 0.25
     scan_voxel_leaf_size: 0.25

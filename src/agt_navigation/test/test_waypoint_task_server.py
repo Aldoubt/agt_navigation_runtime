@@ -5,6 +5,7 @@ import threading
 import time
 
 from agt_interfaces.action import ExecuteWaypointTask
+from agt_interfaces.msg import LocalizationStatus
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from geometry_msgs.msg import PoseStamped
 import pytest
@@ -25,7 +26,12 @@ SPEC.loader.exec_module(SERVER)
 def node():
     if not rclpy.ok():
         rclpy.init()
-    value = SERVER.WaypointTaskServer()
+    value = SERVER.WaypointTaskServer(
+        parameter_overrides=[
+            Parameter("require_localization_valid", value=False),
+            Parameter("require_safety_ready", value=False),
+        ]
+    )
     try:
         yield value
     finally:
@@ -65,6 +71,20 @@ def test_safety_readiness_requires_enabled_and_clear_estop(node):
     assert not node._safety_is_ready()
 
 
+def test_localization_readiness_requires_accepted_tracking():
+    message = LocalizationStatus()
+    assert not SERVER.WaypointTaskServer.localization_status_is_ready(message)
+
+    message.state = LocalizationStatus.STATE_TRACKING
+    message.pose_valid = True
+    message.localization_accepted = True
+    message.error_code = LocalizationStatus.ERROR_NONE
+    assert SERVER.WaypointTaskServer.localization_status_is_ready(message)
+
+    message.status_stale = True
+    assert not SERVER.WaypointTaskServer.localization_status_is_ready(message)
+
+
 def test_portable_pose_input_requires_map_frame(node):
     request = _request()
     request.task_file = ""
@@ -97,8 +117,9 @@ def test_project_action_uses_follow_waypoints_result(
         rclpy.init()
     task_server = SERVER.WaypointTaskServer(
         parameter_overrides=[
-            Parameter("require_map", value=False),
-            Parameter("require_safety_ready", value=False),
+                Parameter("require_map", value=False),
+                Parameter("require_safety_ready", value=False),
+                Parameter("require_localization_valid", value=False),
         ]
     )
     mock_node = Node("mock_follow_waypoints")

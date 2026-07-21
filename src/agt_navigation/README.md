@@ -58,7 +58,8 @@ ros2 run agt_navigation execute_waypoint_task.py \
 ```
 
 `waypoint_task_server.py` 调用 Nav2 `FollowWaypoints`，检查当前地图边界、重复追加、Action
-状态和 missed waypoints。它要求 `agt_safety` 已由操作员显式使能；自身不会使能运动。
+状态和 missed waypoints。它要求新鲜且已接受的 `LocalizationStatus`、`agt_safety` 已由操作员
+显式使能；定位失效或安全状态过期会取消 Nav2 child。自身不会使能运动。
 取消客户端会取消 Nav2 子目标。有限重复可使用 `--loop-count 2`，实车 baseline 验收前
 保持单次执行。接口细节见 `docs/interfaces/waypoint_task_action.md`。
 

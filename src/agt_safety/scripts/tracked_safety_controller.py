@@ -3,6 +3,7 @@
 import math
 import time
 
+from agt_interfaces.msg import LocalizationStatus
 import rclpy
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from geometry_msgs.msg import Twist
@@ -33,6 +34,16 @@ def slew(current: float, target: float, rise_rate: float, fall_rate: float, dt: 
     return current + clamp(target - current, -rate * dt, rate * dt)
 
 
+def localization_status_is_valid(message: LocalizationStatus) -> bool:
+    return (
+        message.state == LocalizationStatus.STATE_TRACKING
+        and message.pose_valid
+        and message.localization_accepted
+        and message.error_code == LocalizationStatus.ERROR_NONE
+        and not message.status_stale
+    )
+
+
 class TrackedSafetyController(Node):
     def __init__(self) -> None:
         super().__init__("agt_tracked_safety_controller")
@@ -49,6 +60,14 @@ class TrackedSafetyController(Node):
         self._angular_accel = self.declare_parameter("max_angular_acceleration", 0.8).value
         self._angular_decel = self.declare_parameter("max_angular_deceleration", 1.2).value
         self._motion_enabled = self.declare_parameter("startup_motion_enabled", False).value
+        self._require_localization_valid = self.declare_parameter(
+            "require_localization_valid", True
+        ).value
+        self._localization_status_timeout = self.declare_parameter(
+            "localization_status_timeout", 1.0
+        ).value
+        if self._localization_status_timeout <= 0.0:
+            raise ValueError("localization_status_timeout must be positive")
 
         self._nav_cmd = Twist()
         self._manual_cmd = Twist()
@@ -56,6 +75,8 @@ class TrackedSafetyController(Node):
         self._manual_stamp = float("-inf")
         self._physical_estop = False
         self._estop_latched = False
+        self._localization_valid = False
+        self._localization_stamp = float("-inf")
         self._linear_out = 0.0
         self._angular_out = 0.0
         self._last_tick = time.monotonic()
@@ -73,6 +94,12 @@ class TrackedSafetyController(Node):
         )
         self.create_subscription(
             Bool, "/agt/safety/emergency_stop", self._estop_callback, 10
+        )
+        self.create_subscription(
+            LocalizationStatus,
+            "/agt/localization/status",
+            self._localization_callback,
+            10,
         )
         self.create_service(
             SetBool, "/agt/safety/set_motion_enabled", self._set_motion_enabled
@@ -116,6 +143,15 @@ class TrackedSafetyController(Node):
             self._estop_latched = True
             self._motion_enabled = False
 
+    def _localization_callback(self, msg: LocalizationStatus) -> None:
+        self._localization_valid = localization_status_is_valid(msg)
+        self._localization_stamp = time.monotonic()
+
+    def _localization_is_valid(self, now: float) -> bool:
+        return self._localization_valid and (
+            now - self._localization_stamp <= self._localization_status_timeout
+        )
+
     def _set_motion_enabled(self, request: SetBool.Request, response: SetBool.Response):
         if request.data and (self._physical_estop or self._estop_latched):
             response.success = False
@@ -145,6 +181,8 @@ class TrackedSafetyController(Node):
             cmd = self._manual_cmd
             source = "manual"
         elif now - self._nav_stamp <= self._nav_timeout:
+            if self._require_localization_valid and not self._localization_is_valid(now):
+                return 0.0, 0.0, "localization_invalid", True
             cmd = self._nav_cmd
             source = "navigation"
         else:
@@ -191,12 +229,21 @@ class TrackedSafetyController(Node):
         status = DiagnosticStatus()
         status.name = "agt_safety/tracked_controller"
         status.hardware_id = "bunker"
-        stopped = self._reason in ("emergency_stop", "motion_disabled", "input_timeout")
+        stopped = self._reason in (
+            "emergency_stop",
+            "motion_disabled",
+            "input_timeout",
+            "localization_invalid",
+        )
         status.level = DiagnosticStatus.WARN if stopped else DiagnosticStatus.OK
         status.message = self._reason
         status.values = [
             KeyValue(key="motion_enabled", value=str(self._motion_enabled).lower()),
             KeyValue(key="estop_latched", value=str(self._estop_latched).lower()),
+            KeyValue(
+                key="localization_valid",
+                value=str(self._localization_is_valid(time.monotonic())).lower(),
+            ),
             KeyValue(key="linear_output", value=f"{self._linear_out:.4f}"),
             KeyValue(key="angular_output", value=f"{self._angular_out:.4f}"),
         ]

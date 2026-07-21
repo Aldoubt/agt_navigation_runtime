@@ -1,6 +1,8 @@
 agt_tracked_safety_controller:
   ros__parameters:
     startup_motion_enabled: false
+    require_localization_valid: true
+    localization_status_timeout: 1.0
     navigation_timeout: 0.50
     manual_timeout: 0.35
     publish_rate: 20.0

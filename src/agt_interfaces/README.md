@@ -4,6 +4,8 @@
 
 TASK-13 已启用 ROSIDL 代码生成，当前接口：
 
+- `msg/LocalizationStatus.msg`：机器可解析的全局定位状态、质量和稳定错误码。
+- `action/Relocalize.action`：项目统一自动重定位 Goal、Feedback 和 Result 边界。
 - `action/ExecuteCoverageTask.action`：覆盖任务 Goal、Result 和 Feedback 数据结构。
 - `action/ExecuteWaypointTask.action`：Qt/其他前端到可靠 Nav2 多点执行器的任务边界。
 
@@ -13,3 +15,4 @@ Goal、Result、Feedback 执行 Python 序列化往返。
 
 本包只定义数据接口，不实现 Action Server。覆盖任务服务端属于
 `agt_coverage_planning`，多点导航任务服务端属于 `agt_navigation`。
+自动重定位服务端属于 `agt_localization`；本包不实现候选搜索、配准、TF 或安全门禁。

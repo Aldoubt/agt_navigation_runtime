@@ -5,6 +5,9 @@
 ## 仲裁规则
 
 - 新鲜的 `/agt/cmd_vel_manual` 优先于 `/agt/navigation/cmd_vel`。
+- 导航输入还必须有新鲜且已接受的 `LocalizationStatus`（`TRACKING`、`pose_valid`、
+  `localization_accepted` 且无错误）；定位失效时安全层立即阻断导航输入。手动输入仍保持优先，
+  不由定位状态门禁替代急停和底盘 watchdog。
 - 手动命令超过 0.35 秒、导航命令超过 0.50 秒即失效。
 - 启动默认禁止运动，必须调用 `/agt/safety/set_motion_enabled` 明确使能。
 - `/agt/safety/emergency_stop=true` 会锁存急停并立即输出零速；输入恢复后仍需调用

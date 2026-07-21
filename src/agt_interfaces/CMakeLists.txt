@@ -9,6 +9,8 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/LocalizationStatus.msg"
+  "action/Relocalize.action"
   "action/ExecuteCoverageTask.action"
   "action/ExecuteWaypointTask.action"
   DEPENDENCIES action_msgs std_msgs geometry_msgs nav_msgs
@@ -28,9 +30,17 @@ if(BUILD_TESTING)
     test_execute_waypoint_task_serialization
     test/test_execute_waypoint_task_serialization.py
   )
+  ament_add_pytest_test(
+    test_localization_interfaces
+    test/test_localization_interfaces.py
+  )
   ament_add_gtest(
     test_execute_coverage_task_cpp
     test/test_execute_coverage_task.cpp
+  )
+  ament_add_gtest(
+    test_localization_interfaces_cpp
+    test/test_localization_interfaces.cpp
   )
   rosidl_get_typesupport_target(
     cpp_typesupport_target
@@ -39,6 +49,10 @@ if(BUILD_TESTING)
   )
   target_link_libraries(
     test_execute_coverage_task_cpp
+    "${cpp_typesupport_target}"
+  )
+  target_link_libraries(
+    test_localization_interfaces_cpp
     "${cpp_typesupport_target}"
   )
 endif()

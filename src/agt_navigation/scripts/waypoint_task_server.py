@@ -7,6 +7,7 @@ import time
 
 from action_msgs.msg import GoalStatus
 from agt_interfaces.action import ExecuteWaypointTask
+from agt_interfaces.msg import LocalizationStatus
 from diagnostic_msgs.msg import DiagnosticArray
 from agt_navigation.qt_task_chain import (
     TaskChainError,
@@ -32,6 +33,7 @@ ERROR_TASK_INVALID = 20
 ERROR_MAP_UNAVAILABLE = 30
 ERROR_POINT_OUTSIDE_MAP = 31
 ERROR_SAFETY_NOT_READY = 35
+ERROR_LOCALIZATION_NOT_READY = 36
 ERROR_NAV2_UNAVAILABLE = 40
 ERROR_NAV2_REJECTED = 41
 ERROR_NAV2_FAILED = 42
@@ -47,14 +49,26 @@ class WaypointTaskServer(Node):
         self.require_safety_ready = bool(
             self.declare_parameter("require_safety_ready", True).value
         )
+        self.require_localization_valid = bool(
+            self.declare_parameter("require_localization_valid", True).value
+        )
+        self.localization_status_timeout = float(
+            self.declare_parameter("localization_status_timeout", 1.0).value
+        )
         self.safety_status_timeout = float(
             self.declare_parameter("safety_status_timeout", 1.0).value
         )
         self.nav2_wait_timeout = float(
             self.declare_parameter("nav2_wait_timeout", 2.0).value
         )
-        if self.maximum_points <= 0 or self.maximum_loops <= 0:
-            raise ValueError("maximum_points and maximum_loops must be positive")
+        if (
+            self.maximum_points <= 0
+            or self.maximum_loops <= 0
+            or self.safety_status_timeout <= 0.0
+            or self.localization_status_timeout <= 0.0
+            or self.nav2_wait_timeout <= 0.0
+        ):
+            raise ValueError("task limits and readiness timeouts must be positive")
 
         group = ReentrantCallbackGroup()
         self._map = None
@@ -62,6 +76,8 @@ class WaypointTaskServer(Node):
         self._child_goal_handle = None
         self._safety_ready = False
         self._safety_stamp = float("-inf")
+        self._localization_ready = False
+        self._localization_stamp = float("-inf")
         self._lock = threading.Lock()
         map_qos = QoSProfile(depth=1)
         map_qos.reliability = ReliabilityPolicy.RELIABLE
@@ -77,6 +93,13 @@ class WaypointTaskServer(Node):
             DiagnosticArray,
             "/agt/safety/status",
             self._safety_callback,
+            10,
+            callback_group=group,
+        )
+        self.create_subscription(
+            LocalizationStatus,
+            "/agt/localization/status",
+            self._localization_callback,
             10,
             callback_group=group,
         )
@@ -123,16 +146,58 @@ class WaypointTaskServer(Node):
                 time.monotonic() - self._safety_stamp <= self.safety_status_timeout
             )
 
+    @staticmethod
+    def localization_status_is_ready(message):
+        return (
+            message.state == LocalizationStatus.STATE_TRACKING
+            and message.pose_valid
+            and message.localization_accepted
+            and message.error_code == LocalizationStatus.ERROR_NONE
+            and not message.status_stale
+        )
+
+    def _localization_callback(self, message):
+        ready = self.localization_status_is_ready(message)
+        with self._lock:
+            self._localization_ready = ready
+            self._localization_stamp = time.monotonic()
+            child = self._child_goal_handle if self._active and not ready else None
+        if child is not None:
+            self.get_logger().error(
+                "Localization readiness was lost; canceling Nav2 task"
+            )
+            child.cancel_goal_async()
+
+    def _localization_is_ready(self):
+        with self._lock:
+            return self._localization_ready and (
+                time.monotonic() - self._localization_stamp
+                <= self.localization_status_timeout
+            )
+
     def _safety_watchdog(self):
-        if not self.require_safety_ready:
+        if not self.require_safety_ready and not self.require_localization_valid:
             return
         with self._lock:
-            stale = time.monotonic() - self._safety_stamp > self.safety_status_timeout
-            child = self._child_goal_handle if self._active and stale else None
-            if stale:
+            now = time.monotonic()
+            safety_stale = now - self._safety_stamp > self.safety_status_timeout
+            localization_stale = (
+                now - self._localization_stamp > self.localization_status_timeout
+            )
+            unsafe = (
+                (self.require_safety_ready and safety_stale)
+                or (self.require_localization_valid and
+                    (localization_stale or not self._localization_ready))
+            )
+            child = self._child_goal_handle if self._active and unsafe else None
+            if self.require_safety_ready and safety_stale:
                 self._safety_ready = False
+            if self.require_localization_valid and localization_stale:
+                self._localization_ready = False
         if child is not None:
-            self.get_logger().error("Safety status became stale; canceling Nav2 task")
+            self.get_logger().error(
+                "Safety or localization status became stale; canceling Nav2 task"
+            )
             child.cancel_goal_async()
 
     def _publish_status(self, state, **values):
@@ -145,6 +210,16 @@ class WaypointTaskServer(Node):
             if self._active:
                 self.get_logger().warning("Rejecting task while another task is active")
                 return GoalResponse.REJECT
+        if self.require_localization_valid and not self._localization_is_ready():
+            self.get_logger().warning(
+                "Rejecting waypoint task because localization is not accepted"
+            )
+            return GoalResponse.REJECT
+        if self.require_safety_ready and not self._safety_is_ready():
+            self.get_logger().warning(
+                "Rejecting waypoint task because agt_safety is not ready"
+            )
+            return GoalResponse.REJECT
         if request.loop and (request.loop_count == 0 or request.loop_count > self.maximum_loops):
             self.get_logger().warning(
                 f"Rejecting unbounded/excessive loop request: {request.loop_count}"
@@ -257,6 +332,13 @@ class WaypointTaskServer(Node):
                 message = "agt_safety is stale, motion-disabled, or emergency-stopped"
                 self._publish_status("REJECTED", reason=message)
                 return self._finish(result, False, ERROR_SAFETY_NOT_READY, message)
+            if self.require_localization_valid and not self._localization_is_ready():
+                goal_handle.abort()
+                message = "localization is stale, lost, or not accepted"
+                self._publish_status("REJECTED", reason=message)
+                return self._finish(
+                    result, False, ERROR_LOCALIZATION_NOT_READY, message
+                )
 
             if not self._nav2.wait_for_server(timeout_sec=self.nav2_wait_timeout):
                 goal_handle.abort()
@@ -325,6 +407,13 @@ class WaypointTaskServer(Node):
                     message = "agt_safety readiness was lost during task execution"
                     self._publish_status("FAILED", reason=message)
                     return self._finish(result, False, ERROR_SAFETY_NOT_READY, message)
+                if self.require_localization_valid and not self._localization_is_ready():
+                    goal_handle.abort()
+                    message = "localization readiness was lost during task execution"
+                    self._publish_status("FAILED", reason=message)
+                    return self._finish(
+                        result, False, ERROR_LOCALIZATION_NOT_READY, message
+                    )
                 missed = list(wrapped.result.missed_waypoints)
                 all_missed.extend(missed)
                 if wrapped.status != GoalStatus.STATUS_SUCCEEDED or missed:

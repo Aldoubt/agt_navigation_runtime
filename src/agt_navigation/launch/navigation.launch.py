@@ -32,7 +32,8 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument("map", default_value=str(share / "maps" / "offline_test.yaml")),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
-            DeclareLaunchArgument("autostart", default_value="true"),
+            DeclareLaunchArgument("autostart", default_value="false"),
+            DeclareLaunchArgument("enable_localization_gate", default_value="true"),
             DeclareLaunchArgument(
                 "use_keepout_filter",
                 default_value="false",
@@ -103,7 +104,12 @@ def generate_launch_description():
                 executable="waypoint_task_server.py",
                 name="agt_waypoint_task_server",
                 output="screen",
-                parameters=[{"use_sim_time": use_sim_time}],
+                parameters=[
+                    {
+                        "use_sim_time": use_sim_time,
+                        "require_localization_valid": True,
+                    }
+                ],
             ),
             Node(
                 package="agt_navigation",
@@ -132,14 +138,20 @@ def generate_launch_description():
                 parameters=[
                     {"use_sim_time": use_sim_time},
                     {
-                        "autostart": ParameterValue(
-                            LaunchConfiguration("autostart"), value_type=bool
-                        )
+                        "autostart": True
                     },
                     {"node_names": ["costmap_filter_info_server"]},
                     {"bond_timeout": 4.0},
                 ],
                 condition=IfCondition(LaunchConfiguration("use_keepout_filter")),
+            ),
+            Node(
+                package="agt_bringup",
+                executable="localization_navigation_gate.py",
+                name="agt_localization_navigation_gate",
+                output="screen",
+                parameters=[{"localization_status_timeout": 1.0}],
+                condition=IfCondition(LaunchConfiguration("enable_localization_gate")),
             ),
         ]
     )
