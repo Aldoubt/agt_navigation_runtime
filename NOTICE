@@ -1,0 +1,12 @@
+agt_navigation_v2
+Copyright 2026 agt_navigation_v2 contributors
+
+Project-owned material is licensed under the Apache License, Version 2.0,
+unless a file or directory states otherwise.
+
+This distribution includes and depends on third-party software under separate
+licenses. The Apache-2.0 license at the repository root does not relicense
+third_party/, external dependency workspaces, generated build products,
+runtime datasets, maps, model weights, firmware, or other separately marked
+material. See THIRD_PARTY_NOTICES.md and the license files shipped with each
+component.
