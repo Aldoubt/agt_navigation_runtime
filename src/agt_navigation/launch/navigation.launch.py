@@ -108,6 +108,7 @@ def generate_launch_description():
                     {
                         "use_sim_time": use_sim_time,
                         "require_localization_valid": True,
+                        "require_task_readiness": True,
                     }
                 ],
             ),

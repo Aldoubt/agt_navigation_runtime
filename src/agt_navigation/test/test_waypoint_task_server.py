@@ -30,6 +30,7 @@ def node():
         parameter_overrides=[
             Parameter("require_localization_valid", value=False),
             Parameter("require_safety_ready", value=False),
+            Parameter("require_task_readiness", value=False),
         ]
     )
     try:
@@ -120,6 +121,7 @@ def test_project_action_uses_follow_waypoints_result(
                 Parameter("require_map", value=False),
                 Parameter("require_safety_ready", value=False),
                 Parameter("require_localization_valid", value=False),
+                Parameter("require_task_readiness", value=False),
         ]
     )
     mock_node = Node("mock_follow_waypoints")

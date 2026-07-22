@@ -1,0 +1,5 @@
+# Re-evaluate the common task gate in the service server.
+bool validate_task
+string task_id
+---
+TaskReadiness readiness
