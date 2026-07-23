@@ -31,7 +31,7 @@ sudo apt-get install -y libasio-dev can-utils
 ```bash
 source /opt/ros/humble/setup.bash
 source install/setup.bash
-ros2 launch agt_chassis bunker.launch.py can_interface:=can0
+ros2 launch agt_chassis bunker.launch.py can_interface:=can0 operation_mode:=control
 ```
 
 启动后默认禁止运动。确认车辆架空或周围安全、遥控器可随时接管后再使能：
@@ -40,15 +40,29 @@ ros2 launch agt_chassis bunker.launch.py can_interface:=can0
 ros2 service call /agt/safety/set_motion_enabled std_srvs/srv/SetBool "{data: true}"
 ```
 
+建图或只需要确认 CAN 状态帧时，使用只读监测模式。它启动 BUNKER 驱动和状态桥接，但不启动
+`agt_safety`、命令 guard，也不提供可执行的底盘命令发布者：
+
+```bash
+ros2 launch agt_chassis bunker.launch.py \
+  can_interface:=can0 operation_mode:=monitor start_safety:=false \
+  command_topic:=/agt/chassis/monitor_cmd_vel
+```
+
+`/agt/chassis/monitor_cmd_vel` 是故意无人发布的监测占位话题；真实导航只能使用
+`/agt/safety/cmd_vel -> /agt/chassis/cmd_vel` 控制链。未来替换底盘或通讯协议时，应在上层
+新增受配置白名单约束的 backend，并继续提供标准化状态输出，不在 Web 中执行驱动命令。
+
 若只验证安全层和 topic，不连接 CAN：
 
 ```bash
 ros2 launch agt_chassis bunker.launch.py start_driver:=false
 ```
 
-CAN 初始化按照上游脚本执行；首次配置用 `third_party/ugv_sdk/scripts/setup_can2usb.bash`，
-以后每次上电用 `bringup_can2usb_500k.bash`。实机前先检查 `ip -details link show can0` 和
-`candump can0`。
+CAN 初始化需要主机管理员权限。首次配置用 `third_party/ugv_sdk/scripts/setup_can2usb.bash`，
+以后每次上电用 `bringup_can2usb_500k.bash`，或由管理员维护的 systemd/NetworkManager 配置完成；
+Web 控制台不会尝试绕过 sudo，也不会执行 `ip link`、`modprobe` 或任意 shell。实机前先检查
+`ip -details link show can0` 和 `candump can0`。
 
 ## 安全边界
 

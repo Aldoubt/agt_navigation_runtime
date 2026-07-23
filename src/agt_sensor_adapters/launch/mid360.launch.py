@@ -2,9 +2,16 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+
+def validate_user_config(context):
+    config_path = Path(LaunchConfiguration("user_config_path").perform(context)).expanduser()
+    if not config_path.is_file():
+        raise RuntimeError(f"MID360 user_config_path does not exist: {config_path}")
+    return []
 
 
 def generate_launch_description():
@@ -20,6 +27,8 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument("publish_freq", default_value="10.0"),
             DeclareLaunchArgument("frame_id", default_value="livox_frame"),
+            DeclareLaunchArgument("use_sim_time", default_value="false"),
+            OpaqueFunction(function=validate_user_config),
             Node(
                 package="livox_ros_driver2",
                 executable="livox_ros_driver2_node",
@@ -35,6 +44,7 @@ def generate_launch_description():
                         "output_data_type": 0,
                         "frame_id": LaunchConfiguration("frame_id"),
                         "user_config_path": LaunchConfiguration("user_config_path"),
+                        "use_sim_time": LaunchConfiguration("use_sim_time"),
                     }
                 ],
                 remappings=[

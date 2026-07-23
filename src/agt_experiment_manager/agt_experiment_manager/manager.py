@@ -45,20 +45,42 @@ def _atomic_json(path: Path, value: Any) -> None:
 class ExperimentManager:
     """Own the experiment directory and any rosbag child it starts."""
 
+    _PLAYBACK_TOPICS = {
+        "mapping_inputs": (
+            "/clock",
+            "/tf_static",
+            "/agt/sensors/lidar/custom",
+            "/agt/sensors/imu/data",
+        ),
+        "localization_inputs": (
+            "/clock",
+            "/tf_static",
+            "/agt/mapping/registered_points_lidar",
+            "/agt/sensors/imu/data",
+        ),
+    }
+
     def __init__(
         self,
         root: str | Path,
         *,
         repository_root: str | Path | None = None,
+        rosbag_root: str | Path | None = None,
         popen_factory: Callable[..., Any] = subprocess.Popen,
     ) -> None:
         self.root = Path(root).expanduser().resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.repository_root = Path(repository_root).expanduser().resolve() if repository_root else None
+        self.rosbag_root = Path(rosbag_root).expanduser().resolve() if rosbag_root else self.root.parent / "rosbag"
+        self.rosbag_root.mkdir(parents=True, exist_ok=True)
         self._popen = popen_factory
         self._bag_process = None
         self._bag_log = None
         self._bag_profile = ""
+        self._playback_process = None
+        self._playback_log = None
+        self._playback_id = ""
+        self._playback_profile = ""
 
     @staticmethod
     def _slug(value: str) -> str:
@@ -273,6 +295,170 @@ class ExperimentManager:
             "pid": int(process.pid) if process is not None else 0,
             "returncode": process.poll() if process is not None else None,
         }
+
+    def list_bags(self) -> list[dict[str, Any]]:
+        """List only self-contained bags below the configured runtime root."""
+        result = []
+        for metadata_path in sorted(self.rosbag_root.glob("*/metadata.yaml"), reverse=True):
+            bag_path = metadata_path.parent.resolve()
+            try:
+                bag_path.relative_to(self.rosbag_root)
+            except ValueError:
+                continue
+            try:
+                with open(metadata_path, "r", encoding="utf-8") as stream:
+                    metadata = yaml.safe_load(stream) or {}
+                information = metadata.get("rosbag2_bagfile_information", {})
+                topic_records = information.get("topics_with_message_count", [])
+                topic_names = sorted(
+                    str(item.get("topic_metadata", {}).get("name", ""))
+                    for item in topic_records
+                    if isinstance(item, Mapping)
+                    and isinstance(item.get("topic_metadata"), Mapping)
+                    and item.get("topic_metadata", {}).get("name")
+                )
+                topic_set = set(topic_names)
+                bag_input_topics = set(self._PLAYBACK_TOPICS["mapping_inputs"]) - {"/clock"}
+                result.append({
+                    "bag_id": str(bag_path.relative_to(self.rosbag_root)),
+                    "path": str(bag_path),
+                    "duration_nanoseconds": int(information.get("duration", {}).get("nanoseconds", 0)),
+                    "message_count": int(information.get("message_count", 0)),
+                    "storage_identifier": str(information.get("storage_identifier", "")),
+                    "topic_names": topic_names,
+                    "mapping_input_ready": bag_input_topics.issubset(topic_set),
+                    "contains_mapping_outputs": bool(
+                        {"/agt/mapping/odometry", "/agt/mapping/registered_points_lidar"} & topic_set
+                    ),
+                    "contains_navigation_outputs": bool(
+                        {
+                            "/agt/navigation/cmd_vel",
+                            "/agt/navigation/cmd_vel_raw",
+                            "/agt/map/global_occupancy",
+                            "/global_costmap/costmap",
+                        }
+                        & topic_set
+                    ),
+                })
+            except (OSError, TypeError, ValueError, yaml.YAMLError):
+                continue
+        return result
+
+    def start_playback(
+        self,
+        bag_id: str,
+        *,
+        rate: float = 1.0,
+        playback_profile: str = "all",
+    ) -> dict[str, Any]:
+        if self._playback_process is not None and self._playback_process.poll() is None:
+            raise ExperimentError("a bag is already playing")
+        if self._playback_process is not None and self._playback_process.poll() is not None:
+            if self._playback_log is not None:
+                self._playback_log.close()
+            self._playback_process = None
+            self._playback_log = None
+            self._playback_id = ""
+            self._playback_profile = ""
+        if self._bag_process is not None and self._bag_process.poll() is None:
+            raise ExperimentError("stop bag recording before playback")
+        if not isinstance(bag_id, str) or not bag_id or Path(bag_id).is_absolute():
+            raise ExperimentError("bag_id must be a relative configured bag identifier")
+        bag_path = (self.rosbag_root / bag_id).resolve()
+        try:
+            bag_path.relative_to(self.rosbag_root)
+        except ValueError as error:
+            raise ExperimentError("bag_id is outside the configured rosbag root") from error
+        if not (bag_path.is_dir() and (bag_path / "metadata.yaml").is_file()):
+            raise ExperimentError("bag_id does not identify a complete rosbag bundle")
+        try:
+            rate = float(rate)
+        except (TypeError, ValueError) as error:
+            raise ExperimentError("bag playback rate must be numeric") from error
+        if not 0.1 <= rate <= 4.0:
+            raise ExperimentError("bag playback rate must be between 0.1 and 4.0")
+        playback_profile = str(playback_profile).strip() or "all"
+        if playback_profile != "all" and playback_profile not in self._PLAYBACK_TOPICS:
+            raise ExperimentError(f"unknown bag playback profile: {playback_profile}")
+        log_path = self.rosbag_root.parent / "logs" / "rosbag_playback.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._playback_log = open(log_path, "ab", buffering=0)
+        replay_topics = list(self._PLAYBACK_TOPICS.get(playback_profile, ()))
+        command = ["ros2", "bag", "play", "--clock", "--rate", f"{rate:g}", str(bag_path)]
+        if replay_topics:
+            command.extend(["--topics", *replay_topics])
+        try:
+            self._playback_process = self._popen(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=self._playback_log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        except Exception:
+            self._playback_log.close()
+            self._playback_log = None
+            raise
+        self._playback_id = bag_id
+        self._playback_profile = playback_profile
+        return {
+            "state": "PLAYING",
+            "bag_id": bag_id,
+            "path": str(bag_path),
+            "pid": int(self._playback_process.pid),
+            "playback_profile": playback_profile,
+            "replayed_topics": replay_topics or None,
+            "command": command,
+        }
+
+    def stop_playback(self, grace_sec: float = 10.0) -> None:
+        if self._playback_process is None:
+            return
+        process = self._playback_process
+        if process.poll() is None:
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGINT)
+            except ProcessLookupError:
+                pass
+            try:
+                process.wait(timeout=grace_sec)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=5.0)
+        if self._playback_log is not None:
+            self._playback_log.close()
+        self._playback_process = None
+        self._playback_log = None
+        self._playback_id = ""
+        self._playback_profile = ""
+
+    def playback_status(self) -> dict[str, Any]:
+        process = self._playback_process
+        return {
+            "playing": process is not None and process.poll() is None,
+            "bag_id": self._playback_id,
+            "playback_profile": self._playback_profile,
+            "pid": int(process.pid) if process is not None else 0,
+            "returncode": process.poll() if process is not None else None,
+        }
+
+    def close(self) -> None:
+        self.stop_playback()
+        if self._bag_process is not None and self._bag_process.poll() is None:
+            # A normal Web shutdown must not leave a recorder orphaned.
+            try:
+                os.killpg(os.getpgid(self._bag_process.pid), signal.SIGINT)
+                self._bag_process.wait(timeout=10.0)
+            except (ProcessLookupError, subprocess.TimeoutExpired):
+                pass
+            if self._bag_log is not None:
+                self._bag_log.close()
+            self._bag_process = None
+            self._bag_log = None
+            self._bag_profile = ""
 
     def finalize(self, experiment_id: str, health: Mapping[str, Any] | None = None, result_status: str = "COMPLETED") -> dict[str, Any]:
         manifest_path, manifest = self._manifest(experiment_id)

@@ -5,7 +5,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
@@ -18,7 +18,20 @@ def generate_launch_description():
     return LaunchDescription(
         [
             DeclareLaunchArgument("use_sim_time", default_value="false"),
+            DeclareLaunchArgument(
+                "chassis_backend",
+                default_value="bunker_can",
+                choices=["bunker_can"],
+                description="Backend implemented by this launch; outer bringup may select none",
+            ),
+            DeclareLaunchArgument(
+                "operation_mode",
+                default_value="control",
+                choices=["control", "monitor"],
+                description="control enables the safety/command chain; monitor is read-only CAN telemetry",
+            ),
             DeclareLaunchArgument("can_interface", default_value="can0"),
+            DeclareLaunchArgument("command_topic", default_value="/agt/chassis/cmd_vel"),
             DeclareLaunchArgument("is_bunker_mini", default_value="false"),
             DeclareLaunchArgument("start_driver", default_value="true"),
             DeclareLaunchArgument("start_safety", default_value="true"),
@@ -34,7 +47,17 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     str(safety_share / "launch" / "bunker_safety.launch.py")
                 ),
-                condition=IfCondition(LaunchConfiguration("start_safety")),
+                condition=IfCondition(
+                    PythonExpression(
+                        [
+                            "'",
+                            LaunchConfiguration("start_safety"),
+                            "'.lower() in ('true', '1', 'yes', 'on') and '",
+                            LaunchConfiguration("operation_mode"),
+                            "' == 'control'",
+                        ]
+                    )
+                ),
                 launch_arguments={
                     "safety_config": LaunchConfiguration("safety_config"),
                     "use_sim_time": use_sim_time,
@@ -48,6 +71,9 @@ def generate_launch_description():
                 sigterm_timeout="10",
                 sigkill_timeout="5",
                 parameters=[LaunchConfiguration("chassis_config"), {"use_sim_time": use_sim_time}],
+                condition=IfCondition(
+                    PythonExpression(["'", LaunchConfiguration("operation_mode"), "' == 'control'"])
+                ),
             ),
             Node(
                 package="agt_chassis",
@@ -84,7 +110,7 @@ def generate_launch_description():
                     }
                 ],
                 remappings=[
-                    ("/cmd_vel", "/agt/chassis/cmd_vel"),
+                    ("/cmd_vel", LaunchConfiguration("command_topic")),
                     ("/bunker_status", "/agt/chassis/status/raw"),
                     ("/bunker_rc_state", "/agt/chassis/rc_state"),
                 ],
