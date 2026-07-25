@@ -10,8 +10,17 @@ ros2 launch agt_sensor_adapters mid360.launch.py
 统一输出：
 
 - `/agt/sensors/lidar/custom`：`livox_ros_driver2/msg/CustomMsg`，保留每点
-  `offset_time/line/tag`，供 FAST-LIVO2 使用。
+  `offset_time/line/tag` 的原始输入，供自滤除和历史 bag 回放使用。
+- `/agt/sensors/lidar/custom_filtered`：同类型的前置 BUNKER 车体自滤除输出，供
+  FAST-LIVO2 使用；原始 topic 不会被覆盖。
 - `/agt/sensors/imu/data`：MID360 内置 IMU，frame 为 `livox_frame`。
+
+`agt_livox_self_filter` 在 FAST-LIVO2 launch 中默认启动，真实驱动和历史 bag 回放共用
+同一节点。过滤盒来自 `profiles/platforms/bunker.yaml` 的 `geometry.self_filter`，不使用
+Nav2 的 80 mm `navigation_footprint`。启用过滤时若
+`base_footprint <- header.frame_id` TF 不可用，默认丢弃整帧；只有显式设置
+`fail_open_on_tf_error:=true` 才允许透传。原始 `(0,0,0)` 占位点由
+`zero_point_epsilon` 默认按无效点删除。
 
 这里有意使用 `xfer_format=1` 的 Livox 原生消息。选定的
 `Aldoubt/FASTLIVO2_ROS2@a713004` 只有 Livox `CustomMsg` 路径会使用每点时间、线号和

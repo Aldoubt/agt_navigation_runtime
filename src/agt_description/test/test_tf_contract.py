@@ -61,7 +61,7 @@ def test_extrinsics_are_launch_overridable():
     }.issubset(argument_names)
 
 
-def test_bunker_rough_mid360_translation_matches_vehicle_measurement():
+def test_bunker_bag_derived_mid360_candidate_matches_static_ground_estimate():
     config = Path(__file__).parents[1] / "config" / "bunker_mid360.yaml"
     parameters = yaml.safe_load(config.read_text(encoding="utf-8"))["/**"][
         "ros__parameters"
@@ -72,7 +72,7 @@ def test_bunker_rough_mid360_translation_matches_vehicle_measurement():
         parameters["base_length"] / 2.0 - 0.250
     )
     assert parameters["lidar_y"] == pytest.approx(0.0)
-    assert parameters["base_link_z"] + parameters["lidar_z"] == pytest.approx(0.500)
-    assert parameters["lidar_roll"] == pytest.approx(0.0)
-    assert parameters["lidar_pitch"] == pytest.approx(math.radians(30.0))
+    assert parameters["base_link_z"] + parameters["lidar_z"] == pytest.approx(0.607, abs=0.005)
+    assert parameters["lidar_roll"] == pytest.approx(0.0064, abs=0.002)
+    assert parameters["lidar_pitch"] == pytest.approx(0.4045, abs=0.01)
     assert parameters["lidar_yaw"] == pytest.approx(0.0)

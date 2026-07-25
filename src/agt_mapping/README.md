@@ -5,6 +5,11 @@
 - `/agt/mapping/odometry`：`odom` 下的 `base_footprint` 里程计。
 - `/agt/mapping/registered_points`：注册点云。
 - `/agt/mapping/registered_points_lidar`：供射线地图使用的当前帧雷达坐标点云。
+
+FAST-LIVO2 的正常 MID360 输入为 `/agt/sensors/lidar/custom_filtered`。该 topic 由
+`agt_livox_self_filter` 从保留的原始 `/agt/sensors/lidar/custom` 生成，因此车体点不会
+进入 FAST-LIVO2 配准、局部体素地图或本次会话生成的 PCD；后置
+`agt_perception/local_obstacle_filter` 仍继续保护 Nav2 障碍输入。
 - `odom -> base_footprint`：由当前连续里程计唯一发布。
 
 建图模式由 `agt_bringup` 覆盖 `pcd_save.pcd_save_en=true`。LIO-only 模式在运行中使用

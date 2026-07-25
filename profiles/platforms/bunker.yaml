@@ -25,6 +25,20 @@ platform:
       - [0.5915, -0.4690]
       - [-0.5915, -0.4690]
       - [-0.5915, 0.4690]
+    self_filter:
+      enabled: true
+      frame: base_footprint
+      padding: 0.03
+      include_chassis_body: true
+      boxes:
+        - name: rear_high_platform
+          min: [-0.5115, -0.3890, 0.35]
+          max: [0.2415, 0.3890, 0.70]
+          verified: false
+          note: >
+            Bag-derived candidate upper bound for persistent returns near
+            z=0.63-0.66 m. Physical x/y/z bounds must be measured; this box
+            remains unverified and must not be treated as final geometry.
   limits:
     max_forward_velocity: 0.50
     max_reverse_velocity: 0.25

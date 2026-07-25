@@ -7,15 +7,16 @@
     base_height: 0.400
     # Provisional until the physical base_link datum is measured.
     base_link_z: 0.200
-    # Rough vehicle measurement (2026-07-19): the MID360 center is on the
+    # Bag-derived candidate (2026-07-25): the MID360 center is on the
     # longitudinal centerline, 0.250 m behind the 1.023 m chassis front edge,
-    # and 0.500 m above the ground.  With base_link at the chassis geometric
-    # center and base_link_z=0.200 m, this gives (0.2615, 0.0, 0.3000) m.
+    # and approximately 0.607 m above the ground. With base_link at the
+    # provisional chassis geometric center and base_link_z=0.200 m, this gives
+    # lidar_z=0.4070 m. Physical measurement is still required.
     lidar_x: 0.2615
     lidar_y: 0.0
-    lidar_z: 0.3000
-    # Rough vehicle measurement (2026-07-19): the sensor +Z axis tilts 30 deg
-    # toward the chassis front (+X), i.e. positive ROS pitch about +Y.
-    lidar_roll: 0.0
-    lidar_pitch: 0.5235987756
+    lidar_z: 0.4070
+    # Static-bag ground-plane and IMU estimates: roll ~= +0.37 deg and
+    # positive ROS pitch ~= +23.2 deg toward the chassis front (+X).
+    lidar_roll: 0.0064
+    lidar_pitch: 0.4045
     lidar_yaw: 0.0
