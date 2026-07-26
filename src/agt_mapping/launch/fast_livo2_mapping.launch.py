@@ -5,6 +5,7 @@ from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
+    OpaqueFunction,
     SetLaunchConfiguration,
 )
 from launch.conditions import IfCondition, UnlessCondition
@@ -12,6 +13,26 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
+
+
+def validate_pcd_output(context):
+    save_pcd = LaunchConfiguration("save_pcd").perform(context).strip().lower()
+    if save_pcd not in {"true", "1", "yes", "on"}:
+        return []
+    output_dir = Path(LaunchConfiguration("pcd_output_dir").perform(context)).expanduser()
+    if output_dir.exists() and not output_dir.is_dir():
+        raise RuntimeError(f"PCD output path is not a directory: {output_dir}")
+    existing = (
+        sorted(path.name for path in output_dir.iterdir())
+        if output_dir.is_dir()
+        else []
+    )
+    if existing:
+        raise RuntimeError(
+            f"refusing to overwrite existing PCD output directory: {output_dir} "
+            f"({', '.join(existing[:8])}); choose a new output directory"
+        )
+    return []
 
 
 def generate_launch_description():
@@ -40,6 +61,7 @@ def generate_launch_description():
             "fast_livo_input_topic",
             default_value="/agt/sensors/lidar/custom_filtered",
         ),
+        OpaqueFunction(function=validate_pcd_output),
         SetLaunchConfiguration(
             "fast_livo_input_topic",
             "/agt/sensors/lidar/custom",

@@ -30,6 +30,7 @@
 #include <tf2_ros/transform_listener.h>
 
 #include "agt_localization/candidate_provider.hpp"
+#include "agt_localization/localization_timing.hpp"
 #include "agt_localization/map_readiness.hpp"
 #include "agt_localization/localization_supervisor.hpp"
 #include "agt_localization/quality_validator.hpp"
@@ -228,6 +229,11 @@ public:
       "external_coarse_max_age_s", 2.0);
     external_coarse_future_tolerance_s_ = declare_parameter<double>(
       "external_coarse_future_tolerance_s", 0.5);
+    max_cloud_age_s_ = declare_parameter<double>("max_cloud_age_s", 0.5);
+    max_cloud_future_tolerance_s_ = declare_parameter<double>(
+      "max_cloud_future_tolerance_s", 0.1);
+    require_nonzero_cloud_stamp_ = declare_parameter<bool>(
+      "require_nonzero_cloud_stamp", true);
     max_translation_innovation_ =
       declare_parameter<double>("max_translation_innovation", 5.0);
     max_yaw_innovation_ =
@@ -255,7 +261,9 @@ public:
       !isFinite(ambiguity_ratio_) || ambiguity_ratio_ < 0.0 ||
       !isFinite(external_coarse_max_age_s_) || external_coarse_max_age_s_ <= 0.0 ||
       !isFinite(external_coarse_future_tolerance_s_) ||
-      external_coarse_future_tolerance_s_ < 0.0)
+      external_coarse_future_tolerance_s_ < 0.0 ||
+      !isFinite(max_cloud_age_s_) || max_cloud_age_s_ <= 0.0 ||
+      !isFinite(max_cloud_future_tolerance_s_) || max_cloud_future_tolerance_s_ < 0.0)
     {
       throw std::runtime_error("action timeout and ambiguity ratio must be valid");
     }
@@ -816,16 +824,48 @@ private:
       return output;
     }
 
+    const rclcpp::Time cloud_stamp(cloud_msg->header.stamp);
+    const agt_localization::CloudTimeConfig cloud_time_config{
+      max_cloud_age_s_, max_cloud_future_tolerance_s_, require_nonzero_cloud_stamp_};
+    const auto cloud_time = agt_localization::validateCloudTimestamp(
+      now().seconds(), cloud_stamp.seconds(), cloud_time_config);
+    if (!cloud_time.accepted) {
+      const bool invalid_timestamp = !std::isfinite(cloud_stamp.seconds()) ||
+        (require_nonzero_cloud_stamp_ && cloud_stamp.nanoseconds() == 0);
+      const auto error_code = invalid_timestamp ?
+        LocalizationStatus::ERROR_INVALID_SCAN_TIMESTAMP : LocalizationStatus::ERROR_STALE_SCAN;
+      const std::string reason = cloud_time.message +
+        ": stamp=" + std::to_string(cloud_stamp.seconds()) +
+        "s age=" + std::to_string(cloud_time.age_s) + "s";
+      const auto state = tracking_validation ?
+        toLocalizationState(supervisor_.snapshot().state) : LocalizationStatus::STATE_LOST;
+      publishTerminalStatus(
+        state, error_code, nullptr, 0U, static_cast<std::uint32_t>(candidates.size()), reason);
+      output.error_code = error_code;
+      output.failure_reason = reason;
+      output.final_status = lastStatus();
+      return output;
+    }
+
+    RCLCPP_DEBUG(
+      get_logger(),
+      "Relocalization frame cloud_stamp=%.9f cloud_age_s=%.3f tracking_validation=%s",
+      cloud_stamp.seconds(), cloud_time.age_s, tracking_validation ? "true" : "false");
+
     relocalization_core::CloudPtr scan_cloud;
     try {
       scan_cloud = cloudFromMsgInTrackingFrame(*cloud_msg);
     } catch (const tf2::TransformException & exception) {
+      const std::string reason =
+        "failed to transform cloud at stamp=" + std::to_string(cloud_stamp.seconds()) +
+        "s target_frame=" + tracking_frame_ + " source_frame=" + cloud_msg->header.frame_id +
+        ": " + exception.what();
       publishTerminalStatus(
         LocalizationStatus::STATE_ERROR, LocalizationStatus::ERROR_TF_UNAVAILABLE,
         nullptr, 0U, static_cast<std::uint32_t>(candidates.size()),
-        "failed to transform the latest cloud to tracking frame");
+        reason);
       output.error_code = LocalizationStatus::ERROR_TF_UNAVAILABLE;
-      output.failure_reason = exception.what();
+      output.failure_reason = reason;
       output.final_status = lastStatus();
       return output;
     }
@@ -836,14 +876,70 @@ private:
         base_frame_, tracking_frame_, tf2::TimePointZero, std::chrono::milliseconds(200));
       base_from_tracking = agt_localization::transformMsgToEigen(transform);
     } catch (const tf2::TransformException & exception) {
+      const std::string reason =
+        "failed to lookup static transform target_frame=" + base_frame_ +
+        " source_frame=" + tracking_frame_ + ": " + exception.what();
       publishTerminalStatus(
         LocalizationStatus::STATE_ERROR, LocalizationStatus::ERROR_TF_UNAVAILABLE,
         nullptr, 0U, static_cast<std::uint32_t>(candidates.size()),
-        "failed to lookup base to tracking transform");
+        reason);
       output.error_code = LocalizationStatus::ERROR_TF_UNAVAILABLE;
-      output.failure_reason = exception.what();
+      output.failure_reason = reason;
       output.final_status = lastStatus();
       return output;
+    }
+
+    // lookupTransform(target, source) returns T_target_source. This query is
+    // deliberately made once at the cloud timestamp and shared by every candidate.
+    Eigen::Matrix4f odom_from_tracking = Eigen::Matrix4f::Identity();
+    try {
+      const auto transform = tf_buffer_.lookupTransform(
+        odom_frame_, tracking_frame_, cloud_stamp, std::chrono::milliseconds(200));
+      odom_from_tracking = agt_localization::transformMsgToEigen(transform);
+    } catch (const tf2::TransformException & exception) {
+      const std::string reason =
+        "failed to lookup TF at cloud_stamp=" + std::to_string(cloud_stamp.seconds()) +
+        "s target_frame=" + odom_frame_ + " source_frame=" + tracking_frame_ +
+        ": " + exception.what();
+      publishTerminalStatus(
+        tracking_validation ? toLocalizationState(supervisor_.snapshot().state) :
+        LocalizationStatus::STATE_ERROR,
+        LocalizationStatus::ERROR_TF_UNAVAILABLE, nullptr, 0U,
+        static_cast<std::uint32_t>(candidates.size()), reason);
+      output.error_code = LocalizationStatus::ERROR_TF_UNAVAILABLE;
+      output.failure_reason = reason;
+      output.final_status = lastStatus();
+      return output;
+    }
+
+    const Eigen::Matrix4f tracking_from_base = base_from_tracking.inverse();
+    std::optional<Eigen::Matrix4f> predicted_map_from_tracking;
+    if (tracking_validation) {
+      Eigen::Matrix4f map_from_odom = Eigen::Matrix4f::Identity();
+      bool has_latest_map_from_odom = false;
+      {
+        std::lock_guard<std::mutex> lock(tf_mutex_);
+        if (has_latest_tf_) {
+          has_latest_map_from_odom = true;
+          map_from_odom = latest_map_to_odom_;
+        }
+      }
+      if (!has_latest_map_from_odom) {
+        const std::string reason =
+          "tracking validation has no accepted map -> odom transform for cloud_stamp=" +
+          std::to_string(cloud_stamp.seconds()) + "s";
+        publishTerminalStatus(
+          toLocalizationState(supervisor_.snapshot().state),
+          LocalizationStatus::ERROR_TF_UNAVAILABLE, nullptr, 0U,
+          static_cast<std::uint32_t>(candidates.size()), reason);
+        output.error_code = LocalizationStatus::ERROR_TF_UNAVAILABLE;
+        output.failure_reason = reason;
+        output.final_status = lastStatus();
+        return output;
+      }
+      // map_from_tracking = map_from_odom * odom_from_tracking at cloud_stamp.
+      predicted_map_from_tracking = agt_localization::predictMapFromTracking(
+        map_from_odom, odom_from_tracking);
     }
 
     if (!tracking_validation) {
@@ -883,7 +979,13 @@ private:
       }
 
       const Candidate & candidate = candidates[index];
-      publishCoarsePose(candidate);
+      const Eigen::Matrix4f initial_map_from_base = tracking_validation ?
+        (*predicted_map_from_tracking * tracking_from_base) : candidateToPose(candidate);
+      if (tracking_validation) {
+        coarse_pose_pub_->publish(poseStampedFromEigen(initial_map_from_base, cloud_stamp));
+      } else {
+        publishCoarsePose(candidate);
+      }
       if (!tracking_validation) {
         supervisor_.beginVerification();
       }
@@ -898,12 +1000,18 @@ private:
       request.source_cloud = scan_cloud;
       request.source_frame_id = tracking_frame_;
       request.target_frame_id = global_frame_;
-      request.initial_guess = candidateToPose(candidate) * base_from_tracking;
-      request.request_time_sec = now().seconds();
+      request.initial_guess = tracking_validation ? *predicted_map_from_tracking :
+        candidateToPose(candidate) * base_from_tracking;
+      request.request_time_sec = cloud_stamp.seconds();
       request.enable_debug_outputs = publish_debug;
+      RCLCPP_DEBUG(
+        get_logger(),
+        "Relocalization candidate source=%s tracking_validation=%s initial_guess_source=%s",
+        candidate.source.c_str(), tracking_validation ? "true" : "false",
+        tracking_validation ? "odom_propagated_tracking_prediction" : candidate.source.c_str());
       attempt.result = relocalizer_.relocalize(request);
       attempt.debug = relocalizer_.latestDebugInfo();
-      attempt.map_to_base = attempt.result.estimated_pose * base_from_tracking.inverse();
+      attempt.map_to_base = attempt.result.estimated_pose * tracking_from_base;
 
       agt_localization::QualityObservation observation;
       observation.backend_success =
@@ -913,16 +1021,26 @@ private:
       observation.fitness_score = attempt.result.fitness_score;
       observation.scan_points = attempt.debug.cropped_scan_size > 0U ?
         attempt.debug.cropped_scan_size : attempt.debug.filtered_scan_size;
-      observation.initial_x = candidate.x;
-      observation.initial_y = candidate.y;
-      observation.initial_z = candidate.z;
-      observation.initial_yaw = candidate.yaw;
+      observation.initial_x = initial_map_from_base(0, 3);
+      observation.initial_y = initial_map_from_base(1, 3);
+      observation.initial_z = initial_map_from_base(2, 3);
+      observation.initial_yaw = matrixYaw(initial_map_from_base);
       observation.estimated_x = attempt.map_to_base(0, 3);
       observation.estimated_y = attempt.map_to_base(1, 3);
       observation.estimated_z = attempt.map_to_base(2, 3);
       observation.estimated_yaw = matrixYaw(attempt.map_to_base);
       observation.runtime_ms = attempt.debug.backend_runtime_ms;
       attempt.quality = agt_localization::validateQuality(observation, quality_config_);
+      if (tracking_validation) {
+        RCLCPP_DEBUG(
+          get_logger(),
+          "Tracking validation predicted=(%.3f, %.3f, %.3f) estimated=(%.3f, %.3f, %.3f) "
+          "translation_innovation=%.3f yaw_innovation=%.3f fitness=%.6f",
+          observation.initial_x, observation.initial_y, observation.initial_yaw,
+          observation.estimated_x, observation.estimated_y, observation.estimated_yaw,
+          attempt.quality.translation_innovation, attempt.quality.yaw_innovation,
+          attempt.result.fitness_score);
+      }
       if (attempt.result.status_code != relocalization_core::RelocalizationStatusCode::kOk &&
         attempt.result.status_code != relocalization_core::RelocalizationStatusCode::kFitnessRejected)
       {
@@ -1006,74 +1124,60 @@ private:
     }
 
     Attempt & best = successful.front();
-    Eigen::Matrix4f tracking_in_odom = Eigen::Matrix4f::Identity();
-    try {
-      const auto transform = tf_buffer_.lookupTransform(
-        odom_frame_, tracking_frame_, tf2::TimePointZero, std::chrono::milliseconds(200));
-      tracking_in_odom = agt_localization::transformMsgToEigen(transform).inverse();
-    } catch (const tf2::TransformException & exception) {
-      publishTerminalStatus(
-        LocalizationStatus::STATE_ERROR, LocalizationStatus::ERROR_TF_UNAVAILABLE,
-        &best.candidate, static_cast<std::uint32_t>(candidates.size()),
-        static_cast<std::uint32_t>(candidates.size()),
-        "failed to lookup odom to tracking transform");
-      output.error_code = LocalizationStatus::ERROR_TF_UNAVAILABLE;
-      output.failure_reason = exception.what();
-      output.final_status = lastStatus();
-      return output;
-    }
-
-    const Eigen::Matrix4f map_to_odom = best.result.estimated_pose * tracking_in_odom;
+    const Eigen::Matrix4f tracking_from_odom = odom_from_tracking.inverse();
+    const Eigen::Matrix4f map_from_odom = best.result.estimated_pose * tracking_from_odom;
     const auto snapshot = tracking_validation ?
       supervisor_.trackingValidation(true) : supervisor_.acceptSearchResult();
-    const auto stamp = now();
     if (update_tf && snapshot.navigation_allowed) {
       {
         std::lock_guard<std::mutex> lock(tf_mutex_);
-        latest_map_to_odom_ = map_to_odom;
+        latest_map_to_odom_ = map_from_odom;
         has_latest_tf_ = true;
       }
       if (publish_tf_) {
         tf_broadcaster_->sendTransform(
-          agt_localization::eigenToTransformMsg(map_to_odom, stamp, global_frame_, odom_frame_));
+          agt_localization::eigenToTransformMsg(
+            map_from_odom, now(), global_frame_, odom_frame_));
       }
     }
     if (publish_debug && best.result.aligned_cloud) {
       sensor_msgs::msg::PointCloud2 aligned_msg;
       pcl::toROSMsg(*best.result.aligned_cloud, aligned_msg);
-      aligned_msg.header.stamp = stamp;
+      aligned_msg.header.stamp = cloud_stamp;
       aligned_msg.header.frame_id = global_frame_;
       aligned_cloud_pub_->publish(aligned_msg);
     }
 
-    const auto final_pose = poseStampedFromEigen(best.map_to_base, stamp);
+    const auto final_pose = poseStampedFromEigen(best.map_to_base, cloud_stamp);
     global_pose_pub_->publish(final_pose);
-    {
+    if (!tracking_validation) {
       Candidate accepted_candidate = best.candidate;
       accepted_candidate.x = best.map_to_base(0, 3);
       accepted_candidate.y = best.map_to_base(1, 3);
       accepted_candidate.z = best.map_to_base(2, 3);
       accepted_candidate.yaw = matrixYaw(best.map_to_base);
       accepted_candidate.distance_from_seed = 0.0;
-      std::lock_guard<std::mutex> lock(last_pose_mutex_);
-      last_valid_candidate_ = std::move(accepted_candidate);
-    }
-    if (!last_valid_pose_path_.empty() && !map_id_.empty() && !map_hash_.empty()) {
-      agt_localization::LastPoseRecord record;
-      record.map_id = map_id_;
-      record.map_hash = map_hash_;
-      record.timestamp_sec = stamp.seconds();
-      record.frame_id = global_frame_;
-      record.x = best.map_to_base(0, 3);
-      record.y = best.map_to_base(1, 3);
-      record.z = best.map_to_base(2, 3);
-      record.yaw = matrixYaw(best.map_to_base);
-      record.fitness_score = best.result.fitness_score;
-      std::string save_error;
-      if (!agt_localization::saveLastPoseAtomic(
-          last_valid_pose_path_, record, &save_error))
       {
-        RCLCPP_WARN(get_logger(), "Failed to persist last valid pose: %s", save_error.c_str());
+        std::lock_guard<std::mutex> lock(last_pose_mutex_);
+        last_valid_candidate_ = std::move(accepted_candidate);
+      }
+      if (!last_valid_pose_path_.empty() && !map_id_.empty() && !map_hash_.empty()) {
+        agt_localization::LastPoseRecord record;
+        record.map_id = map_id_;
+        record.map_hash = map_hash_;
+        record.timestamp_sec = cloud_stamp.seconds();
+        record.frame_id = global_frame_;
+        record.x = best.map_to_base(0, 3);
+        record.y = best.map_to_base(1, 3);
+        record.z = best.map_to_base(2, 3);
+        record.yaw = matrixYaw(best.map_to_base);
+        record.fitness_score = best.result.fitness_score;
+        std::string save_error;
+        if (!agt_localization::saveLastPoseAtomic(
+            last_valid_pose_path_, record, &save_error))
+        {
+          RCLCPP_WARN(get_logger(), "Failed to persist last valid pose: %s", save_error.c_str());
+        }
       }
     }
 
@@ -1365,7 +1469,12 @@ private:
       if (!last_valid_candidate_.has_value()) {
         return;
       }
-      candidate = *last_valid_candidate_;
+      // Keep the prior candidate only as validation/status identity. Its pose
+      // must not become the tracking validation initial guess.
+      candidate.id = last_valid_candidate_->id;
+      candidate.source = last_valid_candidate_->source;
+      candidate.map_id = last_valid_candidate_->map_id;
+      candidate.map_hash = last_valid_candidate_->map_hash;
     }
 
     bool expected = false;
@@ -1428,6 +1537,9 @@ private:
   double action_timeout_s_{30.0};
   double external_coarse_max_age_s_{2.0};
   double external_coarse_future_tolerance_s_{0.5};
+  double max_cloud_age_s_{0.5};
+  double max_cloud_future_tolerance_s_{0.1};
+  bool require_nonzero_cloud_stamp_{true};
   double max_translation_innovation_{5.0};
   double max_yaw_innovation_{1.5707963267948966};
   bool tracking_validation_enabled_{true};

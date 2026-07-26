@@ -14,6 +14,8 @@ TEST(LocalizationStatusInterface, ConstantsAndFieldsAreUsable)
 
   EXPECT_EQ(status.state, 1U);
   EXPECT_EQ(status.error_code, 0U);
+  EXPECT_EQ(agt_interfaces::msg::LocalizationStatus::ERROR_STALE_SCAN, 113U);
+  EXPECT_EQ(agt_interfaces::msg::LocalizationStatus::ERROR_INVALID_SCAN_TIMESTAMP, 114U);
   EXPECT_FALSE(status.pose_valid);
   EXPECT_EQ(status.message, "searching");
 }

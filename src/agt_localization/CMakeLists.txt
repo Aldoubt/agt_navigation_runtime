@@ -3,6 +3,7 @@ project(agt_localization)
 
 find_package(ament_cmake REQUIRED)
 find_package(agt_interfaces REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
@@ -44,6 +45,7 @@ ament_target_dependencies(relocalization_node
 )
 target_link_libraries(
   relocalization_node
+  Eigen3::Eigen
   agt_localization_candidates
   agt_localization_quality
   agt_localization_supervisor
@@ -92,6 +94,9 @@ if(BUILD_TESTING)
   target_link_libraries(test_localization_supervisor agt_localization_supervisor)
   ament_add_gtest(test_map_readiness test/test_map_readiness.cpp)
   target_link_libraries(test_map_readiness agt_localization_map_readiness)
+  ament_add_gtest(test_localization_timing test/test_localization_timing.cpp)
+  target_include_directories(test_localization_timing PRIVATE include)
+  target_link_libraries(test_localization_timing agt_localization_quality Eigen3::Eigen)
   ament_add_pytest_test(
     test_relocalization_config
     test/test_relocalization_config.py

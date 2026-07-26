@@ -14,6 +14,9 @@
     external_coarse_pose_topic: /agt/localization/coarse_pose
     external_coarse_max_age_s: 2.0
     external_coarse_future_tolerance_s: 0.5
+    max_cloud_age_s: 0.5
+    max_cloud_future_tolerance_s: 0.1
+    require_nonzero_cloud_stamp: true
     manual_initialpose_enabled: true
     map_id: ""
     map_hash: ""

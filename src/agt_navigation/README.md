@@ -47,6 +47,11 @@ ros2 launch agt_navigation offline_navigation.launch.py \
 
 ## Qt 多点任务
 
+新版 Task Library 可在无 Nav2/定位/底盘进程时编辑绑定地图版本的 schema-v1 任务组，保存到
+`runtime/maps/<map_id>/versions/<map_version_id>/tasks/`。它提供原子覆盖、备份、旧 JSON 导入、
+地图内容/几何失配和基础栅格点/线段检查；完整操作见
+[`docs/workflows/qt5_offline_task_group_editor.md`](../../docs/workflows/qt5_offline_task_group_editor.md)。
+
 维护版 Qt 的 **Start Task Chain** 已直接调用
 `/agt/navigation/execute_waypoint_task`，状态来自 Nav2 `FollowWaypoints` Action，而不是机器人
 位姿距离。**Stop Task Chain** 会请求取消；“Repeat twice (finite)”只执行两遍，不存在无限循环。
@@ -57,7 +62,8 @@ ros2 run agt_navigation execute_waypoint_task.py \
   /absolute/path/to/task_chain.json
 ```
 
-`waypoint_task_server.py` 调用 Nav2 `FollowWaypoints`，检查当前地图边界、重复追加、Action
+`waypoint_task_server.py` 同时读取旧 `points/theta` JSON 和 schema-v1 任务组，调用 Nav2
+`FollowWaypoints`，检查当前地图边界、任务绑定、重复追加、Action
 状态和 missed waypoints。它要求新鲜且已接受的 `LocalizationStatus`、`agt_safety` 已由操作员
 显式使能；定位失效或安全状态过期会取消 Nav2 child。自身不会使能运动。
 取消客户端会取消 Nav2 子目标。有限重复可使用 `--loop-count 2`，实车 baseline 验收前

@@ -54,13 +54,16 @@ Vikit 已随主仓库构建，不再由 `nav_dependencies.repos` 导入，也不
 
 - 项目维护 fork：`https://github.com/Aldoubt/Ros_Qt5_Gui_App.git`
 - 分支：`agt-navigation-v2`
-- 固定提交：`5948714c3d05011be9240be098696b9f9bdcc66f`
+- 固定提交：`a180d981b42845ec3d2bd4a998eb89ea1dfdbb86`
 - 原始上游：`https://github.com/chengyangkj/Ros_Qt5_Gui_App.git`
 - 目录：`third_party/ros_qt5_gui_app`
 - 上游许可证：GPL-2.0，见 `ros_qt5_gui_app/LICENSE`
 - 本地策略：主仓库内置 fork 的固定源码快照，配置和构建时不联网；Qt 修改同步到上述
   分支并同时更新固定提交。源码包含项目多点 Action、地图加载保护、可配置 `FixedFrameId`、
-  通信线程安全退出和幂等 ROS shutdown。构建产物写入 `build/ros_qt5_gui_app`，不提交 Git。
+  通信线程安全退出和幂等 ROS shutdown；新增版本化 Task Library、C++ 任务数据模型/原子仓库、
+  地图绑定与基础栅格校验、地图两点击定姿/拖动编辑、Task Center 内嵌页签，以及 schema-v1
+  任务文件到项目 Action 的提交和 missed-waypoint 反馈。构建产物写入
+  `build/ros_qt5_gui_app`，不提交 Git。
 
 ## BUNKER ROS2
 

@@ -10,6 +10,8 @@ def test_localization_status_constants_and_defaults():
 
     assert status.state == 1
     assert status.error_code == 108
+    assert LocalizationStatus.ERROR_STALE_SCAN == 113
+    assert LocalizationStatus.ERROR_INVALID_SCAN_TIMESTAMP == 114
     assert status.status_stale is True
     assert status.pose_valid is False
 

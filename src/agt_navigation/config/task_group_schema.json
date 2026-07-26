@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AGT Navigation V2 waypoint task group",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_group_id",
+    "name",
+    "description",
+    "created_at",
+    "updated_at",
+    "frame_id",
+    "map_binding",
+    "execution",
+    "points"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "task_group_id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9._-]+$"},
+    "name": {"type": "string", "minLength": 1},
+    "description": {"type": "string"},
+    "created_at": {"type": "string", "minLength": 1},
+    "updated_at": {"type": "string", "minLength": 1},
+    "revision": {"type": "integer", "minimum": 1},
+    "content_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "frame_id": {"const": "map"},
+    "map_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "map_id",
+        "map_version_id",
+        "map_yaml_path",
+        "map_yaml_sha256",
+        "map_image_sha256",
+        "localization_pcd_sha256",
+        "resolution",
+        "width",
+        "height",
+        "origin"
+      ],
+      "properties": {
+        "map_id": {"type": "string", "minLength": 1},
+        "map_version_id": {"type": "string", "minLength": 1},
+        "map_yaml_path": {"type": "string"},
+        "map_yaml_sha256": {"type": "string"},
+        "map_image_sha256": {"type": "string"},
+        "localization_pcd_sha256": {"type": "string"},
+        "resolution": {"type": "number", "exclusiveMinimum": 0},
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1},
+        "origin": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}], "minItems": 3, "maxItems": 3}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["loop", "loop_count"],
+      "properties": {
+        "loop": {"type": "boolean"},
+        "loop_count": {"type": "integer", "minimum": 1, "maximum": 10}
+      }
+    },
+    "points": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "x", "y", "yaw", "enabled", "note"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9._-]+$"},
+          "name": {"type": "string", "minLength": 1},
+          "x": {"type": "number"},
+          "y": {"type": "number"},
+          "yaw": {"type": "number"},
+          "enabled": {"type": "boolean"},
+          "note": {"type": "string"}
+        }
+      }
+    }
+  }
+}

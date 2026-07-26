@@ -8,5 +8,33 @@ profiles:
     topics: [/clock, /tf, /tf_static, /agt/sensors/imu/data, /agt/mapping/registered_points_lidar, /agt/localization/status, /agt/localization/global_pose, /agt/localization/coarse_pose, /agt/localization/candidate_pose, /agt/localization/aligned_points, /initialpose]
   navigation:
     topics: [/clock, /tf, /tf_static, /agt/sensors/lidar/custom, /agt/sensors/imu/data, /agt/mapping/odometry, /agt/map/global_occupancy, /global_costmap/costmap, /local_costmap/costmap, /agt/localization/status, /agt/navigation/status, /agt/navigation/cmd_vel_raw, /agt/safety/status, /agt/safety/emergency_stop, /agt/chassis/cmd_vel, /agt/chassis/odometry, /agt/chassis/status, /agt/chassis/connected, /initialpose, /goal_pose]
+  teach_repeat:
+    topics:
+      - /clock
+      - /tf
+      - /tf_static
+      - /agt/sensors/lidar/custom
+      - /agt/sensors/imu/data
+      - /agt/mapping/odometry
+      - /agt/mapping/registered_points_lidar
+      - /agt/localization/status
+      - /agt/localization/global_pose
+      - /agt/teach/reference_path
+      - /agt/teach/path_validated
+      - /agt/teach/executed_path
+      - /agt/teach/execution_status
+      - /agt/teach/current_error
+      - /agt/teach/metrics
+      - /agt/perception/obstacle_cloud
+      - /local_costmap/costmap
+      - /agt/navigation/cmd_vel_raw
+      - /agt/navigation/cmd_vel
+      - /agt/safety/cmd_vel
+      - /agt/safety/status
+      - /agt/safety/emergency_stop
+      - /agt/chassis/odometry
+      - /agt/chassis/status
+      - /agt/experiment/events
+      - /diagnostics
   full_experiment:
     topics: [/clock, /tf, /tf_static, /agt/sensors/lidar/custom, /agt/sensors/imu/data, /agt/mapping/odometry, /agt/mapping/registered_points, /agt/mapping/registered_points_lidar, /agt/map/mapping_occupancy, /agt/map/global_occupancy, /global_costmap/costmap, /local_costmap/costmap, /agt/localization/status, /agt/localization/status_text, /agt/localization/global_pose, /agt/localization/coarse_pose, /agt/localization/candidate_pose, /agt/localization/aligned_points, /initialpose, /goal_pose, /agt/navigation/status, /agt/navigation/cmd_vel_raw, /agt/navigation/cmd_vel, /agt/safety/cmd_vel, /agt/safety/emergency_stop, /agt/safety/status, /agt/chassis/cmd_vel, /agt/chassis/odometry, /agt/chassis/status, /agt/chassis/connected, /agt/experiment/events]

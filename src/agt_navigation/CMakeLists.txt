@@ -23,6 +23,7 @@ install(DIRECTORY launch config behavior_trees maps
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_qt_task_chain test/test_qt_task_chain.py)
+  ament_add_pytest_test(test_task_group test/test_task_group.py)
   ament_add_pytest_test(
     test_waypoint_task_server test/test_waypoint_task_server.py
   )

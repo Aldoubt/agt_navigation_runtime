@@ -38,7 +38,16 @@ def _atomic_yaml(path: Path, value: Mapping[str, Any]) -> None:
 
 def _atomic_json(path: Path, value: Any) -> None:
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, ensure_ascii=False), encoding="utf-8")
+    temporary.write_text(
+        json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False),
+        encoding="utf-8",
+    )
+    os.replace(temporary, path)
+
+
+def _atomic_text(path: Path, value: str) -> None:
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(value, encoding="utf-8")
     os.replace(temporary, path)
 
 
@@ -144,6 +153,7 @@ class ExperimentManager:
             "rosbag": None,
             "algorithm_parameters": {},
             "localization_results": "localization_results.jsonl",
+            "teach_repeat_runs": [],
             "navigation_summary": {},
             "manual_intervention_count": 0,
             "emergency_stop_count": 0,
@@ -208,6 +218,127 @@ class ExperimentManager:
             stream.write(json.dumps({"time": _timestamp(), **dict(result)}, ensure_ascii=False, sort_keys=True) + "\n")
             stream.flush()
             os.fsync(stream.fileno())
+
+    def record_teach_repeat_result(
+        self,
+        experiment_id: str,
+        *,
+        demo_id: str,
+        run_id: str,
+        teach_manifest: str,
+        reference_path_hash: str,
+        map_identity: Mapping[str, Any],
+        repeatability_metrics: Mapping[str, Any],
+        localization_summary: Mapping[str, Any],
+        execution_result: Mapping[str, Any],
+        failure_case: Mapping[str, Any] | None = None,
+    ) -> Path:
+        """Attach one immutable teach-repeat result to a running experiment."""
+        manifest_path, manifest = self._manifest(experiment_id)
+        if manifest.get("state") != "RUNNING":
+            raise ExperimentError("teach-repeat results require a running experiment")
+        for name, value in (("demo_id", demo_id), ("run_id", run_id)):
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,95}", str(value)):
+                raise ExperimentError(f"{name} is invalid")
+        teach_manifest_path = Path(teach_manifest).expanduser().resolve()
+        if not teach_manifest_path.is_file():
+            raise ExperimentError("teach manifest is missing")
+        repository = self._repository_snapshot()
+        if repository.get("commit") is None and manifest.get("repository"):
+            repository = dict(manifest["repository"])
+        record = {
+            "schema_version": 1,
+            "time": _timestamp(),
+            "demo_id": str(demo_id),
+            "run_id": str(run_id),
+            "teach_manifest": str(teach_manifest_path),
+            "teach_manifest_sha256": _file_hash(teach_manifest_path),
+            "reference_path_hash": str(reference_path_hash),
+            "map_identity": dict(map_identity),
+            "repeatability_metrics": dict(repeatability_metrics),
+            "localization_summary": dict(localization_summary),
+            "execution_result": dict(execution_result),
+            "failure_case": dict(failure_case) if failure_case else None,
+            "repository": repository,
+            "config_files": list(manifest.get("config_files", [])),
+        }
+        json.dumps(record, allow_nan=False)
+        output = self._path(experiment_id) / "teach_repeat" / str(demo_id) / str(run_id)
+        output.mkdir(parents=True, exist_ok=False)
+        _atomic_json(output / "result.json", record)
+        runs = list(manifest.get("teach_repeat_runs", []))
+        runs.append(
+            {
+                "demo_id": str(demo_id),
+                "run_id": str(run_id),
+                "path": str((output / "result.json").relative_to(manifest_path.parent)),
+                "reference_path_hash": str(reference_path_hash),
+                "map_identity": dict(map_identity),
+            }
+        )
+        manifest["teach_repeat_runs"] = runs
+        _atomic_yaml(manifest_path, manifest)
+        self.add_event(
+            experiment_id,
+            "teach_repeat_result",
+            {"demo_id": str(demo_id), "run_id": str(run_id)},
+        )
+        return output / "result.json"
+
+    def record_failure_case(
+        self,
+        experiment_id: str,
+        *,
+        demo_id: str,
+        run_id: str,
+        category: str,
+        robot_pose: Mapping[str, Any] | None = None,
+        reference_progress: float = 0.0,
+        lateral_error_m: float = 0.0,
+        localization_status: Mapping[str, Any] | None = None,
+        navigation_status: Mapping[str, Any] | None = None,
+        safety_status: Mapping[str, Any] | None = None,
+        operator_note: str = "",
+    ) -> dict[str, Any]:
+        """Append a durable machine-readable field failure case."""
+        _path, manifest = self._manifest(experiment_id)
+        if manifest.get("state") != "RUNNING":
+            raise ExperimentError("failure cases require a running experiment")
+        for name, value in (("demo_id", demo_id), ("run_id", run_id)):
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,95}", str(value)):
+                raise ExperimentError(f"{name} is invalid")
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]{1,63}", str(category)):
+            raise ExperimentError("failure category is invalid")
+        repository = self._repository_snapshot()
+        if repository.get("commit") is None and manifest.get("repository"):
+            repository = dict(manifest["repository"])
+        record = {
+            "time": _timestamp(),
+            "demo_id": str(demo_id),
+            "run_id": str(run_id),
+            "category": str(category),
+            "robot_pose": dict(robot_pose or {}),
+            "reference_progress": float(reference_progress),
+            "lateral_error_m": float(lateral_error_m),
+            "localization_status": dict(localization_status or {}),
+            "navigation_status": dict(navigation_status or {}),
+            "safety_status": dict(safety_status or {}),
+            "operator_note": str(operator_note),
+            "repository": repository,
+            "active_map": dict(manifest.get("active_map", {})),
+        }
+        json.dumps(record, allow_nan=False)
+        output = self._path(experiment_id) / "failure_cases.jsonl"
+        with open(output, "a", encoding="utf-8") as stream:
+            stream.write(json.dumps(record, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        self.add_event(
+            experiment_id,
+            "failure_case",
+            {"demo_id": str(demo_id), "run_id": str(run_id), "category": str(category)},
+        )
+        return record
 
     def snapshot_health(self, experiment_id: str, name: str, health: Mapping[str, Any]) -> None:
         if name not in ("health_start", "health_end"):
@@ -473,7 +604,7 @@ class ExperimentManager:
         _atomic_yaml(manifest_path, manifest)
         summary = self._summary(experiment_id, manifest)
         _atomic_json(manifest_path.parent / "summary.json", summary)
-        (manifest_path.parent / "report.md").write_text(self._report(summary, manifest), encoding="utf-8")
+        _atomic_text(manifest_path.parent / "report.md", self._report(summary, manifest))
         self.add_event(experiment_id, "experiment_finalized", {"status": result_status})
         return summary
 
@@ -525,7 +656,32 @@ class ExperimentManager:
         path = self._path(experiment_id)
         events = [json.loads(line) for line in (path / "events.jsonl").read_text(encoding="utf-8").splitlines() if line]
         localization = [json.loads(line) for line in (path / "localization_results.jsonl").read_text(encoding="utf-8").splitlines() if line]
+        failure_path = path / "failure_cases.jsonl"
+        failures = (
+            [json.loads(line) for line in failure_path.read_text(encoding="utf-8").splitlines() if line]
+            if failure_path.is_file()
+            else []
+        )
         successes = [item for item in localization if item.get("success") is True]
+        teach_results = []
+        for item in manifest.get("teach_repeat_runs", []):
+            result_path = (path / str(item.get("path", ""))).resolve()
+            try:
+                result_path.relative_to(path.resolve())
+                record = json.loads(result_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError, json.JSONDecodeError, TypeError):
+                continue
+            teach_results.append(
+                {
+                    "demo_id": record.get("demo_id"),
+                    "run_id": record.get("run_id"),
+                    "reference_path_hash": record.get("reference_path_hash"),
+                    "map_identity": record.get("map_identity", {}),
+                    "repository": record.get("repository", {}),
+                    "config_files": record.get("config_files", []),
+                    "execution_result": record.get("execution_result", {}),
+                }
+            )
         return {
             "schema_version": 1,
             "experiment_id": experiment_id,
@@ -539,12 +695,15 @@ class ExperimentManager:
             "localization_attempts": len(localization),
             "localization_successes": len(successes),
             "localization_success_rate": len(successes) / len(localization) if localization else None,
+            "teach_repeat_run_count": len(manifest.get("teach_repeat_runs", [])),
+            "teach_repeat_results": teach_results,
+            "failure_case_count": len(failures),
             "map_identity": manifest.get("active_map", {}),
         }
 
     @staticmethod
     def _report(summary: Mapping[str, Any], manifest: Mapping[str, Any]) -> str:
-        return "\n".join([
+        lines = [
             f"# Experiment {summary['experiment_id']}",
             "",
             f"- State: `{summary['state']}`",
@@ -554,8 +713,29 @@ class ExperimentManager:
             f"- Localization attempts: `{summary['localization_attempts']}`",
             f"- Localization success rate: `{summary['localization_success_rate']}`",
             f"- Events: `{summary['event_count']}`",
+            f"- Teach-repeat runs: `{summary['teach_repeat_run_count']}`",
+            f"- Failure cases: `{summary['failure_case_count']}`",
             f"- Active map: `{json.dumps(manifest.get('active_map', {}), ensure_ascii=False)}`",
+            f"- Repository commit: `{manifest.get('repository', {}).get('commit')}`",
+            f"- Config snapshots: `{json.dumps(manifest.get('config_files', []), ensure_ascii=False)}`",
             "",
-            "This report is generated from the versioned experiment manifest, event stream, and localization result stream.",
+            (
+                "This report is generated from the versioned experiment manifest, "
+                "event stream, and localization result stream."
+            ),
             "",
-        ])
+        ]
+        for result in summary.get("teach_repeat_results", []):
+            lines.extend(
+                [
+                    f"## Teach repeat {result.get('demo_id')}/{result.get('run_id')}",
+                    "",
+                    f"- Reference path hash: `{result.get('reference_path_hash')}`",
+                    f"- Map identity: `{json.dumps(result.get('map_identity', {}), ensure_ascii=False)}`",
+                    f"- Repository commit: `{result.get('repository', {}).get('commit')}`",
+                    f"- Config snapshots: `{json.dumps(result.get('config_files', []), ensure_ascii=False)}`",
+                    f"- Execution result: `{json.dumps(result.get('execution_result', {}), ensure_ascii=False)}`",
+                    "",
+                ]
+            )
+        return "\n".join(lines)

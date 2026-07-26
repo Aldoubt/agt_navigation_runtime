@@ -114,3 +114,69 @@ def test_mapping_playback_filters_algorithm_outputs(tmp_path):
     ]
     assert "--topics" in result["command"]
     assert "/agt/mapping/odometry" not in result["command"]
+
+
+def test_teach_repeat_result_and_failure_case_are_auditable(tmp_path):
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    teach_manifest = tmp_path / "teach_manifest.yaml"
+    teach_manifest.write_text("schema_version: 1\n", encoding="utf-8")
+    config = tmp_path / "teach_repeat.yaml"
+    config.write_text("maximum_linear_speed_mps: 0.2\n", encoding="utf-8")
+    manager = ExperimentManager(tmp_path / "experiments", repository_root=repository)
+    experiment_id = manager.create(title="Teach Repeat", active_map={"map_id": "map_01"})
+    manager.start(experiment_id)
+    manager.snapshot_config(experiment_id, [config])
+    result = manager.record_teach_repeat_result(
+        experiment_id,
+        demo_id="route_01",
+        run_id="run_01",
+        teach_manifest=str(teach_manifest),
+        reference_path_hash="sha256:" + "1" * 64,
+        map_identity={"map_id": "map_01", "localization_pcd_sha256": "sha256:" + "2" * 64},
+        repeatability_metrics={"lateral_rmse_m": 0.05},
+        localization_summary={"tracking_lost_count": 0},
+        execution_result={"state": "SUCCEEDED"},
+    )
+    assert result.is_file()
+    assert manager.inspect(experiment_id)["teach_repeat_runs"][0]["run_id"] == "run_01"
+    with pytest.raises(ValueError):
+        manager.record_teach_repeat_result(
+            experiment_id,
+            demo_id="route_01",
+            run_id="run_nan",
+            teach_manifest=str(teach_manifest),
+            reference_path_hash="sha256:" + "1" * 64,
+            map_identity={"map_id": "map_01"},
+            repeatability_metrics={"lateral_rmse_m": float("nan")},
+            localization_summary={},
+            execution_result={"state": "FAILED"},
+        )
+    assert not (
+        tmp_path
+        / "experiments"
+        / experiment_id
+        / "teach_repeat/route_01/run_nan"
+    ).exists()
+    failure = manager.record_failure_case(
+        experiment_id,
+        demo_id="route_01",
+        run_id="run_01",
+        category="LOCALIZATION_LOST",
+        reference_progress=2.5,
+        lateral_error_m=0.2,
+    )
+    assert failure["repository"]["commit"] is None
+    assert "LOCALIZATION_LOST" in (
+        tmp_path / "experiments" / experiment_id / "failure_cases.jsonl"
+    ).read_text(encoding="utf-8")
+    summary = manager.finalize(experiment_id)
+    assert summary["teach_repeat_results"][0]["reference_path_hash"].endswith(
+        "1" * 64
+    )
+    report = (
+        tmp_path / "experiments" / experiment_id / "report.md"
+    ).read_text(encoding="utf-8")
+    assert "Reference path hash" in report
+    assert "localization_pcd_sha256" in report
+    assert "teach_repeat.yaml" in report

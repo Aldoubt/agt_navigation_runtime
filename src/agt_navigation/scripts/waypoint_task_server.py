@@ -4,6 +4,7 @@ import json
 import math
 import threading
 import time
+from pathlib import Path
 
 from action_msgs.msg import GoalStatus
 from agt_interfaces.action import ExecuteWaypointTask
@@ -14,6 +15,12 @@ from agt_navigation.qt_task_chain import (
     Waypoint,
     load_qt_task_chain,
     point_inside_map,
+)
+from agt_navigation.task_group import (
+    TaskGroupError,
+    load_task_group,
+    load_map_snapshot,
+    MapBinding,
 )
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import FollowWaypoints
@@ -32,6 +39,7 @@ ERROR_INVALID_REQUEST = 10
 ERROR_TASK_INVALID = 20
 ERROR_MAP_UNAVAILABLE = 30
 ERROR_POINT_OUTSIDE_MAP = 31
+ERROR_MAP_MISMATCH = 32
 ERROR_SAFETY_NOT_READY = 35
 ERROR_LOCALIZATION_NOT_READY = 36
 ERROR_TASK_READINESS_NOT_READY = 37
@@ -65,6 +73,25 @@ class WaypointTaskServer(Node):
         self.nav2_wait_timeout = float(
             self.declare_parameter("nav2_wait_timeout", 2.0).value
         )
+        self.current_map_id = str(self.declare_parameter("current_map_id", "").value)
+        self.current_map_version_id = str(
+            self.declare_parameter("current_map_version_id", "").value
+        )
+        self.current_map_yaml_sha256 = str(
+            self.declare_parameter("current_map_yaml_sha256", "").value
+        )
+        self.current_map_yaml_path = str(
+            self.declare_parameter("current_map_yaml_path", "").value
+        )
+        self.current_map_image_sha256 = str(
+            self.declare_parameter("current_map_image_sha256", "").value
+        )
+        self.current_localization_pcd_sha256 = str(
+            self.declare_parameter("current_localization_pcd_sha256", "").value
+        )
+        self.require_map_content_hashes = bool(
+            self.declare_parameter("require_map_content_hashes", True).value
+        )
         if (
             self.maximum_points <= 0
             or self.maximum_loops <= 0
@@ -82,9 +109,13 @@ class WaypointTaskServer(Node):
         self._safety_stamp = float("-inf")
         self._localization_ready = False
         self._localization_stamp = float("-inf")
+        self._localization_map_hash = ""
         self._task_readiness = False
         self._task_readiness_stamp = float("-inf")
+        self._readiness_map_id = ""
+        self._readiness_map_version_id = ""
         self._lock = threading.RLock()
+        self._load_configured_map_identity()
         map_qos = QoSProfile(depth=1)
         map_qos.reliability = ReliabilityPolicy.RELIABLE
         map_qos.durability = DurabilityPolicy.TRANSIENT_LOCAL
@@ -134,6 +165,31 @@ class WaypointTaskServer(Node):
     def _map_callback(self, message):
         self._map = message
 
+    def _load_configured_map_identity(self):
+        if not self.current_map_yaml_path:
+            return
+        try:
+            snapshot = load_map_snapshot(
+                self.current_map_yaml_path,
+                map_id=self.current_map_id,
+                map_version_id=self.current_map_version_id,
+            )
+        except TaskGroupError as exc:
+            raise ValueError(
+                f"cannot load configured navigation map identity: {exc}"
+            ) from exc
+        computed = {
+            "current_map_yaml_sha256": snapshot.map_yaml_sha256,
+            "current_map_image_sha256": snapshot.map_image_sha256,
+        }
+        for attribute, value in computed.items():
+            configured = getattr(self, attribute)
+            if configured and configured != value:
+                raise ValueError(
+                    f"{attribute} does not match current_map_yaml_path"
+                )
+            setattr(self, attribute, value)
+
     def _safety_callback(self, message):
         ready = False
         for status in message.status:
@@ -174,6 +230,7 @@ class WaypointTaskServer(Node):
         with self._lock:
             self._localization_ready = ready
             self._localization_stamp = time.monotonic()
+            self._localization_map_hash = str(message.map_hash)
             child = self._child_goal_handle if self._active and not ready else None
         if child is not None:
             self.get_logger().error(
@@ -192,6 +249,8 @@ class WaypointTaskServer(Node):
         with self._lock:
             self._task_readiness = bool(message.ready)
             self._task_readiness_stamp = time.monotonic()
+            self._readiness_map_id = str(message.map_id)
+            self._readiness_map_version_id = str(message.map_version_id)
             child = self._child_goal_handle if self._active and not self._task_readiness else None
         if child is not None:
             self.get_logger().error("TaskReadiness was lost; canceling Nav2 task")
@@ -240,6 +299,20 @@ class WaypointTaskServer(Node):
             if self._active:
                 self.get_logger().warning("Rejecting task while another task is active")
                 return GoalResponse.REJECT
+        if request.task_file and request.poses:
+            self.get_logger().warning("Rejecting task with both task_file and poses")
+            return GoalResponse.REJECT
+        if not request.task_file and not request.poses:
+            self.get_logger().warning("Rejecting task without task_file or poses")
+            return GoalResponse.REJECT
+        if request.loop_count <= 0 or request.loop_count > self.maximum_loops:
+            self.get_logger().warning(
+                f"Rejecting invalid finite loop_count: {request.loop_count}"
+            )
+            return GoalResponse.REJECT
+        if self.require_map and self._map is None:
+            self.get_logger().warning("Rejecting waypoint task because the map is unavailable")
+            return GoalResponse.REJECT
         if self.require_localization_valid and not self._localization_is_ready():
             self.get_logger().warning(
                 "Rejecting waypoint task because localization is not accepted"
@@ -252,11 +325,6 @@ class WaypointTaskServer(Node):
             return GoalResponse.REJECT
         if self.require_task_readiness and not self._task_readiness_is_ready():
             self.get_logger().warning("Rejecting waypoint task because TaskReadiness is not ready")
-            return GoalResponse.REJECT
-        if request.loop and (request.loop_count == 0 or request.loop_count > self.maximum_loops):
-            self.get_logger().warning(
-                f"Rejecting unbounded/excessive loop request: {request.loop_count}"
-            )
             return GoalResponse.REJECT
         with self._lock:
             self._active = True
@@ -281,11 +349,43 @@ class WaypointTaskServer(Node):
         return pose
 
     def _load_points(self, request):
+        points, _ = self._load_points_and_binding(request)
+        return points
+
+    def _load_points_and_binding(self, request):
         if request.task_file and request.poses:
             raise TaskChainError("supply exactly one of task_file and poses")
         if request.task_file:
-            return load_qt_task_chain(
-                request.task_file, maximum_points=self.maximum_points
+            task_path = Path(request.task_file).expanduser()
+            if not task_path.is_absolute():
+                raise TaskChainError("task_file must be an absolute path")
+            try:
+                document = json.loads(task_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise TaskChainError(f"cannot read task JSON: {exc}") from exc
+            if isinstance(document, dict) and "schema_version" in document:
+                try:
+                    task = load_task_group(
+                        task_path,
+                        maximum_points=self.maximum_points,
+                        maximum_loops=self.maximum_loops,
+                    )
+                except TaskGroupError as exc:
+                    raise TaskChainError(str(exc)) from exc
+                return [
+                    Waypoint(
+                        name=point.name,
+                        x=point.x,
+                        y=point.y,
+                        theta=point.yaw,
+                    )
+                    for point in task.enabled_points
+                ], task.map_binding
+            return (
+                load_qt_task_chain(
+                    task_path, maximum_points=self.maximum_points
+                ),
+                None,
             )
         if not request.poses:
             raise TaskChainError("task_file or poses is required")
@@ -326,7 +426,74 @@ class WaypointTaskServer(Node):
                     theta=yaw,
                 )
             )
-        return points
+        return points, None
+
+    def _validate_task_binding(self, binding, current_map):
+        if binding is None:
+            return None
+        if current_map is None:
+            return "map binding cannot be checked before the current map arrives"
+        if getattr(current_map.header, "frame_id", "map") != "map":
+            return "current OccupancyGrid frame_id must be map"
+        q = current_map.info.origin.orientation
+        current_yaw = math.atan2(
+            2.0 * (q.w * q.z + q.x * q.y),
+            1.0 - 2.0 * (q.y * q.y + q.z * q.z),
+        )
+        with self._lock:
+            readiness_map_id = self._readiness_map_id
+            readiness_map_version_id = self._readiness_map_version_id
+            localization_map_hash = self._localization_map_hash
+        active_map_id = self.current_map_id or readiness_map_id
+        active_map_version_id = (
+            self.current_map_version_id or readiness_map_version_id
+        )
+        active_pcd_hash = (
+            self.current_localization_pcd_sha256 or localization_map_hash
+        )
+        if not active_map_id or not active_map_version_id:
+            return "active map_id and map_version_id are required for task groups"
+        current = MapBinding(
+            map_id=active_map_id,
+            map_version_id=active_map_version_id,
+            map_yaml_sha256=self.current_map_yaml_sha256,
+            map_image_sha256=self.current_map_image_sha256,
+            localization_pcd_sha256=active_pcd_hash,
+            resolution=float(current_map.info.resolution),
+            width=int(current_map.info.width),
+            height=int(current_map.info.height),
+            origin=(
+                float(current_map.info.origin.position.x),
+                float(current_map.info.origin.position.y),
+                current_yaw,
+            ),
+        )
+        geometry_matches = (
+            math.isclose(binding.resolution, current.resolution, abs_tol=1.0e-9)
+            and binding.width == current.width
+            and binding.height == current.height
+            and all(
+                math.isclose(expected, actual, abs_tol=1.0e-9)
+                for expected, actual in zip(binding.origin, current.origin)
+            )
+        )
+        if not geometry_matches:
+            return "task map geometry does not match the current OccupancyGrid"
+        identity_fields = (
+            ("map_id", active_map_id),
+            ("map_version_id", active_map_version_id),
+            ("map_yaml_sha256", self.current_map_yaml_sha256),
+            ("map_image_sha256", self.current_map_image_sha256),
+            ("localization_pcd_sha256", active_pcd_hash),
+        )
+        for field_name, configured in identity_fields:
+            if configured and getattr(binding, field_name) != configured:
+                return f"task map binding {field_name} does not match the active map"
+        if self.require_map_content_hashes and any(
+            not value for _, value in identity_fields[2:]
+        ):
+            return "active map content hashes are not configured"
+        return None
 
     @staticmethod
     def _finish(result, success, error_code, message, missed=None):
@@ -340,7 +507,7 @@ class WaypointTaskServer(Node):
         result = ExecuteWaypointTask.Result()
         try:
             try:
-                points = self._load_points(goal_handle.request)
+                points, task_binding = self._load_points_and_binding(goal_handle.request)
             except TaskChainError as exc:
                 goal_handle.abort()
                 self._publish_status("REJECTED", reason=str(exc))
@@ -359,6 +526,11 @@ class WaypointTaskServer(Node):
                     message = "waypoints outside current map: " + ", ".join(outside)
                     self._publish_status("REJECTED", reason=message)
                     return self._finish(result, False, ERROR_POINT_OUTSIDE_MAP, message)
+            binding_error = self._validate_task_binding(task_binding, current_map)
+            if binding_error:
+                goal_handle.abort()
+                self._publish_status("REJECTED", reason=binding_error)
+                return self._finish(result, False, ERROR_MAP_MISMATCH, binding_error)
 
             if self.require_safety_ready and not self._safety_is_ready():
                 goal_handle.abort()

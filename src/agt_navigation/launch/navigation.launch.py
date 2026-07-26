@@ -31,6 +31,8 @@ def generate_launch_description():
                 "params_file", default_value=str(share / "config" / "nav2_bunker.yaml")
             ),
             DeclareLaunchArgument("map", default_value=str(share / "maps" / "offline_test.yaml")),
+            DeclareLaunchArgument("map_id", default_value=""),
+            DeclareLaunchArgument("map_version_id", default_value=""),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("autostart", default_value="false"),
             DeclareLaunchArgument("enable_localization_gate", default_value="true"),
@@ -109,6 +111,9 @@ def generate_launch_description():
                         "use_sim_time": use_sim_time,
                         "require_localization_valid": True,
                         "require_task_readiness": True,
+                        "current_map_id": LaunchConfiguration("map_id"),
+                        "current_map_version_id": LaunchConfiguration("map_version_id"),
+                        "current_map_yaml_path": LaunchConfiguration("map"),
                     }
                 ],
             ),
