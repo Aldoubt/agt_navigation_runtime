@@ -36,6 +36,7 @@
 #include "agt_localization/localization_supervisor.hpp"
 #include "agt_localization/quality_validator.hpp"
 #include "agt_localization/ros_conversions.hpp"
+#include "agt_localization/tracking_validation.hpp"
 #include "relocalization_core/relocalizer.hpp"
 
 namespace
@@ -427,12 +428,13 @@ private:
 
   struct GoalRunResult
   {
-    bool success{false};
-    bool skipped{false};
+    agt_localization::RunDisposition disposition{
+      agt_localization::RunDisposition::kRejected};
     std::uint16_t error_code{LocalizationStatus::ERROR_BACKEND_FAILED};
     geometry_msgs::msg::PoseWithCovarianceStamped final_pose;
     LocalizationStatus final_status;
     std::string failure_reason;
+    bool backend_converged{false};
   };
 
   struct TrackingCloudReservation
@@ -501,8 +503,9 @@ private:
   void executeGoal(const std::shared_ptr<GoalHandleRelocalize> & goal_handle)
   {
     const auto result = runGoal(goal_handle);
+    const bool accepted = result.disposition == agt_localization::RunDisposition::kAccepted;
     auto action_result = std::make_shared<Relocalize::Result>();
-    action_result->success = result.success;
+    action_result->success = accepted;
     action_result->error_code = result.error_code;
     action_result->final_pose = result.final_pose;
     action_result->final_status = result.final_status;
@@ -513,7 +516,7 @@ private:
       action_result->failure_reason = "relocalization canceled";
       action_result->final_status.error_code = LocalizationStatus::ERROR_CANCELED;
       goal_handle->canceled(action_result);
-    } else if (result.success) {
+    } else if (accepted) {
       goal_handle->succeed(action_result);
     } else {
       goal_handle->abort(action_result);
@@ -583,7 +586,7 @@ private:
           pose, "manual_initialpose", "manual_initialpose", map_id_, map_hash_, 400);
         const auto result = runCandidates(
           {candidate}, action_timeout_s_, publish_aligned_cloud_, nullptr);
-        if (!result.success) {
+        if (result.disposition != agt_localization::RunDisposition::kAccepted) {
           RCLCPP_WARN(
             get_logger(), "Manual initialpose relocalization failed: %s",
             result.failure_reason.c_str());
@@ -810,7 +813,6 @@ private:
     const auto start = std::chrono::steady_clock::now();
     std::vector<Attempt> successful;
     std::optional<Attempt> best_failed;
-    std::string preparation_error;
     sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg;
     {
       std::lock_guard<std::mutex> lock(cloud_mutex_);
@@ -818,23 +820,23 @@ private:
     }
 
     if (!ensureMap()) {
-      publishTerminalStatus(
+      output.final_status = makeRunStatus(
+        tracking_validation,
         LocalizationStatus::STATE_LOST, LocalizationStatus::ERROR_MAP_NOT_READY,
-        nullptr, 0U, static_cast<std::uint32_t>(candidates.size()),
+        nullptr, false, false, false, 0U, static_cast<std::uint32_t>(candidates.size()),
         "global localization map is not ready");
       output.error_code = LocalizationStatus::ERROR_MAP_NOT_READY;
       output.failure_reason = "global localization map is not ready";
-      output.final_status = lastStatus();
       return output;
     }
     if (!cloud_msg) {
-      publishTerminalStatus(
+      output.final_status = makeRunStatus(
+        tracking_validation,
         LocalizationStatus::STATE_LOST, LocalizationStatus::ERROR_SCAN_TOO_SMALL,
-        nullptr, 0U, static_cast<std::uint32_t>(candidates.size()),
+        nullptr, false, false, false, 0U, static_cast<std::uint32_t>(candidates.size()),
         "no latest registered lidar cloud is available");
       output.error_code = LocalizationStatus::ERROR_SCAN_TOO_SMALL;
       output.failure_reason = "no latest registered lidar cloud is available";
-      output.final_status = lastStatus();
       return output;
     }
 
@@ -847,17 +849,17 @@ private:
     if (tracking_validation) {
       tracking_cloud_reservation = evaluateTrackingValidationCloudStamp(
         cloud_stamp, cloud_time.accepted);
-      if (tracking_cloud_reservation->status ==
-        agt_localization::CloudSequenceStatus::kDuplicate)
-      {
+      const auto cloud_disposition = agt_localization::decideTrackingCloudDisposition(
+        cloud_time, tracking_cloud_reservation->status);
+      if (cloud_disposition == agt_localization::TrackingCloudDisposition::kSkipDuplicate) {
         RCLCPP_DEBUG_THROTTLE(
           get_logger(), *get_clock(), 5000,
-          "Tracking validation skipped duplicate cloud stamp=%lld",
-          static_cast<long long>(cloud_stamp.nanoseconds()));
-        output.skipped = true;
+          "Tracking validation skipped fresh duplicate cloud stamp=%lld age=%.3f",
+          static_cast<long long>(cloud_stamp.nanoseconds()), cloud_time.age_s);
+        output.disposition = agt_localization::RunDisposition::kSkipped;
         output.error_code = LocalizationStatus::ERROR_NONE;
         output.failure_reason =
-          "duplicate tracking validation cloud; waiting for a newer scan";
+          "fresh duplicate tracking validation cloud; waiting for a newer scan";
         output.final_status = lastStatus();
         return output;
       }
@@ -872,11 +874,11 @@ private:
         "s age=" + std::to_string(cloud_time.age_s) + "s";
       const auto state = tracking_validation ?
         toLocalizationState(supervisor_.snapshot().state) : LocalizationStatus::STATE_LOST;
-      publishTerminalStatus(
-        state, error_code, nullptr, 0U, static_cast<std::uint32_t>(candidates.size()), reason);
+      output.final_status = makeRunStatus(
+        tracking_validation, state, error_code, nullptr, false, false, false,
+        0U, static_cast<std::uint32_t>(candidates.size()), reason);
       output.error_code = error_code;
       output.failure_reason = reason;
-      output.final_status = lastStatus();
       return output;
     }
 
@@ -890,7 +892,7 @@ private:
           "duplicate-scan guard reset",
           static_cast<long long>(tracking_cloud_reservation->previous_stamp_ns.value_or(0)),
           static_cast<long long>(cloud_stamp.nanoseconds()));
-        output.skipped = true;
+        output.disposition = agt_localization::RunDisposition::kSkipped;
         output.error_code = LocalizationStatus::ERROR_NONE;
         output.failure_reason =
           "tracking validation cloud time moved backwards; waiting for a newer scan";
@@ -912,13 +914,13 @@ private:
         "failed to transform cloud at stamp=" + std::to_string(cloud_stamp.seconds()) +
         "s target_frame=" + tracking_frame_ + " source_frame=" + cloud_msg->header.frame_id +
         ": " + exception.what();
-      publishTerminalStatus(
+      output.final_status = makeRunStatus(
+        tracking_validation,
         LocalizationStatus::STATE_ERROR, LocalizationStatus::ERROR_TF_UNAVAILABLE,
-        nullptr, 0U, static_cast<std::uint32_t>(candidates.size()),
-        reason);
+        nullptr, false, false, false, 0U,
+        static_cast<std::uint32_t>(candidates.size()), reason);
       output.error_code = LocalizationStatus::ERROR_TF_UNAVAILABLE;
       output.failure_reason = reason;
-      output.final_status = lastStatus();
       return output;
     }
 
@@ -931,13 +933,13 @@ private:
       const std::string reason =
         "failed to lookup static transform target_frame=" + base_frame_ +
         " source_frame=" + tracking_frame_ + ": " + exception.what();
-      publishTerminalStatus(
+      output.final_status = makeRunStatus(
+        tracking_validation,
         LocalizationStatus::STATE_ERROR, LocalizationStatus::ERROR_TF_UNAVAILABLE,
-        nullptr, 0U, static_cast<std::uint32_t>(candidates.size()),
-        reason);
+        nullptr, false, false, false, 0U,
+        static_cast<std::uint32_t>(candidates.size()), reason);
       output.error_code = LocalizationStatus::ERROR_TF_UNAVAILABLE;
       output.failure_reason = reason;
-      output.final_status = lastStatus();
       return output;
     }
 
@@ -953,14 +955,14 @@ private:
         "failed to lookup TF at cloud_stamp=" + std::to_string(cloud_stamp.seconds()) +
         "s target_frame=" + odom_frame_ + " source_frame=" + tracking_frame_ +
         ": " + exception.what();
-      publishTerminalStatus(
+      output.final_status = makeRunStatus(
+        tracking_validation,
         tracking_validation ? toLocalizationState(supervisor_.snapshot().state) :
         LocalizationStatus::STATE_ERROR,
-        LocalizationStatus::ERROR_TF_UNAVAILABLE, nullptr, 0U,
+        LocalizationStatus::ERROR_TF_UNAVAILABLE, nullptr, false, false, false, 0U,
         static_cast<std::uint32_t>(candidates.size()), reason);
       output.error_code = LocalizationStatus::ERROR_TF_UNAVAILABLE;
       output.failure_reason = reason;
-      output.final_status = lastStatus();
       return output;
     }
 
@@ -980,13 +982,13 @@ private:
         const std::string reason =
           "tracking validation has no accepted map -> odom transform for cloud_stamp=" +
           std::to_string(cloud_stamp.seconds()) + "s";
-        publishTerminalStatus(
+        output.final_status = makeRunStatus(
+          tracking_validation,
           toLocalizationState(supervisor_.snapshot().state),
-          LocalizationStatus::ERROR_TF_UNAVAILABLE, nullptr, 0U,
+          LocalizationStatus::ERROR_TF_UNAVAILABLE, nullptr, false, false, false, 0U,
           static_cast<std::uint32_t>(candidates.size()), reason);
         output.error_code = LocalizationStatus::ERROR_TF_UNAVAILABLE;
         output.failure_reason = reason;
-        output.final_status = lastStatus();
         return output;
       }
       // map_from_tracking = map_from_odom * odom_from_tracking at cloud_stamp.
@@ -996,9 +998,10 @@ private:
 
     if (!tracking_validation) {
       supervisor_.beginSearch();
-      publishTerminalStatus(
+      (void)makeRunStatus(
+        tracking_validation,
         toLocalizationState(supervisor_.snapshot().state), LocalizationStatus::ERROR_NONE,
-        nullptr, 0U, static_cast<std::uint32_t>(candidates.size()),
+        nullptr, false, false, false, 0U, static_cast<std::uint32_t>(candidates.size()),
         "searching relocalization candidates");
     }
 
@@ -1010,13 +1013,13 @@ private:
           supervisor_.snapshot() : supervisor_.cancel();
         const std::string reason = tracking_validation ?
           "tracking validation canceled" : "relocalization canceled";
-        publishTerminalStatus(
+        output.final_status = makeRunStatus(
+          tracking_validation,
           toLocalizationState(snapshot.state), LocalizationStatus::ERROR_CANCELED,
-          nullptr, static_cast<std::uint32_t>(index),
+          nullptr, false, false, false, static_cast<std::uint32_t>(index),
           static_cast<std::uint32_t>(candidates.size()), reason);
         output.error_code = LocalizationStatus::ERROR_CANCELED;
         output.failure_reason = reason;
-        output.final_status = lastStatus();
         return output;
       }
       const double elapsed_s = std::chrono::duration<double>(
@@ -1026,13 +1029,13 @@ private:
           supervisor_.snapshot() : supervisor_.timeout();
         const std::string reason = tracking_validation ?
           "tracking validation timed out" : "relocalization timed out";
-        publishTerminalStatus(
+        output.final_status = makeRunStatus(
+          tracking_validation,
           toLocalizationState(snapshot.state), LocalizationStatus::ERROR_TIMEOUT,
-          nullptr, static_cast<std::uint32_t>(index),
+          nullptr, false, false, false, static_cast<std::uint32_t>(index),
           static_cast<std::uint32_t>(candidates.size()), reason);
         output.error_code = LocalizationStatus::ERROR_TIMEOUT;
         output.failure_reason = reason;
-        output.final_status = lastStatus();
         return output;
       }
 
@@ -1047,7 +1050,8 @@ private:
       if (!tracking_validation) {
         supervisor_.beginVerification();
       }
-      publishStatusFor(
+      (void)makeRunStatus(
+        tracking_validation,
         toLocalizationState(supervisor_.snapshot().state), LocalizationStatus::ERROR_NONE,
         &candidate, false, false, false, static_cast<std::uint32_t>(index),
         static_cast<std::uint32_t>(candidates.size()), "verifying candidate");
@@ -1107,7 +1111,8 @@ private:
         attempt.quality.message = attempt.result.status_message;
       }
 
-      publishStatusFor(
+      (void)makeRunStatus(
+        tracking_validation,
         attempt.quality.accepted ? LocalizationStatus::STATE_VERIFYING :
         LocalizationStatus::STATE_DEGRADED,
         attempt.quality.accepted ? LocalizationStatus::ERROR_NONE :
@@ -1151,14 +1156,20 @@ private:
         best_failed->quality.error_code : LocalizationStatus::ERROR_NO_CANDIDATES;
       const std::string reason = best_failed.has_value() ?
         best_failed->quality.message : "all relocalization candidates failed";
-      publishTerminalStatus(
+      output.backend_converged = best_failed.has_value() && best_failed->result.has_converged;
+      output.final_status = makeRunStatus(
+        tracking_validation,
         toLocalizationState(snapshot.state), error_code,
         best_failed.has_value() ? &best_failed->candidate : nullptr,
+        false, output.backend_converged, false,
         static_cast<std::uint32_t>(candidates.size()),
-        static_cast<std::uint32_t>(candidates.size()), reason);
+        static_cast<std::uint32_t>(candidates.size()), reason,
+        best_failed.has_value() ? best_failed->result.fitness_score : 0.0,
+        best_failed.has_value() ? best_failed->quality.translation_innovation : 0.0,
+        best_failed.has_value() ? best_failed->quality.yaw_innovation : 0.0,
+        best_failed.has_value() ? best_failed->debug.backend_runtime_ms : 0.0);
       output.error_code = error_code;
       output.failure_reason = reason;
-      output.final_status = lastStatus();
       return output;
     }
     if (successful.size() > 1U &&
@@ -1168,16 +1179,20 @@ private:
     {
       const auto snapshot = tracking_validation ?
         supervisor_.snapshot() : supervisor_.rejectSearchResult();
-      publishTerminalStatus(
+      output.backend_converged = successful.front().result.has_converged;
+      output.final_status = makeRunStatus(
+        tracking_validation,
         toLocalizationState(snapshot.state), LocalizationStatus::ERROR_AMBIGUOUS_RESULT,
-        &successful.front().candidate,
+        &successful.front().candidate, false, output.backend_converged, true,
         static_cast<std::uint32_t>(candidates.size()),
         static_cast<std::uint32_t>(candidates.size()),
         "multiple candidates have indistinguishable registration quality",
-        successful.front().result.fitness_score);
+        successful.front().result.fitness_score,
+        successful.front().quality.translation_innovation,
+        successful.front().quality.yaw_innovation,
+        successful.front().debug.backend_runtime_ms);
       output.error_code = LocalizationStatus::ERROR_AMBIGUOUS_RESULT;
       output.failure_reason = "multiple candidates have indistinguishable registration quality";
-      output.final_status = lastStatus();
       return output;
     }
 
@@ -1239,23 +1254,25 @@ private:
       }
     }
 
-    if (!tracking_validation) {
-      publishStatusFor(
-        toLocalizationState(snapshot.state), LocalizationStatus::ERROR_NONE,
-        &best.candidate, snapshot.navigation_allowed, true, false,
-        static_cast<std::uint32_t>(candidates.size()),
-        static_cast<std::uint32_t>(candidates.size()), "relocalization accepted",
-        best.result.fitness_score, best.quality.translation_innovation,
-        best.quality.yaw_innovation, best.debug.backend_runtime_ms, final_pose);
-    }
-    output.success = tracking_validation || snapshot.navigation_allowed;
-    output.error_code = output.success ?
+    output.disposition = tracking_validation || snapshot.navigation_allowed ?
+      agt_localization::RunDisposition::kAccepted :
+      agt_localization::RunDisposition::kRejected;
+    output.backend_converged = best.result.has_converged;
+    const bool accepted = output.disposition == agt_localization::RunDisposition::kAccepted;
+    output.error_code = accepted ?
       LocalizationStatus::ERROR_NONE : LocalizationStatus::ERROR_BACKEND_FAILED;
     output.final_pose = final_pose;
-    if (!output.success) {
+    if (!accepted) {
       output.failure_reason = "registration accepted but tracking confirmation is incomplete";
     }
-    output.final_status = lastStatus();
+    output.final_status = makeRunStatus(
+      tracking_validation, toLocalizationState(snapshot.state), output.error_code,
+      &best.candidate, accepted, output.backend_converged, false,
+      static_cast<std::uint32_t>(candidates.size()),
+      static_cast<std::uint32_t>(candidates.size()),
+      accepted ? "relocalization accepted" : output.failure_reason,
+      best.result.fitness_score, best.quality.translation_innovation,
+      best.quality.yaw_innovation, best.debug.backend_runtime_ms, final_pose);
     return output;
   }
 
@@ -1412,7 +1429,8 @@ private:
     return status;
   }
 
-  void publishStatusFor(
+  LocalizationStatus makeRunStatus(
+    bool tracking_validation,
     std::uint8_t state,
     std::uint16_t error_code,
     const Candidate * candidate,
@@ -1438,7 +1456,10 @@ private:
     if (pose.has_value()) {
       status.global_pose = *pose;
     }
-    publishStatus(status);
+    if (!tracking_validation) {
+      publishStatus(status);
+    }
+    return status;
   }
 
   void publishTerminalStatus(
@@ -1450,8 +1471,8 @@ private:
     const std::string & message,
     double fitness_score = 0.0)
   {
-    publishStatusFor(
-      state, error_code, candidate, false, false,
+    (void)makeRunStatus(
+      false, state, error_code, candidate, false, false,
       error_code == LocalizationStatus::ERROR_AMBIGUOUS_RESULT,
       tested, total, message, fitness_score);
   }
@@ -1572,29 +1593,19 @@ private:
       [this, candidate]() {
         const auto result = runCandidates(
           {candidate}, tracking_validation_timeout_s_, false, nullptr, false, true);
-        if (result.skipped) {
+        if (result.disposition == agt_localization::RunDisposition::kSkipped) {
           execution_running_.store(false);
           return;
         }
-        const auto snapshot = supervisor_.trackingValidation(result.success);
-        auto status = result.final_status;
+        const bool accepted =
+        result.disposition == agt_localization::RunDisposition::kAccepted;
+        const auto snapshot = supervisor_.trackingValidation(accepted);
+        auto status = agt_localization::makeTrackingValidationStatus(
+          result.final_status, snapshot, result.disposition, result.backend_converged,
+          result.error_code, result.failure_reason);
         status.header.stamp = now();
         status.header.frame_id = global_frame_;
-        status.state = toLocalizationState(snapshot.state);
-        status.pose_valid = result.success;
-        status.localization_accepted = result.success;
-        status.has_converged = result.success;
-        status.error_code = result.error_code;
-        status.consecutive_successes = static_cast<std::uint32_t>(
-          snapshot.consecutive_successes);
-        status.consecutive_failures = static_cast<std::uint32_t>(
-          snapshot.consecutive_failures);
-        status.message = result.success ?
-          "tracking validation accepted" :
-          "tracking validation failed: " + result.failure_reason;
-        if (result.success) {
-          status.global_pose = result.final_pose;
-        } else {
+        if (!accepted) {
           RCLCPP_WARN(
             get_logger(), "Tracking validation failed once: state=%u failures=%u reason=%s",
             static_cast<unsigned int>(status.state),

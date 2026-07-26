@@ -66,14 +66,23 @@ external coarse pose 中至少一种有界来源。
 `DEGRADED`、`RECOVERING`，连续达到阈值后进入 `LOST`。`LOST` 不会自动启动无界搜索，必须由
 人工 `/initialpose` 或 Action 请求显式恢复。
 
-tracking validation 只消费时间戳严格大于上一帧的注册点云。wall timer 即使在 bag 暂停、
-`/clock` 暂停或 FAST-LIVO2 停止发布时继续触发，相同 `cloud_stamp` 也会直接跳过，不执行 NDT，
-不增加成功或失败计数，也不改变 supervisor 状态。检测到 ROS 时间回退时，当前帧只用作新的
-点云序列基线并跳过；只有后续时间戳更大的点云才恢复验证，时间回退本身不会令定位进入
-`LOST`。回退后、新点云到达前仍留在缓存中的旧 duplicate 即使相对新 ROS 时间表现为未来帧，
-也会先按 duplicate 跳过；非 duplicate 点云仍必须通过正常新鲜度检查。每个已消费验证的成功
-或失败只由外层 tracking worker 向 supervisor 提交一次，
-`runCandidates()` 在 tracking 模式不推进状态机。
+tracking validation 只消费时间戳严格大于上一帧的注册点云，但 duplicate 只有同时通过点云
+新鲜度门禁时才会跳过。bag 和 `/clock` 一起暂停时，相同的 fresh `cloud_stamp` 不执行 NDT、
+不增加成功或失败计数、不发布新状态。实车 ROS 时间继续前进而雷达或 FAST-LIVO2 停止发布时，
+缓存帧超过 `max_cloud_age_s` 后不再按 duplicate 跳过，而是以 `ERROR_STALE_SCAN` 计为一次
+tracking failure；持续停发会依次进入 `DEGRADED`、`RECOVERING`、`LOST`。未来超容差或无效
+duplicate 同样按时间门禁拒绝。
+
+检测到 ROS 时间回退且当前帧新鲜时，该帧只用作新的点云序列基线并跳过；再次收到同一纳秒
+时间戳时按 fresh duplicate 跳过，只有后续严格增加的时间戳才恢复验证。时间回退和 fresh
+duplicate 的 skip 都不更新 supervisor，也不发布 `LocalizationStatus`。
+
+`runCandidates()` 在 tracking 模式不发布搜索、验证、TF/点云失败、候选结果或终止等中间权威
+状态，只返回 accepted/rejected/skipped 三态及后端结果。每个非 skip 结果只由外层 tracking
+worker 向 supervisor 提交一次并发布一次最终状态，因此成功验证不会短暂发布 `VERIFYING` 或
+`pose_valid=false` 而误触发 Nav2、teach-repeat 和 safety gate。`has_converged` 保留 NDT/ICP
+后端真实收敛结果；fitness/innovation 等质量门禁拒绝时，它可以为 `true`，但
+`localization_accepted` 和 `pose_valid` 必须为 `false`。
 
 初始手动 `/initialpose`、Action 和 configured candidate 仍使用各自 candidate 作为粗初值。
 点云时间戳由 `max_cloud_age_s`、`max_cloud_future_tolerance_s` 和

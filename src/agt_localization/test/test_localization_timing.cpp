@@ -87,6 +87,38 @@ TEST(LocalizationTimingTest, ClassifiesExactCloudStampSequence)
     CloudSequenceStatus::kNew);
 }
 
+TEST(LocalizationTimingTest, SkipsOnlyFreshDuplicate)
+{
+  agt_localization::CloudTimeConfig config;
+  const auto fresh = agt_localization::validateCloudTimestamp(10.2, 10.0, config);
+  EXPECT_EQ(
+    agt_localization::decideTrackingCloudDisposition(
+      fresh, agt_localization::CloudSequenceStatus::kDuplicate),
+    agt_localization::TrackingCloudDisposition::kSkipDuplicate);
+
+  const auto stale = agt_localization::validateCloudTimestamp(11.0, 10.0, config);
+  EXPECT_EQ(
+    agt_localization::decideTrackingCloudDisposition(
+      stale, agt_localization::CloudSequenceStatus::kDuplicate),
+    agt_localization::TrackingCloudDisposition::kReject);
+}
+
+TEST(LocalizationTimingTest, RejectsInvalidOrFutureDuplicate)
+{
+  agt_localization::CloudTimeConfig config;
+  const auto invalid = agt_localization::validateCloudTimestamp(10.0, 0.0, config);
+  EXPECT_EQ(
+    agt_localization::decideTrackingCloudDisposition(
+      invalid, agt_localization::CloudSequenceStatus::kDuplicate),
+    agt_localization::TrackingCloudDisposition::kReject);
+
+  const auto future = agt_localization::validateCloudTimestamp(10.0, 10.2, config);
+  EXPECT_EQ(
+    agt_localization::decideTrackingCloudDisposition(
+      future, agt_localization::CloudSequenceStatus::kDuplicate),
+    agt_localization::TrackingCloudDisposition::kReject);
+}
+
 TEST(LocalizationTimingTest, BackwardStampRequiresAFollowingNewCloud)
 {
   using agt_localization::CloudSequenceStatus;
@@ -97,6 +129,12 @@ TEST(LocalizationTimingTest, BackwardStampRequiresAFollowingNewCloud)
   EXPECT_EQ(
     classifyCloudSequence(baseline_ns, reset_stamp_ns),
     CloudSequenceStatus::kTimeMovedBackward);
+  agt_localization::CloudTimeDecision fresh;
+  fresh.accepted = true;
+  EXPECT_EQ(
+    agt_localization::decideTrackingCloudDisposition(
+      fresh, CloudSequenceStatus::kTimeMovedBackward),
+    agt_localization::TrackingCloudDisposition::kSkipTimeMovedBackward);
 
   baseline_ns = reset_stamp_ns;
   EXPECT_EQ(

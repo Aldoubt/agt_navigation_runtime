@@ -32,6 +32,14 @@ enum class CloudSequenceStatus
   kTimeMovedBackward
 };
 
+enum class TrackingCloudDisposition
+{
+  kProcess,
+  kReject,
+  kSkipDuplicate,
+  kSkipTimeMovedBackward
+};
+
 inline CloudSequenceStatus classifyCloudSequence(
   const std::optional<std::int64_t> & previous_stamp_ns,
   std::int64_t current_stamp_ns)
@@ -43,6 +51,22 @@ inline CloudSequenceStatus classifyCloudSequence(
     return CloudSequenceStatus::kDuplicate;
   }
   return CloudSequenceStatus::kTimeMovedBackward;
+}
+
+inline TrackingCloudDisposition decideTrackingCloudDisposition(
+  const CloudTimeDecision & cloud_time,
+  CloudSequenceStatus sequence_status)
+{
+  if (cloud_time.accepted && sequence_status == CloudSequenceStatus::kDuplicate) {
+    return TrackingCloudDisposition::kSkipDuplicate;
+  }
+  if (!cloud_time.accepted) {
+    return TrackingCloudDisposition::kReject;
+  }
+  if (sequence_status == CloudSequenceStatus::kTimeMovedBackward) {
+    return TrackingCloudDisposition::kSkipTimeMovedBackward;
+  }
+  return TrackingCloudDisposition::kProcess;
 }
 
 inline CloudTimeDecision validateCloudTimestamp(

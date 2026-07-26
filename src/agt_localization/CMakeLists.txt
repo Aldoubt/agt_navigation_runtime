@@ -97,6 +97,11 @@ if(BUILD_TESTING)
   ament_add_gtest(test_localization_timing test/test_localization_timing.cpp)
   target_include_directories(test_localization_timing PRIVATE include)
   target_link_libraries(test_localization_timing agt_localization_quality Eigen3::Eigen)
+  ament_add_gtest(test_tracking_validation test/test_tracking_validation.cpp)
+  target_include_directories(test_tracking_validation PRIVATE include)
+  ament_target_dependencies(test_tracking_validation agt_interfaces)
+  target_link_libraries(
+    test_tracking_validation agt_localization_supervisor Eigen3::Eigen)
   ament_add_pytest_test(
     test_relocalization_config
     test/test_relocalization_config.py

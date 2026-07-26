@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 import yaml
 
@@ -70,21 +71,43 @@ def test_tracking_validation_state_update_is_owned_by_outer_worker():
     )[0]
 
     assert "supervisor_.trackingValidation(" not in run_candidates
-    assert tracking_worker.count("supervisor_.trackingValidation(result.success)") == 1
-    assert "if (result.skipped)" in tracking_worker
+    assert tracking_worker.count("supervisor_.trackingValidation(accepted)") == 1
+    assert "RunDisposition::kSkipped" in tracking_worker
+    assert tracking_worker.count("publishStatus(status);") == 1
 
 
-def test_duplicate_guard_precedes_cloud_freshness_failure():
+def test_only_fresh_duplicate_is_skipped():
+    header_path = (
+        Path(__file__).parents[1]
+        / "include"
+        / "agt_localization"
+        / "localization_timing.hpp"
+    )
+    source = header_path.read_text(encoding="utf-8")
+    decision = source.split("inline TrackingCloudDisposition decideTrackingCloudDisposition(", 1)[
+        1
+    ].split("inline CloudTimeDecision validateCloudTimestamp(", 1)[0]
+
+    assert "cloud_time.accepted && sequence_status == CloudSequenceStatus::kDuplicate" in decision
+    assert decision.index("cloud_time.accepted &&") < decision.index("if (!cloud_time.accepted)")
+
+
+def test_tracking_validation_run_does_not_publish_intermediate_status():
     source_path = Path(__file__).parents[1] / "src" / "relocalization_node.cpp"
     source = source_path.read_text(encoding="utf-8")
-    timestamp_block = source.split("const rclcpp::Time cloud_stamp", 1)[1].split(
-        'RCLCPP_DEBUG(\n      get_logger(),\n      "Relocalization frame', 1
+    run_candidates = source.split("GoalRunResult runCandidates(", 1)[1].split(
+        "relocalization_core::RegistrationBackendType parseBackend", 1
+    )[0]
+    status_helper = source.split("LocalizationStatus makeRunStatus(", 1)[1].split(
+        "void publishTerminalStatus(", 1
     )[0]
 
-    assert timestamp_block.index("CloudSequenceStatus::kDuplicate") < timestamp_block.index(
-        "if (!cloud_time.accepted)"
-    )
-    assert "cloud_stamp, cloud_time.accepted" in timestamp_block
+    assert re.search(r"\bpublishStatus\s*\(", run_candidates) is None
+    assert re.search(r"\bpublishTerminalStatus\s*\(", run_candidates) is None
+    publication_policies = re.findall(r"makeRunStatus\(\s*([^,\s]+)", run_candidates)
+    assert publication_policies
+    assert set(publication_policies) == {"tracking_validation"}
+    assert "if (!tracking_validation)" in status_helper
 
 
 def test_relocalization_uses_cloud_time_for_dynamic_tf_and_results():
