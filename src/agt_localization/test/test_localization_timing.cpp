@@ -1,4 +1,7 @@
 #include <cmath>
+#include <cstdint>
+#include <limits>
+#include <optional>
 
 #include <Eigen/Geometry>
 #include <gtest/gtest.h>
@@ -53,6 +56,55 @@ TEST(LocalizationTimingTest, HandlesFutureTolerance)
   const auto decision = agt_localization::validateCloudTimestamp(10.0, 10.2, config);
   EXPECT_FALSE(decision.accepted);
   EXPECT_NE(decision.message.find("future"), std::string::npos);
+}
+
+TEST(LocalizationTimingTest, RejectsNonFiniteTimestamp)
+{
+  agt_localization::CloudTimeConfig config;
+  const auto decision = agt_localization::validateCloudTimestamp(
+    10.0, std::numeric_limits<double>::quiet_NaN(), config);
+  EXPECT_FALSE(decision.accepted);
+  EXPECT_NE(decision.message.find("invalid"), std::string::npos);
+}
+
+TEST(LocalizationTimingTest, ClassifiesExactCloudStampSequence)
+{
+  using agt_localization::CloudSequenceStatus;
+  using agt_localization::classifyCloudSequence;
+
+  EXPECT_EQ(classifyCloudSequence(std::nullopt, 100), CloudSequenceStatus::kNew);
+  EXPECT_EQ(
+    classifyCloudSequence(std::optional<std::int64_t>{100}, 101),
+    CloudSequenceStatus::kNew);
+  EXPECT_EQ(
+    classifyCloudSequence(std::optional<std::int64_t>{100}, 100),
+    CloudSequenceStatus::kDuplicate);
+  EXPECT_EQ(
+    classifyCloudSequence(std::optional<std::int64_t>{100}, 99),
+    CloudSequenceStatus::kTimeMovedBackward);
+  EXPECT_EQ(
+    classifyCloudSequence(std::optional<std::int64_t>{1000000000}, 1000000001),
+    CloudSequenceStatus::kNew);
+}
+
+TEST(LocalizationTimingTest, BackwardStampRequiresAFollowingNewCloud)
+{
+  using agt_localization::CloudSequenceStatus;
+  using agt_localization::classifyCloudSequence;
+
+  std::optional<std::int64_t> baseline_ns{100000000000};
+  constexpr std::int64_t reset_stamp_ns = 10000000000;
+  EXPECT_EQ(
+    classifyCloudSequence(baseline_ns, reset_stamp_ns),
+    CloudSequenceStatus::kTimeMovedBackward);
+
+  baseline_ns = reset_stamp_ns;
+  EXPECT_EQ(
+    classifyCloudSequence(baseline_ns, reset_stamp_ns),
+    CloudSequenceStatus::kDuplicate);
+  EXPECT_EQ(
+    classifyCloudSequence(baseline_ns, reset_stamp_ns + 1),
+    CloudSequenceStatus::kNew);
 }
 
 TEST(LocalizationTimingTest, UsesProvidedClockInsteadOfWallClock)

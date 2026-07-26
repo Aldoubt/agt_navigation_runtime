@@ -16,5 +16,6 @@ PCD 摘要；如果 processing record 有 `pcd_sha256`（兼容读取 `map_hash`
 `action_initial_pose`。
 
 `tracking_validation_enabled` 默认启用低频只读验证。`tracking_validation_period_s` 和
-`tracking_validation_timeout_s` 必须为正数；`tracking_confirmations_required`、
-`tracking_failures_to_recover`、`tracking_failures_to_lost` 必须为正数且按恢复、丢失顺序递增。
+`tracking_validation_timeout_s` 必须为正数；`tracking_confirmations_required` 当前只能为 `1`，
+其他值会因多帧 bootstrap 确认尚未实现而在节点启动时被拒绝。`tracking_failures_to_recover`、
+`tracking_failures_to_lost` 必须为正数且按恢复、丢失顺序递增。

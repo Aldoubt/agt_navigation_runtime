@@ -46,8 +46,45 @@ def test_tracking_validation_is_bounded_and_enabled_by_default():
     assert params["tracking_validation_enabled"] is True
     assert params["tracking_validation_period_s"] > 0.0
     assert params["tracking_validation_timeout_s"] > 0.0
-    assert params["tracking_confirmations_required"] > 0
+    assert params["tracking_confirmations_required"] == 1
     assert 0 < params["tracking_failures_to_recover"] <= params["tracking_failures_to_lost"]
+
+
+def test_bootstrap_confirmation_parameter_rejects_every_value_except_one():
+    source_path = Path(__file__).parents[1] / "src" / "relocalization_node.cpp"
+    source = source_path.read_text(encoding="utf-8")
+
+    assert "tracking_confirmations_required != 1" in source
+    assert "tracking_confirmations_required currently supports only 1" in source
+    assert "multi-frame bootstrap confirmation is not implemented" in source
+
+
+def test_tracking_validation_state_update_is_owned_by_outer_worker():
+    source_path = Path(__file__).parents[1] / "src" / "relocalization_node.cpp"
+    source = source_path.read_text(encoding="utf-8")
+    run_candidates = source.split("GoalRunResult runCandidates(", 1)[1].split(
+        "relocalization_core::RegistrationBackendType parseBackend", 1
+    )[0]
+    tracking_worker = source.split("void maybeStartTrackingValidation()", 1)[1].split(
+        "relocalization_core::Relocalizer relocalizer_", 1
+    )[0]
+
+    assert "supervisor_.trackingValidation(" not in run_candidates
+    assert tracking_worker.count("supervisor_.trackingValidation(result.success)") == 1
+    assert "if (result.skipped)" in tracking_worker
+
+
+def test_duplicate_guard_precedes_cloud_freshness_failure():
+    source_path = Path(__file__).parents[1] / "src" / "relocalization_node.cpp"
+    source = source_path.read_text(encoding="utf-8")
+    timestamp_block = source.split("const rclcpp::Time cloud_stamp", 1)[1].split(
+        'RCLCPP_DEBUG(\n      get_logger(),\n      "Relocalization frame', 1
+    )[0]
+
+    assert timestamp_block.index("CloudSequenceStatus::kDuplicate") < timestamp_block.index(
+        "if (!cloud_time.accepted)"
+    )
+    assert "cloud_stamp, cloud_time.accepted" in timestamp_block
 
 
 def test_relocalization_uses_cloud_time_for_dynamic_tf_and_results():

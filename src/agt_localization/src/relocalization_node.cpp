@@ -2,6 +2,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <exception>
 #include <limits>
 #include <memory>
@@ -267,9 +268,14 @@ public:
     {
       throw std::runtime_error("action timeout and ambiguity ratio must be valid");
     }
+    if (tracking_confirmations_required != 1) {
+      throw std::runtime_error(
+              "tracking_confirmations_required currently supports only 1; "
+              "multi-frame bootstrap confirmation is not implemented");
+    }
     if (!isFinite(tracking_validation_period_s_) || tracking_validation_period_s_ <= 0.0 ||
       !isFinite(tracking_validation_timeout_s_) || tracking_validation_timeout_s_ <= 0.0 ||
-      tracking_confirmations_required <= 0 || tracking_failures_to_recover <= 0 ||
+      tracking_failures_to_recover <= 0 ||
       tracking_failures_to_lost <= 0 || tracking_failures_to_recover > tracking_failures_to_lost)
     {
       throw std::runtime_error("tracking validation configuration is invalid");
@@ -422,10 +428,18 @@ private:
   struct GoalRunResult
   {
     bool success{false};
+    bool skipped{false};
     std::uint16_t error_code{LocalizationStatus::ERROR_BACKEND_FAILED};
     geometry_msgs::msg::PoseWithCovarianceStamped final_pose;
     LocalizationStatus final_status;
     std::string failure_reason;
+  };
+
+  struct TrackingCloudReservation
+  {
+    agt_localization::CloudSequenceStatus status{
+      agt_localization::CloudSequenceStatus::kNew};
+    std::optional<std::int64_t> previous_stamp_ns;
   };
 
   rclcpp_action::GoalResponse handleGoal(
@@ -829,6 +843,25 @@ private:
       max_cloud_age_s_, max_cloud_future_tolerance_s_, require_nonzero_cloud_stamp_};
     const auto cloud_time = agt_localization::validateCloudTimestamp(
       now().seconds(), cloud_stamp.seconds(), cloud_time_config);
+    std::optional<TrackingCloudReservation> tracking_cloud_reservation;
+    if (tracking_validation) {
+      tracking_cloud_reservation = evaluateTrackingValidationCloudStamp(
+        cloud_stamp, cloud_time.accepted);
+      if (tracking_cloud_reservation->status ==
+        agt_localization::CloudSequenceStatus::kDuplicate)
+      {
+        RCLCPP_DEBUG_THROTTLE(
+          get_logger(), *get_clock(), 5000,
+          "Tracking validation skipped duplicate cloud stamp=%lld",
+          static_cast<long long>(cloud_stamp.nanoseconds()));
+        output.skipped = true;
+        output.error_code = LocalizationStatus::ERROR_NONE;
+        output.failure_reason =
+          "duplicate tracking validation cloud; waiting for a newer scan";
+        output.final_status = lastStatus();
+        return output;
+      }
+    }
     if (!cloud_time.accepted) {
       const bool invalid_timestamp = !std::isfinite(cloud_stamp.seconds()) ||
         (require_nonzero_cloud_stamp_ && cloud_stamp.nanoseconds() == 0);
@@ -845,6 +878,25 @@ private:
       output.failure_reason = reason;
       output.final_status = lastStatus();
       return output;
+    }
+
+    if (tracking_cloud_reservation.has_value()) {
+      if (tracking_cloud_reservation->status ==
+        agt_localization::CloudSequenceStatus::kTimeMovedBackward)
+      {
+        RCLCPP_WARN_THROTTLE(
+          get_logger(), *get_clock(), 5000,
+          "Tracking validation cloud time moved backwards: previous=%lld current=%lld; "
+          "duplicate-scan guard reset",
+          static_cast<long long>(tracking_cloud_reservation->previous_stamp_ns.value_or(0)),
+          static_cast<long long>(cloud_stamp.nanoseconds()));
+        output.skipped = true;
+        output.error_code = LocalizationStatus::ERROR_NONE;
+        output.failure_reason =
+          "tracking validation cloud time moved backwards; waiting for a newer scan";
+        output.final_status = lastStatus();
+        return output;
+      }
     }
 
     RCLCPP_DEBUG(
@@ -954,26 +1006,32 @@ private:
       if (cancel_requested_.load() ||
         (goal_handle && goal_handle->is_canceling()))
       {
-        const auto snapshot = supervisor_.cancel();
+        const auto snapshot = tracking_validation ?
+          supervisor_.snapshot() : supervisor_.cancel();
+        const std::string reason = tracking_validation ?
+          "tracking validation canceled" : "relocalization canceled";
         publishTerminalStatus(
           toLocalizationState(snapshot.state), LocalizationStatus::ERROR_CANCELED,
           nullptr, static_cast<std::uint32_t>(index),
-          static_cast<std::uint32_t>(candidates.size()), "relocalization canceled");
+          static_cast<std::uint32_t>(candidates.size()), reason);
         output.error_code = LocalizationStatus::ERROR_CANCELED;
-        output.failure_reason = "relocalization canceled";
+        output.failure_reason = reason;
         output.final_status = lastStatus();
         return output;
       }
       const double elapsed_s = std::chrono::duration<double>(
         std::chrono::steady_clock::now() - start).count();
       if (elapsed_s > timeout_s) {
-        const auto snapshot = supervisor_.timeout();
+        const auto snapshot = tracking_validation ?
+          supervisor_.snapshot() : supervisor_.timeout();
+        const std::string reason = tracking_validation ?
+          "tracking validation timed out" : "relocalization timed out";
         publishTerminalStatus(
           toLocalizationState(snapshot.state), LocalizationStatus::ERROR_TIMEOUT,
           nullptr, static_cast<std::uint32_t>(index),
-          static_cast<std::uint32_t>(candidates.size()), "relocalization timed out");
+          static_cast<std::uint32_t>(candidates.size()), reason);
         output.error_code = LocalizationStatus::ERROR_TIMEOUT;
-        output.failure_reason = "relocalization timed out";
+        output.failure_reason = reason;
         output.final_status = lastStatus();
         return output;
       }
@@ -1127,7 +1185,7 @@ private:
     const Eigen::Matrix4f tracking_from_odom = odom_from_tracking.inverse();
     const Eigen::Matrix4f map_from_odom = best.result.estimated_pose * tracking_from_odom;
     const auto snapshot = tracking_validation ?
-      supervisor_.trackingValidation(true) : supervisor_.acceptSearchResult();
+      supervisor_.snapshot() : supervisor_.acceptSearchResult();
     if (update_tf && snapshot.navigation_allowed) {
       {
         std::lock_guard<std::mutex> lock(tf_mutex_);
@@ -1181,15 +1239,17 @@ private:
       }
     }
 
-    publishStatusFor(
-      toLocalizationState(snapshot.state), LocalizationStatus::ERROR_NONE,
-      &best.candidate, snapshot.navigation_allowed, true, false,
-      static_cast<std::uint32_t>(candidates.size()),
-      static_cast<std::uint32_t>(candidates.size()), "relocalization accepted",
-      best.result.fitness_score, best.quality.translation_innovation,
-      best.quality.yaw_innovation, best.debug.backend_runtime_ms, final_pose);
-    output.success = snapshot.navigation_allowed;
-    output.error_code = snapshot.navigation_allowed ?
+    if (!tracking_validation) {
+      publishStatusFor(
+        toLocalizationState(snapshot.state), LocalizationStatus::ERROR_NONE,
+        &best.candidate, snapshot.navigation_allowed, true, false,
+        static_cast<std::uint32_t>(candidates.size()),
+        static_cast<std::uint32_t>(candidates.size()), "relocalization accepted",
+        best.result.fitness_score, best.quality.translation_innovation,
+        best.quality.yaw_innovation, best.debug.backend_runtime_ms, final_pose);
+    }
+    output.success = tracking_validation || snapshot.navigation_allowed;
+    output.error_code = output.success ?
       LocalizationStatus::ERROR_NONE : LocalizationStatus::ERROR_BACKEND_FAILED;
     output.final_pose = final_pose;
     if (!output.success) {
@@ -1418,6 +1478,28 @@ private:
     latest_cloud_msg_ = msg;
   }
 
+  TrackingCloudReservation evaluateTrackingValidationCloudStamp(
+    const rclcpp::Time & cloud_stamp,
+    bool timestamp_accepted)
+  {
+    std::lock_guard<std::mutex> lock(tracking_validation_stamp_mutex_);
+    TrackingCloudReservation reservation;
+    if (last_tracking_validation_cloud_stamp_.has_value()) {
+      reservation.previous_stamp_ns =
+        last_tracking_validation_cloud_stamp_->nanoseconds();
+    }
+    reservation.status = agt_localization::classifyCloudSequence(
+      reservation.previous_stamp_ns, cloud_stamp.nanoseconds());
+    if (timestamp_accepted &&
+      reservation.status != agt_localization::CloudSequenceStatus::kDuplicate)
+    {
+      // A backward stamp becomes the new baseline, but this invocation is skipped.
+      // The next validation still needs a strictly newer cloud before doing NDT.
+      last_tracking_validation_cloud_stamp_ = cloud_stamp;
+    }
+    return reservation;
+  }
+
   void externalCoarsePoseCallback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
   {
@@ -1490,21 +1572,35 @@ private:
       [this, candidate]() {
         const auto result = runCandidates(
           {candidate}, tracking_validation_timeout_s_, false, nullptr, false, true);
-        if (!result.success) {
-          const auto snapshot = supervisor_.trackingValidation(false);
-          auto status = lastStatus();
-          status.state = toLocalizationState(snapshot.state);
-          status.pose_valid = false;
-          status.localization_accepted = false;
-          status.has_converged = false;
-          status.error_code = result.error_code;
-          status.consecutive_successes = static_cast<std::uint32_t>(
-            snapshot.consecutive_successes);
-          status.consecutive_failures = static_cast<std::uint32_t>(
-            snapshot.consecutive_failures);
-          status.message = "tracking validation failed: " + result.failure_reason;
-          publishStatus(status);
+        if (result.skipped) {
+          execution_running_.store(false);
+          return;
         }
+        const auto snapshot = supervisor_.trackingValidation(result.success);
+        auto status = result.final_status;
+        status.header.stamp = now();
+        status.header.frame_id = global_frame_;
+        status.state = toLocalizationState(snapshot.state);
+        status.pose_valid = result.success;
+        status.localization_accepted = result.success;
+        status.has_converged = result.success;
+        status.error_code = result.error_code;
+        status.consecutive_successes = static_cast<std::uint32_t>(
+          snapshot.consecutive_successes);
+        status.consecutive_failures = static_cast<std::uint32_t>(
+          snapshot.consecutive_failures);
+        status.message = result.success ?
+          "tracking validation accepted" :
+          "tracking validation failed: " + result.failure_reason;
+        if (result.success) {
+          status.global_pose = result.final_pose;
+        } else {
+          RCLCPP_WARN(
+            get_logger(), "Tracking validation failed once: state=%u failures=%u reason=%s",
+            static_cast<unsigned int>(status.state),
+            status.consecutive_failures, result.failure_reason.c_str());
+        }
+        publishStatus(status);
         execution_running_.store(false);
       });
   }
@@ -1554,6 +1650,8 @@ private:
   std::mutex external_coarse_pose_mutex_;
   sensor_msgs::msg::PointCloud2::SharedPtr latest_cloud_msg_;
   std::mutex cloud_mutex_;
+  std::optional<rclcpp::Time> last_tracking_validation_cloud_stamp_;
+  std::mutex tracking_validation_stamp_mutex_;
 
   Eigen::Matrix4f latest_map_to_odom_{Eigen::Matrix4f::Identity()};
   bool has_latest_tf_{false};

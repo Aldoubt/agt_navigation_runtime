@@ -66,6 +66,15 @@ external coarse pose 中至少一种有界来源。
 `DEGRADED`、`RECOVERING`，连续达到阈值后进入 `LOST`。`LOST` 不会自动启动无界搜索，必须由
 人工 `/initialpose` 或 Action 请求显式恢复。
 
+tracking validation 只消费时间戳严格大于上一帧的注册点云。wall timer 即使在 bag 暂停、
+`/clock` 暂停或 FAST-LIVO2 停止发布时继续触发，相同 `cloud_stamp` 也会直接跳过，不执行 NDT，
+不增加成功或失败计数，也不改变 supervisor 状态。检测到 ROS 时间回退时，当前帧只用作新的
+点云序列基线并跳过；只有后续时间戳更大的点云才恢复验证，时间回退本身不会令定位进入
+`LOST`。回退后、新点云到达前仍留在缓存中的旧 duplicate 即使相对新 ROS 时间表现为未来帧，
+也会先按 duplicate 跳过；非 duplicate 点云仍必须通过正常新鲜度检查。每个已消费验证的成功
+或失败只由外层 tracking worker 向 supervisor 提交一次，
+`runCandidates()` 在 tracking 模式不推进状态机。
+
 初始手动 `/initialpose`、Action 和 configured candidate 仍使用各自 candidate 作为粗初值。
 点云时间戳由 `max_cloud_age_s`、`max_cloud_future_tolerance_s` 和
 `require_nonzero_cloud_stamp` 检查；过期、未来超容差和无效时间戳分别报告明确原因及
@@ -75,8 +84,9 @@ external coarse pose 中至少一种有界来源。
 离线 rosbag 回放必须给节点设置 `use_sim_time=true`，并确认 `/clock` 正常发布；新鲜度检查只
 使用 ROS clock，不使用系统墙钟。阈值和验证周期见 `config/relocalization.yaml`。
 
-`tracking_confirmations_required` 默认保持 `1` 以兼容当前 Bunker 单次重定位基线；提高该值后，
-Action 结果会在连续确认完成前保持非导航有效状态，适合后续接入重复扫描验证。
+`tracking_confirmations_required` 当前固定只支持 `1`。设置为 `0`、负数或 `2` 及以上时节点会在
+启动阶段明确失败，因为临时 `map -> odom`、独立新帧确认和最终 TF 提交组成的多帧 bootstrap
+流程尚未实现。不要通过修改 YAML 尝试启用多帧启动确认。
 
 ## NDT 线程参数
 

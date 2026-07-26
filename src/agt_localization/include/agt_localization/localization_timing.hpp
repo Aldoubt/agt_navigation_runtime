@@ -2,6 +2,8 @@
 #define AGT_LOCALIZATION__LOCALIZATION_TIMING_HPP_
 
 #include <cmath>
+#include <cstdint>
+#include <optional>
 #include <string>
 
 #include <Eigen/Geometry>
@@ -22,6 +24,26 @@ struct CloudTimeDecision
   double age_s{0.0};
   std::string message;
 };
+
+enum class CloudSequenceStatus
+{
+  kNew,
+  kDuplicate,
+  kTimeMovedBackward
+};
+
+inline CloudSequenceStatus classifyCloudSequence(
+  const std::optional<std::int64_t> & previous_stamp_ns,
+  std::int64_t current_stamp_ns)
+{
+  if (!previous_stamp_ns.has_value() || current_stamp_ns > *previous_stamp_ns) {
+    return CloudSequenceStatus::kNew;
+  }
+  if (current_stamp_ns == *previous_stamp_ns) {
+    return CloudSequenceStatus::kDuplicate;
+  }
+  return CloudSequenceStatus::kTimeMovedBackward;
+}
 
 inline CloudTimeDecision validateCloudTimestamp(
   double now_sec,
