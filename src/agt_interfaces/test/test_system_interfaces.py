@@ -7,6 +7,7 @@ from agt_interfaces.action import (
 from agt_interfaces.msg import (
     BagSessionSummary,
     ComponentHealth,
+    ExperimentSummary,
     MapVersionSummary,
     MissionEvent,
     MissionStatus,
@@ -19,6 +20,7 @@ from agt_interfaces.srv import (
     GetRobotState,
     GetSystemHealth,
     ListBagSessions,
+    ListExperiments,
     ListMapVersions,
     ManageBagSession,
     ManageMapVersion,
@@ -71,5 +73,9 @@ def test_system_interfaces_have_stable_defaults_and_constants():
     assert ManageMapVersion.Response.ERROR_CONFIRMATION_REQUIRED == 5
     assert ListBagSessions.Response().sessions == []
     assert ManageBagSession.Request.OP_INTERRUPT_EXPERIMENT == 7
+    assert ManageBagSession.Request.OP_ADD_EXPERIMENT_EVENT == 10
     assert ManageBagSession.Response.ERROR_PROFILE_INVALID == 4
     assert ManageBagSession.Request().experiment_title == ""
+    assert ManageBagSession.Request().tags_json == ""
+    assert ExperimentSummary.STATE_INTERRUPTED == 4
+    assert ListExperiments.Response().experiments == []

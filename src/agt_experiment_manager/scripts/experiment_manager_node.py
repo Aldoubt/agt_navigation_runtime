@@ -7,8 +7,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
-from agt_interfaces.msg import BagSessionSummary, LocalizationStatus
-from agt_interfaces.srv import ListBagSessions, ManageBagSession
+from agt_interfaces.msg import BagSessionSummary, ExperimentSummary, LocalizationStatus
+from agt_interfaces.srv import ListBagSessions, ListExperiments, ManageBagSession
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
@@ -16,7 +16,7 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from agt_experiment_manager.facade import (
-    ExperimentBusinessFacade, STATE_VALUES, load_bag_profiles,
+    EXPERIMENT_STATES, ExperimentBusinessFacade, STATE_VALUES, load_bag_profiles,
 )
 from agt_experiment_manager.manager import ExperimentError, ExperimentManager
 
@@ -90,6 +90,12 @@ class ExperimentManagerNode(Node):
             self._manage_session,
             callback_group=group,
         )
+        self.create_service(
+            ListExperiments,
+            "/agt/data/experiments/list",
+            self._list_experiments,
+            callback_group=group,
+        )
         self.create_subscription(
             LocalizationStatus,
             "/agt/localization/status",
@@ -119,6 +125,48 @@ class ExperimentManagerNode(Node):
         message.started_at = str(value.get("started_at", ""))
         message.updated_at = str(value.get("updated_at", ""))
         message.message = str(value.get("message", ""))
+        message.process_id = int(value.get("process_id", 0))
+        message.message_count = int(value.get("message_count", 0))
+        message.storage_identifier = str(value.get("storage_identifier", ""))
+        message.mapping_input_ready = bool(value.get("mapping_input_ready", False))
+        message.contains_mapping_outputs = bool(
+            value.get("contains_mapping_outputs", False)
+        )
+        message.contains_navigation_outputs = bool(
+            value.get("contains_navigation_outputs", False)
+        )
+        return message
+
+    def _experiment_summary(self, value) -> ExperimentSummary:
+        message = ExperimentSummary()
+        message.header.stamp = self.get_clock().now().to_msg()
+        state_values = {
+            name: state for state, name in EXPERIMENT_STATES.items() if name is not None
+        }
+        message.state = int(state_values.get(str(value.get("state", "")).upper(), 0))
+        message.experiment_id = str(value.get("experiment_id", ""))
+        message.title = str(value.get("title", ""))
+        message.created_at = str(value.get("created_at", ""))
+        message.start_time = str(value.get("start_time") or "")
+        message.end_time = str(value.get("end_time") or "")
+        message.platform_profile = str(value.get("platform_profile", ""))
+        active_map = value.get("active_map", {})
+        if isinstance(active_map, dict):
+            message.map_id = str(active_map.get("map_id", ""))
+            message.map_version_id = str(active_map.get("map_version_id", ""))
+            message.map_hash = str(
+                active_map.get("map_hash", active_map.get("manifest_sha256", ""))
+            )
+        launch_arguments = value.get("launch_arguments", {})
+        if isinstance(launch_arguments, dict):
+            message.mission_id = str(launch_arguments.get("mission_id", ""))
+            message.mission_version = str(launch_arguments.get("mission_version", ""))
+            message.mission_sha256 = str(launch_arguments.get("mission_sha256", ""))
+        message.launch_profile = str(value.get("launch_profile", ""))
+        message.result_status = str(value.get("result_status", ""))
+        config_files = value.get("config_files", [])
+        message.config_snapshot_count = len(config_files) if isinstance(config_files, list) else 0
+        message.message = f"experiment is {str(value.get('state', 'unknown')).lower()}"
         return message
 
     def _publish_status(self) -> None:
@@ -143,12 +191,35 @@ class ExperimentManagerNode(Node):
             response.message = str(exc)
         return response
 
+    def _list_experiments(self, request, response):
+        try:
+            experiments = self._facade.list_experiments(state=int(request.state))
+            response.experiments = [
+                self._experiment_summary(item) for item in experiments
+            ]
+            response.success = True
+            response.error_code = ListExperiments.Response.ERROR_NONE
+            response.message = f"listed {len(experiments)} experiments"
+        except ValueError as exc:
+            response.success = False
+            response.error_code = ListExperiments.Response.ERROR_INVALID_REQUEST
+            response.message = str(exc)
+        except Exception as exc:
+            response.success = False
+            response.error_code = ListExperiments.Response.ERROR_INTERNAL
+            response.message = str(exc)
+        return response
+
     @staticmethod
     def _request_values(request) -> dict[str, object]:
         return {
             "bag_id": request.bag_id,
             "experiment_id": request.experiment_id,
             "experiment_title": request.experiment_title,
+            "objective": request.objective,
+            "hypothesis": request.hypothesis,
+            "tags_json": request.tags_json,
+            "operator_note": request.operator_note,
             "profile_id": request.profile_id,
             "playback_rate": request.playback_rate,
             "mission_id": request.mission_id,
@@ -160,6 +231,12 @@ class ExperimentManagerNode(Node):
             "platform_profile": request.platform_profile,
             "calibration_profile": request.calibration_profile,
             "nav2_profile": request.nav2_profile,
+            "launch_profile": request.launch_profile,
+            "start_experiment": request.start_experiment,
+            "event_type": request.event_type,
+            "metadata_json": request.metadata_json,
+            "result_status": request.result_status,
+            "reason": request.reason,
         }
 
     def _manage_session(self, request, response):

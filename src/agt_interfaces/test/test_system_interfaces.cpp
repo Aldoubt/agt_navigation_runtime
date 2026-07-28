@@ -5,6 +5,7 @@
 #include "agt_interfaces/action/execute_mission.hpp"
 #include "agt_interfaces/action/optimize_map.hpp"
 #include "agt_interfaces/msg/system_health.hpp"
+#include "agt_interfaces/msg/experiment_summary.hpp"
 #include "agt_interfaces/msg/robot_state.hpp"
 #include "agt_interfaces/msg/mission_status.hpp"
 #include "agt_interfaces/msg/map_version_summary.hpp"
@@ -12,6 +13,7 @@
 #include "agt_interfaces/srv/set_localization_mode.hpp"
 #include "agt_interfaces/srv/manage_map_version.hpp"
 #include "agt_interfaces/srv/manage_bag_session.hpp"
+#include "agt_interfaces/srv/list_experiments.hpp"
 
 TEST(SystemInterfaces, DefaultsAndConstantsAreGenerated)
 {
@@ -60,4 +62,11 @@ TEST(SystemInterfaces, DefaultsAndConstantsAreGenerated)
     4U);
   EXPECT_TRUE(
     agt_interfaces::srv::ManageBagSession::Request().experiment_title.empty());
+  EXPECT_TRUE(
+    agt_interfaces::srv::ManageBagSession::Request().tags_json.empty());
+  EXPECT_EQ(
+    agt_interfaces::srv::ManageBagSession::Request::OP_ADD_EXPERIMENT_EVENT,
+    10U);
+  EXPECT_EQ(agt_interfaces::msg::ExperimentSummary::STATE_INTERRUPTED, 4U);
+  EXPECT_TRUE(agt_interfaces::srv::ListExperiments::Response().experiments.empty());
 }

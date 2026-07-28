@@ -19,7 +19,7 @@ def test_profiles_require_explicit_topics_and_reject_record_all(tmp_path):
         load_bag_profiles(invalid)
 
 
-def test_create_experiment_starts_and_snapshots_bindings(tmp_path):
+def test_create_experiment_supports_explicit_start_and_snapshots_bindings(tmp_path):
     runtime = tmp_path / "runtime"
     profile = tmp_path / "platform.yaml"
     profile.write_text("platform: bunker\n", encoding="utf-8")
@@ -36,13 +36,30 @@ def test_create_experiment_starts_and_snapshots_bindings(tmp_path):
         "platform_profile": str(profile),
         "calibration_profile": "",
         "nav2_profile": "",
-    })
+    }, start=True)
     assert manifest["state"] == "RUNNING"
     assert manifest["active_map"]["map_version_id"] == "map_v1"
     assert manifest["launch_arguments"]["mission_id"] == "mission_a"
     assert manager.inspect(manifest["experiment_id"])["config_files"][0]["sha256"].startswith("sha256:")
     with pytest.raises(ExperimentError, match="already exists"):
         facade.create_experiment({"experiment_title": "Second"})
+
+
+def test_created_experiment_remains_created_until_explicit_start(tmp_path):
+    manager = ExperimentManager(tmp_path / "experiments")
+    facade = ExperimentBusinessFacade(manager, {})
+    created = facade.manage(5, {"experiment_title": "Web Trial"})
+    experiment_id = created["experiment_id"]
+    assert manager.inspect(experiment_id)["state"] == "CREATED"
+    started = facade.manage(8, {"experiment_id": experiment_id})
+    assert started["experiment_id"] == experiment_id
+    assert manager.inspect(experiment_id)["state"] == "RUNNING"
+    facade.manage(10, {
+        "experiment_id": experiment_id,
+        "event_type": "operator_note",
+        "metadata_json": '{"note": "checked"}',
+    })
+    assert "operator_note" in (manager._path(experiment_id) / "events.jsonl").read_text()
 
 
 def test_list_sessions_includes_standalone_and_experiment_bags(tmp_path):

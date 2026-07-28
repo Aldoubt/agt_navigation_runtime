@@ -1,7 +1,7 @@
 import importlib.util
 from pathlib import Path
 
-from agt_interfaces.srv import ListBagSessions, ManageBagSession
+from agt_interfaces.srv import ListBagSessions, ListExperiments, ManageBagSession
 import rclpy
 
 
@@ -40,6 +40,11 @@ def test_unknown_bag_profile_fails_closed(tmp_path):
         create.experiment_title = "Bag Test"
         created = node._manage_session(create, ManageBagSession.Response())
         assert created.success
+        listed = node._list_experiments(
+            ListExperiments.Request(), ListExperiments.Response()
+        )
+        assert listed.success
+        assert listed.experiments[0].state == listed.experiments[0].STATE_CREATED
         request = ManageBagSession.Request()
         request.operation = ManageBagSession.Request.OP_START_RECORDING
         request.experiment_id = created.session.experiment_id
@@ -50,4 +55,3 @@ def test_unknown_bag_profile_fails_closed(tmp_path):
     finally:
         node.destroy_node()
         rclpy.shutdown()
-

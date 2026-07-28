@@ -20,3 +20,9 @@ uint64 storage_bytes
 string started_at
 string updated_at
 string message
+int64 process_id
+uint64 message_count
+string storage_identifier
+bool mapping_input_ready
+bool contains_mapping_outputs
+bool contains_navigation_outputs
