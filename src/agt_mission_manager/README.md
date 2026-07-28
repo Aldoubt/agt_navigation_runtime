@@ -18,4 +18,3 @@ Mission 文件位于 `runtime/missions/<mission_id>/<mission_version>/mission.ya
 ```bash
 ros2 launch agt_mission_manager mission_manager.launch.py runtime_dir:=runtime
 ```
-

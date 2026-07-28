@@ -172,4 +172,3 @@ def validate_task_path(value: object) -> str:
     if not path.parts or path.parts[0] != "tasks" or path.suffix.lower() != ".json":
         raise MissionError("task_file must reference a JSON asset below tasks/")
     return path.as_posix()
-

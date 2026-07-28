@@ -63,4 +63,3 @@ def test_hash_mismatch_is_rejected():
     value["mission_version"] = "v2"
     with pytest.raises(MissionError, match="content_sha256"):
         parse_mission(value)
-

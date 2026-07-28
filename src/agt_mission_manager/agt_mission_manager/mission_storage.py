@@ -54,4 +54,3 @@ class MissionStorage:
             value["message"] = "mission manager restarted during an active mission"
             self.write_execution_state(value)
         return value
-

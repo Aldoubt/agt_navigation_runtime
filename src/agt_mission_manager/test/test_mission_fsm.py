@@ -28,4 +28,3 @@ def test_invalid_transition_is_rejected():
 )
 def test_active_state_recovers_as_interrupted(state):
     assert MissionFsm.recover(state) == MissionState.INTERRUPTED
-

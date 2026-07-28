@@ -15,4 +15,3 @@ def generate_launch_description():
             parameters=[{"runtime_dir": LaunchConfiguration("runtime_dir")}],
         ),
     ])
-

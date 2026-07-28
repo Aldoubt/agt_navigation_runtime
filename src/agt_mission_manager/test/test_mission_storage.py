@@ -21,4 +21,3 @@ def test_audit_append_leaves_complete_json_lines(tmp_path):
     records = [json.loads(line) for line in path.read_text().splitlines()]
     assert [item["event"] for item in records] == ["first", "second"]
     assert not path.with_suffix(".jsonl.tmp").exists()
-

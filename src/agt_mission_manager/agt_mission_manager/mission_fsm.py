@@ -44,4 +44,3 @@ class MissionFsm:
         }:
             return MissionState.INTERRUPTED
         return state
-

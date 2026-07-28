@@ -160,4 +160,3 @@ def load_mission(path: str | Path, **limits: Any) -> Mission:
     except (OSError, UnicodeError, yaml.YAMLError) as exc:
         raise MissionError(f"cannot read mission YAML: {exc}") from exc
     return parse_mission(document, **limits)
-

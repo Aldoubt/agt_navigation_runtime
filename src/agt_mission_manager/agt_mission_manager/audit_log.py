@@ -27,4 +27,3 @@ class AuditLog:
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, self.path)
-
