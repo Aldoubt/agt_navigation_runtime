@@ -154,6 +154,9 @@ class RosWaypointRunner:
         response = await self._await_ros_future(child.cancel_goal_async())
         return bool(response.goals_canceling)
 
+    def destroy(self) -> None:
+        self._client.destroy()
+
 
 class MissionManagerNode(Node):
     def __init__(self) -> None:
@@ -245,6 +248,11 @@ class MissionManagerNode(Node):
         )
         self._restore_interrupted_status()
         self._publish_status(self._status)
+
+    def destroy_node(self):
+        self._server.destroy()
+        self._waypoint_runner.destroy()
+        return super().destroy_node()
 
     def _restore_interrupted_status(self) -> None:
         try:

@@ -86,10 +86,13 @@ class ExperimentManager:
         self._bag_process = None
         self._bag_log = None
         self._bag_profile = ""
+        self._bag_experiment_id = ""
+        self._bag_path: Path | None = None
         self._playback_process = None
         self._playback_log = None
         self._playback_id = ""
         self._playback_profile = ""
+        self._playback_rate = 0.0
 
     @staticmethod
     def _slug(value: str) -> str:
@@ -389,6 +392,8 @@ class ExperimentManager:
             self._bag_log = None
             raise
         self._bag_profile = profile_id
+        self._bag_experiment_id = experiment_id
+        self._bag_path = bag_dir
         manifest["rosbag"] = {"profile": profile_id, "path": str(bag_dir.relative_to(self._path(experiment_id))), "command": command}
         _atomic_yaml(self._path(experiment_id) / "manifest.yaml", manifest)
         self.add_event(experiment_id, "bag_started", {"profile": profile_id, "path": str(bag_dir)})
@@ -417,12 +422,16 @@ class ExperimentManager:
         self._bag_process = None
         self._bag_log = None
         self._bag_profile = ""
+        self._bag_experiment_id = ""
+        self._bag_path = None
 
     def bag_status(self) -> dict[str, Any]:
         process = self._bag_process
         return {
             "recording": process is not None and process.poll() is None,
             "profile": self._bag_profile,
+            "experiment_id": self._bag_experiment_id,
+            "path": str(self._bag_path) if self._bag_path is not None else "",
             "pid": int(process.pid) if process is not None else 0,
             "returncode": process.poll() if process is not None else None,
         }
@@ -430,10 +439,20 @@ class ExperimentManager:
     def list_bags(self) -> list[dict[str, Any]]:
         """List only self-contained bags below the configured runtime root."""
         result = []
-        for metadata_path in sorted(self.rosbag_root.glob("*/metadata.yaml"), reverse=True):
+        metadata_paths = list(self.rosbag_root.glob("*/metadata.yaml"))
+        metadata_paths.extend(self.root.glob("*/rosbag/*/metadata.yaml"))
+        for metadata_path in sorted(metadata_paths, reverse=True):
             bag_path = metadata_path.parent.resolve()
             try:
-                bag_path.relative_to(self.rosbag_root)
+                if bag_path.is_relative_to(self.rosbag_root):
+                    bag_id = str(bag_path.relative_to(self.rosbag_root))
+                    experiment_id = ""
+                else:
+                    relative = bag_path.relative_to(self.root)
+                    if len(relative.parts) != 3 or relative.parts[1] != "rosbag":
+                        continue
+                    experiment_id = relative.parts[0]
+                    bag_id = str(Path("experiments") / relative)
             except ValueError:
                 continue
             try:
@@ -451,7 +470,8 @@ class ExperimentManager:
                 topic_set = set(topic_names)
                 bag_input_topics = set(self._PLAYBACK_TOPICS["mapping_inputs"]) - {"/clock"}
                 result.append({
-                    "bag_id": str(bag_path.relative_to(self.rosbag_root)),
+                    "bag_id": bag_id,
+                    "experiment_id": experiment_id,
                     "path": str(bag_path),
                     "duration_nanoseconds": int(information.get("duration", {}).get("nanoseconds", 0)),
                     "message_count": int(information.get("message_count", 0)),
@@ -475,6 +495,26 @@ class ExperimentManager:
                 continue
         return result
 
+    def _resolve_bag_path(self, bag_id: str) -> Path:
+        if not isinstance(bag_id, str) or not bag_id or Path(bag_id).is_absolute():
+            raise ExperimentError("bag_id must be a relative configured bag identifier")
+        relative = Path(bag_id)
+        if ".." in relative.parts:
+            raise ExperimentError("bag_id is outside the configured runtime root")
+        if relative.parts and relative.parts[0] == "experiments":
+            if len(relative.parts) != 4 or relative.parts[2] != "rosbag":
+                raise ExperimentError("experiment bag_id is malformed")
+            bag_path = (self.root.parent / relative).resolve()
+            allowed_root = self.root
+        else:
+            bag_path = (self.rosbag_root / relative).resolve()
+            allowed_root = self.rosbag_root
+        try:
+            bag_path.relative_to(allowed_root)
+        except ValueError as error:
+            raise ExperimentError("bag_id is outside the configured runtime root") from error
+        return bag_path
+
     def start_playback(
         self,
         bag_id: str,
@@ -491,15 +531,10 @@ class ExperimentManager:
             self._playback_log = None
             self._playback_id = ""
             self._playback_profile = ""
+            self._playback_rate = 0.0
         if self._bag_process is not None and self._bag_process.poll() is None:
             raise ExperimentError("stop bag recording before playback")
-        if not isinstance(bag_id, str) or not bag_id or Path(bag_id).is_absolute():
-            raise ExperimentError("bag_id must be a relative configured bag identifier")
-        bag_path = (self.rosbag_root / bag_id).resolve()
-        try:
-            bag_path.relative_to(self.rosbag_root)
-        except ValueError as error:
-            raise ExperimentError("bag_id is outside the configured rosbag root") from error
+        bag_path = self._resolve_bag_path(bag_id)
         if not (bag_path.is_dir() and (bag_path / "metadata.yaml").is_file()):
             raise ExperimentError("bag_id does not identify a complete rosbag bundle")
         try:
@@ -532,6 +567,7 @@ class ExperimentManager:
             raise
         self._playback_id = bag_id
         self._playback_profile = playback_profile
+        self._playback_rate = rate
         return {
             "state": "PLAYING",
             "bag_id": bag_id,
@@ -565,6 +601,7 @@ class ExperimentManager:
         self._playback_log = None
         self._playback_id = ""
         self._playback_profile = ""
+        self._playback_rate = 0.0
 
     def playback_status(self) -> dict[str, Any]:
         process = self._playback_process
@@ -572,6 +609,7 @@ class ExperimentManager:
             "playing": process is not None and process.poll() is None,
             "bag_id": self._playback_id,
             "playback_profile": self._playback_profile,
+            "rate": self._playback_rate,
             "pid": int(process.pid) if process is not None else 0,
             "returncode": process.poll() if process is not None else None,
         }
@@ -585,11 +623,13 @@ class ExperimentManager:
                 self._bag_process.wait(timeout=10.0)
             except (ProcessLookupError, subprocess.TimeoutExpired):
                 pass
-            if self._bag_log is not None:
-                self._bag_log.close()
-            self._bag_process = None
-            self._bag_log = None
-            self._bag_profile = ""
+        if self._bag_log is not None:
+            self._bag_log.close()
+        self._bag_process = None
+        self._bag_log = None
+        self._bag_profile = ""
+        self._bag_experiment_id = ""
+        self._bag_path = None
 
     def finalize(self, experiment_id: str, health: Mapping[str, Any] | None = None, result_status: str = "COMPLETED") -> dict[str, Any]:
         manifest_path, manifest = self._manifest(experiment_id)
@@ -618,6 +658,19 @@ class ExperimentManager:
         manifest["end_time"] = _timestamp()
         _atomic_yaml(manifest_path, manifest)
         self.add_event(experiment_id, "experiment_invalid", {"reason": reason})
+
+    def interrupt(self, experiment_id: str, reason: str = "operator_requested") -> dict[str, Any]:
+        manifest_path, manifest = self._manifest(experiment_id)
+        if manifest.get("state") != "RUNNING":
+            raise ExperimentError("only a running experiment can be interrupted")
+        self.stop_bag(experiment_id)
+        manifest["state"] = "INTERRUPTED"
+        manifest["result_status"] = "INTERRUPTED"
+        manifest["end_time"] = _timestamp()
+        manifest["interrupt_reason"] = str(reason)
+        _atomic_yaml(manifest_path, manifest)
+        self.add_event(experiment_id, "experiment_interrupted", {"reason": reason})
+        return manifest
 
     def recover_interrupted(self) -> list[str]:
         recovered = []

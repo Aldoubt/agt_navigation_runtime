@@ -45,6 +45,19 @@ TEST(SystemInterfaces, DefaultsAndConstantsAreGenerated)
   EXPECT_EQ(agt_interfaces::msg::MapVersionSummary::STATE_READY, 3U);
   EXPECT_EQ(agt_interfaces::srv::ManageMapVersion::Request::OP_PURGE, 7U);
   EXPECT_EQ(
+    agt_interfaces::srv::ManageMapVersion::Request::OP_IMPORT_CANDIDATE,
+    8U);
+  EXPECT_TRUE(
+    agt_interfaces::srv::ManageMapVersion::Request().candidate_map_yaml.empty());
+  EXPECT_EQ(
+    agt_interfaces::srv::ManageMapVersion::Response::ERROR_CONFIRMATION_REQUIRED,
+    5U);
+  EXPECT_EQ(
     agt_interfaces::srv::ManageBagSession::Request::OP_INTERRUPT_EXPERIMENT,
     7U);
+  EXPECT_EQ(
+    agt_interfaces::srv::ManageBagSession::Response::ERROR_PROFILE_INVALID,
+    4U);
+  EXPECT_TRUE(
+    agt_interfaces::srv::ManageBagSession::Request().experiment_title.empty());
 }

@@ -66,5 +66,10 @@ def test_system_interfaces_have_stable_defaults_and_constants():
     assert SetMissionRunState.Request.COMMAND_PAUSE == 1
     assert ListMapVersions.Request().state == MapVersionSummary.STATE_UNKNOWN
     assert ManageMapVersion.Request.OP_PURGE == 7
+    assert ManageMapVersion.Request.OP_IMPORT_CANDIDATE == 8
+    assert ManageMapVersion.Request().candidate_map_yaml == ""
+    assert ManageMapVersion.Response.ERROR_CONFIRMATION_REQUIRED == 5
     assert ListBagSessions.Response().sessions == []
     assert ManageBagSession.Request.OP_INTERRUPT_EXPERIMENT == 7
+    assert ManageBagSession.Response.ERROR_PROFILE_INVALID == 4
+    assert ManageBagSession.Request().experiment_title == ""

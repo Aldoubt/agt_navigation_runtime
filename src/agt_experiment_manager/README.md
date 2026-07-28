@@ -10,6 +10,15 @@ Markdown reports. A `RUNNING` session discovered after restart is marked
 `minimal`, `mapping`, `localization`, `navigation`, `teach_repeat`, or `full_experiment` from
 `config/bag_profiles.yaml`. The list is explicit and never uses `record -a`.
 
+`experiment_manager_node.py` is the sole runtime owner of record/playback processes. It exposes
+`/agt/data/bags/list`, `/agt/data/bags/manage`, and the reliable transient-local
+`/agt/data/bags/status`. The service also creates/completes/interrupts experiments and snapshots
+mission, map, platform, calibration, and Nav2 bindings. Unexpected recorder/player exits publish
+`ERROR`; restart recovery marks a persisted `RUNNING` experiment `INTERRUPTED`.
+
+The managed mapping Action automatically creates an experiment and starts the explicit `mapping`
+profile through this service. The launch recorder remains only for legacy direct-launch callers.
+
 `record_teach_repeat_result()` attaches one demo/run result with teach manifest,
 path/map hashes, repeatability metrics, localization summary, execution result,
 repository snapshot, and config snapshot references. `record_failure_case()`

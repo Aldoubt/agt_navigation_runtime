@@ -14,6 +14,10 @@ install(DIRECTORY launch config
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_experiment_manager test/test_experiment_manager.py)
+  ament_add_pytest_test(test_experiment_facade test/test_experiment_facade.py)
+  ament_add_pytest_test(
+    test_experiment_manager_node test/test_experiment_manager_node.py
+  )
 endif()
 
 ament_package()
