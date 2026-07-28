@@ -36,6 +36,7 @@ def generate_launch_description():
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("autostart", default_value="false"),
             DeclareLaunchArgument("enable_localization_gate", default_value="true"),
+            DeclareLaunchArgument("localization_status_timeout", default_value="10.0"),
             DeclareLaunchArgument(
                 "use_keepout_filter",
                 default_value="false",
@@ -111,6 +112,9 @@ def generate_launch_description():
                         "use_sim_time": use_sim_time,
                         "require_localization_valid": True,
                         "require_task_readiness": True,
+                        "localization_status_timeout": ParameterValue(
+                            LaunchConfiguration("localization_status_timeout"), value_type=float
+                        ),
                         "current_map_id": LaunchConfiguration("map_id"),
                         "current_map_version_id": LaunchConfiguration("map_version_id"),
                         "current_map_yaml_path": LaunchConfiguration("map"),
@@ -156,7 +160,11 @@ def generate_launch_description():
                 executable="localization_navigation_gate.py",
                 name="agt_localization_navigation_gate",
                 output="screen",
-                parameters=[{"localization_status_timeout": 1.0}],
+                parameters=[{
+                    "localization_status_timeout": ParameterValue(
+                        LaunchConfiguration("localization_status_timeout"), value_type=float
+                    )
+                }],
                 condition=IfCondition(LaunchConfiguration("enable_localization_gate")),
             ),
         ]

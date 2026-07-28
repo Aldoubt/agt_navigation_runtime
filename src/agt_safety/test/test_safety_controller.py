@@ -22,3 +22,17 @@ def test_localization_guard_requires_accepted_tracking_state():
 
     status.status_stale = True
     assert not SAFETY.localization_status_is_valid(status)
+
+
+def test_safety_contract_exports_authoritative_estop_and_navigation_readiness():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert '"localization_status_timeout", 10.0' in source
+    assert 'key="emergency_stop"' in source
+    assert 'key="navigation_ready"' in source
+    assert "MultiThreadedExecutor" in source
+
+
+def test_safety_default_window_exceeds_tracking_period_plus_timeout():
+    config = SCRIPT.parents[1] / "config" / "bunker_safety.yaml"
+    text = config.read_text(encoding="utf-8")
+    assert "localization_status_timeout: 10.0" in text

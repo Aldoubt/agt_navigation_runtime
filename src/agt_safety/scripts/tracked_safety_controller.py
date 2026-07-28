@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
 import math
+import threading
 import time
 
 from agt_interfaces.msg import LocalizationStatus
 import rclpy
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from geometry_msgs.msg import Twist
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import Bool
 from std_srvs.srv import SetBool, Trigger
@@ -64,7 +67,7 @@ class TrackedSafetyController(Node):
             "require_localization_valid", True
         ).value
         self._localization_status_timeout = self.declare_parameter(
-            "localization_status_timeout", 1.0
+            "localization_status_timeout", 10.0
         ).value
         if self._localization_status_timeout <= 0.0:
             raise ValueError("localization_status_timeout must be positive")
@@ -81,33 +84,44 @@ class TrackedSafetyController(Node):
         self._angular_out = 0.0
         self._last_tick = time.monotonic()
         self._reason = "startup_disabled" if not self._motion_enabled else "input_timeout"
+        self._state_lock = threading.RLock()
+        runtime_group = MutuallyExclusiveCallbackGroup()
+        service_group = MutuallyExclusiveCallbackGroup()
 
         self._publisher = self.create_publisher(Twist, "/agt/safety/cmd_vel", 10)
         self._status_publisher = self.create_publisher(
             DiagnosticArray, "/agt/safety/status", 10
         )
         self.create_subscription(
-            Twist, "/agt/navigation/cmd_vel", self._navigation_callback, 10
+            Twist, "/agt/navigation/cmd_vel", self._navigation_callback, 10,
+            callback_group=runtime_group,
         )
         self.create_subscription(
-            Twist, "/agt/cmd_vel_manual", self._manual_callback, 10
+            Twist, "/agt/cmd_vel_manual", self._manual_callback, 10,
+            callback_group=runtime_group,
         )
         self.create_subscription(
-            Bool, "/agt/safety/emergency_stop", self._estop_callback, 10
+            Bool, "/agt/safety/emergency_stop", self._estop_callback, 10,
+            callback_group=runtime_group,
         )
         self.create_subscription(
             LocalizationStatus,
             "/agt/localization/status",
             self._localization_callback,
             10,
+            callback_group=runtime_group,
         )
         self.create_service(
-            SetBool, "/agt/safety/set_motion_enabled", self._set_motion_enabled
+            SetBool, "/agt/safety/set_motion_enabled", self._set_motion_enabled,
+            callback_group=service_group,
         )
         self.create_service(
-            Trigger, "/agt/safety/reset_emergency_stop", self._reset_estop
+            Trigger, "/agt/safety/reset_emergency_stop", self._reset_estop,
+            callback_group=service_group,
         )
-        self.create_timer(1.0 / self._publish_rate, self._tick)
+        self._timer = self.create_timer(
+            1.0 / self._publish_rate, self._tick, callback_group=runtime_group
+        )
 
     @staticmethod
     def _valid(cmd: Twist) -> bool:
@@ -122,30 +136,34 @@ class TrackedSafetyController(Node):
         return all(math.isfinite(value) for value in values)
 
     def _navigation_callback(self, msg: Twist) -> None:
-        if self._valid(msg):
-            self._nav_cmd = msg
-            self._nav_stamp = time.monotonic()
-        else:
-            self._nav_stamp = float("-inf")
-            self.get_logger().error("rejected non-finite navigation command")
+        with self._state_lock:
+            if self._valid(msg):
+                self._nav_cmd = msg
+                self._nav_stamp = time.monotonic()
+            else:
+                self._nav_stamp = float("-inf")
+                self.get_logger().error("rejected non-finite navigation command")
 
     def _manual_callback(self, msg: Twist) -> None:
-        if self._valid(msg):
-            self._manual_cmd = msg
-            self._manual_stamp = time.monotonic()
-        else:
-            self._manual_stamp = float("-inf")
-            self.get_logger().error("rejected non-finite manual command")
+        with self._state_lock:
+            if self._valid(msg):
+                self._manual_cmd = msg
+                self._manual_stamp = time.monotonic()
+            else:
+                self._manual_stamp = float("-inf")
+                self.get_logger().error("rejected non-finite manual command")
 
     def _estop_callback(self, msg: Bool) -> None:
-        self._physical_estop = msg.data
-        if msg.data:
-            self._estop_latched = True
-            self._motion_enabled = False
+        with self._state_lock:
+            self._physical_estop = msg.data
+            if msg.data:
+                self._estop_latched = True
+                self._motion_enabled = False
 
     def _localization_callback(self, msg: LocalizationStatus) -> None:
-        self._localization_valid = localization_status_is_valid(msg)
-        self._localization_stamp = time.monotonic()
+        with self._state_lock:
+            self._localization_valid = localization_status_is_valid(msg)
+            self._localization_stamp = time.monotonic()
 
     def _localization_is_valid(self, now: float) -> bool:
         return self._localization_valid and (
@@ -153,24 +171,26 @@ class TrackedSafetyController(Node):
         )
 
     def _set_motion_enabled(self, request: SetBool.Request, response: SetBool.Response):
-        if request.data and (self._physical_estop or self._estop_latched):
-            response.success = False
-            response.message = "clear the emergency stop before enabling motion"
+        with self._state_lock:
+            if request.data and (self._physical_estop or self._estop_latched):
+                response.success = False
+                response.message = "clear the emergency stop before enabling motion"
+                return response
+            self._motion_enabled = request.data
+            response.success = True
+            response.message = "motion enabled" if request.data else "motion disabled"
             return response
-        self._motion_enabled = request.data
-        response.success = True
-        response.message = "motion enabled" if request.data else "motion disabled"
-        return response
 
     def _reset_estop(self, _request: Trigger.Request, response: Trigger.Response):
-        if self._physical_estop:
-            response.success = False
-            response.message = "physical emergency-stop input is still active"
+        with self._state_lock:
+            if self._physical_estop:
+                response.success = False
+                response.message = "physical emergency-stop input is still active"
+                return response
+            self._estop_latched = False
+            response.success = True
+            response.message = "emergency stop latch cleared; motion remains explicitly controlled"
             return response
-        self._estop_latched = False
-        response.success = True
-        response.message = "emergency stop latch cleared; motion remains explicitly controlled"
-        return response
 
     def _target(self, now: float) -> tuple[float, float, str, bool]:
         if self._physical_estop or self._estop_latched:
@@ -196,34 +216,35 @@ class TrackedSafetyController(Node):
         return linear, angular, source, False
 
     def _tick(self) -> None:
-        now = time.monotonic()
-        dt = min(max(now - self._last_tick, 0.0), 0.2)
-        self._last_tick = now
-        target_linear, target_angular, self._reason, immediate_stop = self._target(now)
-        if immediate_stop:
-            self._linear_out = 0.0
-            self._angular_out = 0.0
-        else:
-            self._linear_out = slew(
-                self._linear_out,
-                target_linear,
-                self._linear_accel,
-                self._linear_decel,
-                dt,
-            )
-            self._angular_out = slew(
-                self._angular_out,
-                target_angular,
-                self._angular_accel,
-                self._angular_decel,
-                dt,
-            )
+        with self._state_lock:
+            now = time.monotonic()
+            dt = min(max(now - self._last_tick, 0.0), 0.2)
+            self._last_tick = now
+            target_linear, target_angular, self._reason, immediate_stop = self._target(now)
+            if immediate_stop:
+                self._linear_out = 0.0
+                self._angular_out = 0.0
+            else:
+                self._linear_out = slew(
+                    self._linear_out,
+                    target_linear,
+                    self._linear_accel,
+                    self._linear_decel,
+                    dt,
+                )
+                self._angular_out = slew(
+                    self._angular_out,
+                    target_angular,
+                    self._angular_accel,
+                    self._angular_decel,
+                    dt,
+                )
 
-        output = Twist()
-        output.linear.x = self._linear_out
-        output.angular.z = self._angular_out
-        self._publisher.publish(output)
-        self._publish_status()
+            output = Twist()
+            output.linear.x = self._linear_out
+            output.angular.z = self._angular_out
+            self._publisher.publish(output)
+            self._publish_status()
 
     def _publish_status(self) -> None:
         status = DiagnosticStatus()
@@ -241,6 +262,19 @@ class TrackedSafetyController(Node):
             KeyValue(key="motion_enabled", value=str(self._motion_enabled).lower()),
             KeyValue(key="estop_latched", value=str(self._estop_latched).lower()),
             KeyValue(
+                key="emergency_stop",
+                value=str(self._physical_estop or self._estop_latched).lower(),
+            ),
+            KeyValue(
+                key="navigation_ready",
+                value=str(
+                    self._motion_enabled
+                    and not self._physical_estop
+                    and not self._estop_latched
+                    and self._localization_is_valid(time.monotonic())
+                ).lower(),
+            ),
+            KeyValue(
                 key="localization_valid",
                 value=str(self._localization_is_valid(time.monotonic())).lower(),
             ),
@@ -256,11 +290,15 @@ class TrackedSafetyController(Node):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = TrackedSafetyController()
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
+        node._timer.cancel()
+        executor.shutdown()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

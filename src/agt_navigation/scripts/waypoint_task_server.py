@@ -65,7 +65,10 @@ class WaypointTaskServer(Node):
             self.declare_parameter("require_task_readiness", True).value
         )
         self.localization_status_timeout = float(
-            self.declare_parameter("localization_status_timeout", 1.0).value
+            self.declare_parameter("localization_status_timeout", 10.0).value
+        )
+        self.task_readiness_timeout = float(
+            self.declare_parameter("task_readiness_timeout", 2.0).value
         )
         self.safety_status_timeout = float(
             self.declare_parameter("safety_status_timeout", 1.0).value
@@ -97,6 +100,7 @@ class WaypointTaskServer(Node):
             or self.maximum_loops <= 0
             or self.safety_status_timeout <= 0.0
             or self.localization_status_timeout <= 0.0
+            or self.task_readiness_timeout <= 0.0
             or self.nav2_wait_timeout <= 0.0
         ):
             raise ValueError("task limits and readiness timeouts must be positive")
@@ -260,7 +264,7 @@ class WaypointTaskServer(Node):
         with self._lock:
             return self._task_readiness and (
                 time.monotonic() - self._task_readiness_stamp
-                <= self.localization_status_timeout
+                <= self.task_readiness_timeout
             )
 
     def _safety_watchdog(self):
