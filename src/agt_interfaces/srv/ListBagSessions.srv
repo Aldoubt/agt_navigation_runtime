@@ -1,0 +1,7 @@
+uint8 state
+string experiment_id
+---
+bool success
+uint16 error_code
+BagSessionSummary[] sessions
+string message

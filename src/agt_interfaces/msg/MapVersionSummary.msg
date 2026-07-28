@@ -1,0 +1,28 @@
+# Manager-owned map identity and validation summary.
+uint8 STATE_UNKNOWN=0
+uint8 STATE_DRAFT=1
+uint8 STATE_PROCESSING=2
+uint8 STATE_READY=3
+uint8 STATE_INVALID=4
+uint8 STATE_ARCHIVED=5
+uint8 STATE_DELETED=6
+
+std_msgs/Header header
+string map_id
+string map_version_id
+string parent_map_version_id
+uint8 state
+bool active
+bool pinned
+bool deleted
+bool valid
+string map_hash
+string manifest_sha256
+string navigation_yaml
+string localization_pcd
+string processing_record
+string tasks_directory
+uint64 storage_bytes
+string created_at
+string[] validation_errors
+string[] validation_warnings

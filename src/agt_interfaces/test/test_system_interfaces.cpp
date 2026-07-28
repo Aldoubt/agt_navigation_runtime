@@ -2,10 +2,16 @@
 
 #include "agt_interfaces/action/change_system_mode.hpp"
 #include "agt_interfaces/action/manage_mapping_session.hpp"
+#include "agt_interfaces/action/execute_mission.hpp"
 #include "agt_interfaces/action/optimize_map.hpp"
 #include "agt_interfaces/msg/system_health.hpp"
+#include "agt_interfaces/msg/robot_state.hpp"
+#include "agt_interfaces/msg/mission_status.hpp"
+#include "agt_interfaces/msg/map_version_summary.hpp"
 #include "agt_interfaces/msg/task_readiness.hpp"
 #include "agt_interfaces/srv/set_localization_mode.hpp"
+#include "agt_interfaces/srv/manage_map_version.hpp"
+#include "agt_interfaces/srv/manage_bag_session.hpp"
 
 TEST(SystemInterfaces, DefaultsAndConstantsAreGenerated)
 {
@@ -29,4 +35,12 @@ TEST(SystemInterfaces, DefaultsAndConstantsAreGenerated)
   EXPECT_FALSE(agt_interfaces::msg::TaskReadiness().ready);
   EXPECT_EQ(agt_interfaces::srv::SetLocalizationMode::Request::MODE_MANUAL_ONLY, 0U);
   EXPECT_TRUE(agt_interfaces::action::OptimizeMap::Goal().backend.empty());
+  EXPECT_TRUE(agt_interfaces::action::ExecuteMission::Goal().mission_id.empty());
+  EXPECT_EQ(agt_interfaces::msg::RobotState::MODE_UNKNOWN, 0U);
+  EXPECT_EQ(agt_interfaces::msg::MissionStatus::STATE_INTERRUPTED, 12U);
+  EXPECT_EQ(agt_interfaces::msg::MapVersionSummary::STATE_READY, 3U);
+  EXPECT_EQ(agt_interfaces::srv::ManageMapVersion::Request::OP_PURGE, 7U);
+  EXPECT_EQ(
+    agt_interfaces::srv::ManageBagSession::Request::OP_INTERRUPT_EXPERIMENT,
+    7U);
 }

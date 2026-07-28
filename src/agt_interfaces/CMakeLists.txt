@@ -11,10 +11,21 @@ find_package(std_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ComponentHealth.msg"
   "msg/LocalizationStatus.msg"
+  "msg/MissionStatus.msg"
+  "msg/MissionEvent.msg"
+  "msg/MapVersionSummary.msg"
+  "msg/BagSessionSummary.msg"
+  "msg/RobotState.msg"
   "msg/SystemHealth.msg"
   "msg/TaskReadiness.msg"
   "srv/EvaluateTaskReadiness.srv"
   "srv/GetSystemHealth.srv"
+  "srv/GetRobotState.srv"
+  "srv/SetMissionRunState.srv"
+  "srv/ListMapVersions.srv"
+  "srv/ManageMapVersion.srv"
+  "srv/ListBagSessions.srv"
+  "srv/ManageBagSession.srv"
   "srv/SetLocalizationMode.srv"
   "action/Relocalize.action"
   "action/ChangeSystemMode.action"
@@ -22,6 +33,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/ExecuteCoverageTask.action"
   "action/ExecuteWaypointTask.action"
   "action/OptimizeMap.action"
+  "action/ExecuteMission.action"
   DEPENDENCIES action_msgs std_msgs geometry_msgs nav_msgs
 )
 

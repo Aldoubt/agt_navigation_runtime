@@ -1,6 +1,29 @@
-from agt_interfaces.action import ChangeSystemMode, ManageMappingSession, OptimizeMap
-from agt_interfaces.msg import ComponentHealth, SystemHealth, TaskReadiness
-from agt_interfaces.srv import EvaluateTaskReadiness, GetSystemHealth
+from agt_interfaces.action import (
+    ChangeSystemMode,
+    ExecuteMission,
+    ManageMappingSession,
+    OptimizeMap,
+)
+from agt_interfaces.msg import (
+    BagSessionSummary,
+    ComponentHealth,
+    MapVersionSummary,
+    MissionEvent,
+    MissionStatus,
+    RobotState,
+    SystemHealth,
+    TaskReadiness,
+)
+from agt_interfaces.srv import (
+    EvaluateTaskReadiness,
+    GetRobotState,
+    GetSystemHealth,
+    ListBagSessions,
+    ListMapVersions,
+    ManageBagSession,
+    ManageMapVersion,
+    SetMissionRunState,
+)
 
 
 def test_system_interfaces_have_stable_defaults_and_constants():
@@ -28,3 +51,16 @@ def test_system_interfaces_have_stable_defaults_and_constants():
     assert OptimizeMap.Goal().backend == ""
     assert EvaluateTaskReadiness.Request().validate_task is False
     assert GetSystemHealth.Request().include_optional is False
+    assert MissionStatus.STATE_INTERRUPTED == 12
+    assert MissionEvent().event_type == ""
+    assert MapVersionSummary.STATE_READY == 3
+    assert BagSessionSummary.STATE_RECORDING == 2
+    assert RobotState.MODE_UNKNOWN == 0
+    assert RobotState().system_mode == RobotState.MODE_UNKNOWN
+    assert ExecuteMission.Goal().mission_id == ""
+    assert GetRobotState.Request().include_details is False
+    assert SetMissionRunState.Request.COMMAND_PAUSE == 1
+    assert ListMapVersions.Request().state == MapVersionSummary.STATE_UNKNOWN
+    assert ManageMapVersion.Request.OP_PURGE == 7
+    assert ListBagSessions.Response().sessions == []
+    assert ManageBagSession.Request.OP_INTERRUPT_EXPERIMENT == 7

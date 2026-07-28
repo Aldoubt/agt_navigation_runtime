@@ -1,0 +1,28 @@
+uint8 OP_STATUS=0
+uint8 OP_START_RECORDING=1
+uint8 OP_STOP_RECORDING=2
+uint8 OP_START_PLAYBACK=3
+uint8 OP_STOP_PLAYBACK=4
+uint8 OP_CREATE_EXPERIMENT=5
+uint8 OP_COMPLETE_EXPERIMENT=6
+uint8 OP_INTERRUPT_EXPERIMENT=7
+
+uint8 operation
+string bag_id
+string experiment_id
+string profile_id
+float64 playback_rate
+string mission_id
+string mission_version
+string mission_sha256
+string map_id
+string map_version_id
+string map_sha256
+string platform_profile
+string calibration_profile
+string nav2_profile
+---
+bool success
+uint16 error_code
+BagSessionSummary session
+string message

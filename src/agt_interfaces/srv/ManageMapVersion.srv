@@ -1,0 +1,17 @@
+uint8 OP_GET_ACTIVE=0
+uint8 OP_VALIDATE=1
+uint8 OP_ACTIVATE=2
+uint8 OP_PIN=3
+uint8 OP_UNPIN=4
+uint8 OP_ARCHIVE=5
+uint8 OP_SOFT_DELETE=6
+uint8 OP_PURGE=7
+
+uint8 operation
+string map_version_id
+bool confirm_destructive
+---
+bool success
+uint16 error_code
+MapVersionSummary version
+string message
