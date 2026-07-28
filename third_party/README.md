@@ -54,7 +54,7 @@ Vikit 已随主仓库构建，不再由 `nav_dependencies.repos` 导入，也不
 
 - 项目维护 fork：`https://github.com/Aldoubt/Ros_Qt5_Gui_App.git`
 - 分支：`agt-navigation-v2`
-- 固定提交：`f9dce88d71948eee071003ab2f4fc917bf475def`
+- 固定提交：`82d44b08bcce2286183f8bf9df33ab457fa2d1b7`
 - 原始上游：`https://github.com/chengyangkj/Ros_Qt5_Gui_App.git`
 - 目录：`third_party/ros_qt5_gui_app`
 - 上游许可证：GPL-2.0，见 `ros_qt5_gui_app/LICENSE`
@@ -69,7 +69,14 @@ Vikit 已随主仓库构建，不再由 `nav_dependencies.repos` 导入，也不
   直接进入两点击定姿，空任务保存显示可操作提示；任务保存只校验启用端点，不再把点间显示
   连线当作直线路径，Task Library 可直接提交当前草稿到 Nav2 planner-only 预览链；任务点
   数字覆盖在朝向箭头之上，预览链会反馈逐段规划进度并在后端缺失时立即提示；候选地图 profile
-  可独立禁止另存为和打开其他地图，只允许将编辑原位保存到受管候选文件。
+  可独立禁止另存为和打开其他地图，只允许将编辑原位保存到受管候选文件。当前快照新增
+  `control-center-v1`/`legacy` 可替换壳层、light/dark token 主题、profile 驱动能力策略，
+  并通过 ViewModel 和 ROS2 channel 消费 `RobotState`、`MissionStatus`、`ExecuteMission`、
+  `SetMissionRunState` 和 `ChangeSystemMode`；旧 waypoint 执行与 `/goal_pose` 仅保留为
+  默认关闭的兼容/调试入口。受管建图、重定位、地图资产以及 Bag/实验页面分别调用
+  `ManageMappingSession`、`Relocalize`、map manager 和 experiment manager 的项目接口；
+  navigation 模式参数只使用 RobotState 中 map manager 返回的活动地图资产；手动速度 topic
+  即使缺少 profile 覆盖也 fail-safe 默认到 `/agt/cmd_vel_manual`。
   构建产物写入
   `build/ros_qt5_gui_app`，不提交 Git。
 
