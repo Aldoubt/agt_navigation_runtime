@@ -37,7 +37,11 @@ TEST(SystemInterfaces, DefaultsAndConstantsAreGenerated)
   EXPECT_TRUE(agt_interfaces::action::OptimizeMap::Goal().backend.empty());
   EXPECT_TRUE(agt_interfaces::action::ExecuteMission::Goal().mission_id.empty());
   EXPECT_EQ(agt_interfaces::msg::RobotState::MODE_UNKNOWN, 0U);
+  EXPECT_FALSE(agt_interfaces::msg::RobotState().mission_status_known);
+  EXPECT_FALSE(agt_interfaces::msg::RobotState().active_map_known);
   EXPECT_EQ(agt_interfaces::msg::MissionStatus::STATE_INTERRUPTED, 12U);
+  EXPECT_EQ(agt_interfaces::msg::MissionStatus::STEP_WAYPOINT_TASK, 1U);
+  EXPECT_EQ(agt_interfaces::msg::MissionStatus::STEP_WAIT_EVENT, 3U);
   EXPECT_EQ(agt_interfaces::msg::MapVersionSummary::STATE_READY, 3U);
   EXPECT_EQ(agt_interfaces::srv::ManageMapVersion::Request::OP_PURGE, 7U);
   EXPECT_EQ(

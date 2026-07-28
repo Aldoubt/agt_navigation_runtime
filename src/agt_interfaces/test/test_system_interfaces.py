@@ -52,11 +52,15 @@ def test_system_interfaces_have_stable_defaults_and_constants():
     assert EvaluateTaskReadiness.Request().validate_task is False
     assert GetSystemHealth.Request().include_optional is False
     assert MissionStatus.STATE_INTERRUPTED == 12
+    assert MissionStatus.STEP_WAYPOINT_TASK == 1
+    assert MissionStatus.STEP_WAIT_EVENT == 3
     assert MissionEvent().event_type == ""
     assert MapVersionSummary.STATE_READY == 3
     assert BagSessionSummary.STATE_RECORDING == 2
     assert RobotState.MODE_UNKNOWN == 0
     assert RobotState().system_mode == RobotState.MODE_UNKNOWN
+    assert not RobotState().mission_status_known
+    assert not RobotState().active_map_known
     assert ExecuteMission.Goal().mission_id == ""
     assert GetRobotState.Request().include_details is False
     assert SetMissionRunState.Request.COMMAND_PAUSE == 1

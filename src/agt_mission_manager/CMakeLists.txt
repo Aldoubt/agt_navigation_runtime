@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.8)
+project(agt_mission_manager)
+
+find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
+
+ament_python_install_package(${PROJECT_NAME})
+
+install(PROGRAMS
+  scripts/mission_manager_node.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY config launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_mission_schema test/test_mission_schema.py)
+  ament_add_pytest_test(test_mission_fsm test/test_mission_fsm.py)
+  ament_add_pytest_test(test_mission_executor test/test_mission_executor.py)
+  ament_add_pytest_test(test_mission_storage test/test_mission_storage.py)
+endif()
+
+ament_package()
+
