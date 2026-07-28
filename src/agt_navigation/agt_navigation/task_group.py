@@ -606,7 +606,6 @@ def validate_task_group(
     *,
     snapshot: MapSnapshot | None = None,
     unknown_cell_policy: str = "reject",
-    line_check_step_ratio: float = 0.5,
     maximum_points: int = DEFAULT_MAXIMUM_POINTS,
     maximum_loops: int = DEFAULT_MAXIMUM_LOOPS,
 ) -> TaskValidationReport:
@@ -618,8 +617,6 @@ def validate_task_group(
         errors.append(str(exc))
     if unknown_cell_policy not in UNKNOWN_POLICIES:
         errors.append(f"unknown_cell_policy must be one of {sorted(UNKNOWN_POLICIES)}")
-    if not math.isfinite(line_check_step_ratio) or line_check_step_ratio <= 0.0:
-        errors.append("line_check_step_ratio must be positive")
     binding_state = "UNVERIFIED"
     raster = None
     if snapshot is not None:
@@ -634,7 +631,7 @@ def validate_task_group(
             raster = _load_map_raster(snapshot)
         except TaskGroupError as exc:
             errors.append(str(exc))
-    for index, point in enumerate(task.enabled_points):
+    for point in task.enabled_points:
         if raster is None:
             continue
         cell = raster.world_to_grid(point.x, point.y)
@@ -650,31 +647,6 @@ def validate_task_group(
                 errors.append(message)
             elif unknown_cell_policy == "warn":
                 warnings.append(message)
-        if index == 0:
-            continue
-        previous = task.enabled_points[index - 1]
-        length = math.hypot(point.x - previous.x, point.y - previous.y)
-        steps = max(1, math.ceil(length / (raster.resolution * line_check_step_ratio)))
-        for step in range(steps + 1):
-            ratio = step / steps
-            x = previous.x + ratio * (point.x - previous.x)
-            y = previous.y + ratio * (point.y - previous.y)
-            segment_cell = raster.world_to_grid(x, y)
-            if segment_cell is None:
-                errors.append(f"path segment {previous.id}->{point.id} leaves the map")
-                break
-            segment_state = raster.cell_state(*segment_cell)
-            if segment_state == "occupied":
-                errors.append(f"path segment {previous.id}->{point.id} crosses an occupied cell")
-                break
-            if segment_state == "unknown":
-                message = f"path segment {previous.id}->{point.id} crosses an unknown cell"
-                if unknown_cell_policy == "reject":
-                    errors.append(message)
-                    break
-                if unknown_cell_policy == "warn":
-                    warnings.append(message)
-                    break
     return TaskValidationReport(tuple(dict.fromkeys(errors)), tuple(dict.fromkeys(warnings)), binding_state)
 
 

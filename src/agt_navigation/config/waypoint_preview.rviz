@@ -1,58 +1,137 @@
 Panels:
   - Class: rviz_common/Displays
+    Help Height: 70
     Name: Displays
+    Property Tree Widget:
+      Expanded: ~
+      Splitter Ratio: 0.5
+    Tree Height: 579
 Visualization Manager:
   Class: ""
+  Displays:
+    - Alpha: 1
+      Class: rviz_default_plugins/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: true
+      Name: 原始静态地图
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /agt/map/global_occupancy
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /agt/map/global_occupancy_updates
+      Use Timestamp: false
+      Value: true
+    - Alpha: 0.550000011920929
+      Class: rviz_default_plugins/Map
+      Color Scheme: costmap
+      Draw Behind: false
+      Enabled: true
+      Name: 膨胀代价地图
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /global_costmap/costmap
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /global_costmap/costmap_updates
+      Use Timestamp: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 25; 118; 210
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.05999999865889549
+      Name: 离线规划路径
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /plan
+      Value: true
+    - Alpha: 0.800000011920929
+      Class: rviz_default_plugins/Polygon
+      Color: 255; 64; 64
+      Enabled: true
+      Name: 多边形机器人本体
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /agt/navigation/preview_footprint
+      Value: true
+  Enabled: true
   Global Options:
     Background Color: 48; 48; 48
     Fixed Frame: map
     Frame Rate: 20
-  Displays:
-    - Class: rviz_default_plugins/Map
-      Name: 原始静态地图
-      Topic:
-        Value: /agt/map/global_occupancy
-        Durability Policy: Transient Local
-        Reliability Policy: Reliable
-      Alpha: 1
-      Color Scheme: map
-      Enabled: true
-    - Class: rviz_default_plugins/Map
-      Name: 膨胀代价地图
-      Topic:
-        Value: /global_costmap/costmap
-        Durability Policy: Transient Local
-        Reliability Policy: Reliable
-      Alpha: 0.55
-      Color Scheme: costmap
-      Enabled: true
-    - Class: rviz_default_plugins/Path
-      Name: 离线规划路径
-      Topic:
-        Value: /plan
-        Durability Policy: Volatile
-        Reliability Policy: Reliable
-      Line Style: Lines
-      Line Width: 0.06
-      Color: 25; 118; 210
-      Enabled: true
-    - Class: rviz_default_plugins/Polygon
-      Name: 多边形机器人本体
-      Topic:
-        Value: /agt/navigation/preview_footprint
-        Durability Policy: Transient Local
-        Reliability Policy: Reliable
-      Color: 255; 64; 64
-      Alpha: 0.8
-      Enabled: true
+  Name: root
   Tools:
     - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
     - Class: rviz_default_plugins/MoveCamera
     - Class: rviz_default_plugins/Select
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
   Views:
     Current:
+      Angle: 0
       Class: rviz_default_plugins/TopDownOrtho
-      Scale: 25
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Scale: 21.76290512084961
+      Target Frame: <Fixed Frame>
+      Value: TopDownOrtho (rviz_default_plugins)
+      X: -1.831004023551941
+      Y: -17.367048263549805
+    Saved: ~
 Window Geometry:
-  Width: 1280
+  Displays:
+    collapsed: false
   Height: 800
+  Hide Left Dock: false
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd000000010000000000000156000002c6fc0200000001fb000000100044006900730070006c006100790073010000003d000002c6000000c900ffffff000003a4000002c600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Width: 1280
+  X: 488
+  Y: 191

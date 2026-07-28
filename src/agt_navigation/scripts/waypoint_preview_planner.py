@@ -34,6 +34,17 @@ def append_segment(joined, segment):
     joined.extend(poses)
 
 
+def validated_segment_timeout(value):
+    timeout_s = float(value)
+    if not math.isfinite(timeout_s) or timeout_s <= 0.0:
+        raise ValueError("segment_timeout_s must be a positive finite value")
+    return timeout_s
+
+
+def planning_progress(segment_index, pose_count):
+    return f"planning:{segment_index}/{pose_count - 1}"
+
+
 class WaypointPreviewPlanner(Node):
     """Planner-only multi-point preview; it never sends motion commands."""
 
@@ -44,6 +55,7 @@ class WaypointPreviewPlanner(Node):
         self.declare_parameter("planner_action", "/compute_path_to_pose")
         self.declare_parameter("planner_id", "GridBased")
         self.declare_parameter("footprint_json", "[]")
+        self.declare_parameter("segment_timeout_s", 30.0)
         qos = QoSProfile(depth=1)
         qos.reliability = ReliabilityPolicy.RELIABLE
         qos.durability = DurabilityPolicy.TRANSIENT_LOCAL
@@ -76,6 +88,11 @@ class WaypointPreviewPlanner(Node):
         self._poses = []
         self._segment_index = 0
         self._joined = []
+        self._segment_timeout_s = validated_segment_timeout(
+            self.get_parameter("segment_timeout_s").value
+        )
+        self._segment_generation = 0
+        self._segment_timer = None
 
     def _status(self, value):
         message = String()
@@ -90,6 +107,8 @@ class WaypointPreviewPlanner(Node):
 
     def _fail(self, reason):
         self.get_logger().warning(reason)
+        self._segment_generation += 1
+        self._cancel_segment_timer()
         self._busy = False
         self._publish_empty()
         self._status(f"failed:{reason}")
@@ -145,27 +164,45 @@ class WaypointPreviewPlanner(Node):
         return stamped
 
     def _send_segment(self):
+        self._segment_generation += 1
+        generation = self._segment_generation
+        segment_index = self._segment_index
+        self._status(planning_progress(segment_index, len(self._poses)))
         goal = ComputePathToPose.Goal()
         goal.start = self._stamped(self._poses[self._segment_index - 1])
         goal.goal = self._stamped(self._poses[self._segment_index])
         goal.use_start = True
         goal.planner_id = str(self.get_parameter("planner_id").value)
-        future = self._client.send_goal_async(goal)
-        future.add_done_callback(self._goal_response)
+        self._arm_segment_timer(generation, segment_index)
+        try:
+            future = self._client.send_goal_async(goal)
+        except Exception as exc:  # pragma: no cover - ROS transport boundary
+            self._fail(f"planner send error: {exc}")
+            return
+        future.add_done_callback(
+            lambda result: self._goal_response(result, generation, segment_index)
+        )
 
-    def _goal_response(self, future):
+    def _goal_response(self, future, generation, segment_index):
+        if not self._segment_is_current(generation, segment_index):
+            return
         try:
             handle = future.result()
         except Exception as exc:  # pragma: no cover - ROS transport boundary
             self._fail(f"planner goal error: {exc}")
             return
         if not handle.accepted:
-            self._fail(f"segment {self._segment_index} rejected")
+            self._fail(f"segment {segment_index} rejected")
             return
         result = handle.get_result_async()
-        result.add_done_callback(self._segment_result)
+        result.add_done_callback(
+            lambda value: self._segment_result(value, generation, segment_index)
+        )
 
-    def _segment_result(self, future):
+    def _segment_result(self, future, generation, segment_index):
+        if not self._segment_is_current(generation, segment_index):
+            return
+        self._cancel_segment_timer()
         try:
             wrapped = future.result()
         except Exception as exc:  # pragma: no cover - ROS transport boundary
@@ -173,7 +210,7 @@ class WaypointPreviewPlanner(Node):
             return
         if wrapped.status != GoalStatus.STATUS_SUCCEEDED:
             self._fail(
-                f"segment {self._segment_index} failed with status {wrapped.status}"
+                f"segment {segment_index} failed with status {wrapped.status}"
             )
             return
         append_segment(self._joined, wrapped.result.path)
@@ -188,6 +225,35 @@ class WaypointPreviewPlanner(Node):
         self._path_pub.publish(output)
         self._busy = False
         self._status(f"succeeded:{len(output.poses)} poses")
+
+    def _segment_is_current(self, generation, segment_index):
+        return (
+            self._busy
+            and generation == self._segment_generation
+            and segment_index == self._segment_index
+        )
+
+    def _arm_segment_timer(self, generation, segment_index):
+        self._cancel_segment_timer()
+        self._segment_timer = self.create_timer(
+            self._segment_timeout_s,
+            lambda: self._segment_timed_out(generation, segment_index),
+        )
+
+    def _cancel_segment_timer(self):
+        if self._segment_timer is None:
+            return
+        timer = self._segment_timer
+        self._segment_timer = None
+        timer.cancel()
+        self.destroy_timer(timer)
+
+    def _segment_timed_out(self, generation, segment_index):
+        if not self._segment_is_current(generation, segment_index):
+            return
+        self._fail(
+            f"segment {segment_index} timed out after {self._segment_timeout_s:.1f}s"
+        )
 
 
 def main(args=None):

@@ -18,6 +18,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetLocalizationMode.srv"
   "action/Relocalize.action"
   "action/ChangeSystemMode.action"
+  "action/ManageMappingSession.action"
   "action/ExecuteCoverageTask.action"
   "action/ExecuteWaypointTask.action"
   "action/OptimizeMap.action"

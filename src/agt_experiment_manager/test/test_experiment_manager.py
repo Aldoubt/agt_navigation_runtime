@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 import yaml
 
@@ -180,3 +182,36 @@ def test_teach_repeat_result_and_failure_case_are_auditable(tmp_path):
     assert "Reference path hash" in report
     assert "localization_pcd_sha256" in report
     assert "teach_repeat.yaml" in report
+
+
+def test_mapping_and_navigation_bag_profiles_keep_replay_and_task_evidence():
+    profile_path = (
+        Path(__file__).resolve().parents[1] / "config" / "bag_profiles.yaml"
+    )
+    profiles = yaml.safe_load(profile_path.read_text(encoding="utf-8"))["profiles"]
+    mapping = profiles["mapping"]["topics"]
+    navigation = profiles["navigation"]["topics"]
+
+    assert len(mapping) == len(set(mapping))
+    assert {
+        "/agt/sensors/lidar/custom",
+        "/agt/sensors/lidar/custom_filtered",
+        "/agt/sensors/imu/data",
+        "/agt/mapping/odometry",
+        "/agt/mapping/octomap_points",
+        "/agt/map/mapping_occupancy",
+        "/agt/mapping/manage_session/_action/status",
+        "/diagnostics",
+    } <= set(mapping)
+    assert {
+        "/agt/system/health",
+        "/agt/system/task_readiness",
+        "/agt/localization/status",
+        "/agt/navigation/execute_waypoint_task/_action/feedback",
+        "/agt/navigation/execute_waypoint_task/_action/status",
+        "/follow_waypoints/_action/feedback",
+        "/agt/safety/status",
+        "/agt/safety/emergency_stop",
+        "/agt/chassis/odometry",
+        "/diagnostics",
+    } <= set(navigation)

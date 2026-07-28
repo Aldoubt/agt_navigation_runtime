@@ -54,7 +54,7 @@ Vikit 已随主仓库构建，不再由 `nav_dependencies.repos` 导入，也不
 
 - 项目维护 fork：`https://github.com/Aldoubt/Ros_Qt5_Gui_App.git`
 - 分支：`agt-navigation-v2`
-- 固定提交：`1597fbbcb25c2c069e51627ab6994470706384fc`
+- 固定提交：`f9dce88d71948eee071003ab2f4fc917bf475def`
 - 原始上游：`https://github.com/chengyangkj/Ros_Qt5_Gui_App.git`
 - 目录：`third_party/ros_qt5_gui_app`
 - 上游许可证：GPL-2.0，见 `ros_qt5_gui_app/LICENSE`
@@ -64,7 +64,12 @@ Vikit 已随主仓库构建，不再由 `nav_dependencies.repos` 导入，也不
   地图绑定与基础栅格校验、地图两点击定姿/拖动编辑、Task Center 内嵌页签，以及 schema-v1
   任务文件到项目 Action 的提交和 missed-waypoint 反馈；Task Library 可从实时刷新的拓扑点
   下拉框快照点名、米制位姿和 yaw；新增 transient-local 示教路线/方向/
-  转弯标注显示、首次路线视野适配，并允许只读 profile 禁止手动速度 publisher、隐藏控制面板。
+  转弯标注显示、首次路线视野适配，并允许只读 profile 禁止手动速度 publisher、隐藏控制面板；
+  navigation/offline profile 隐藏底图写回和旧拓扑任务页，统一使用 Task Library，新建任务后
+  直接进入两点击定姿，空任务保存显示可操作提示；任务保存只校验启用端点，不再把点间显示
+  连线当作直线路径，Task Library 可直接提交当前草稿到 Nav2 planner-only 预览链；任务点
+  数字覆盖在朝向箭头之上，预览链会反馈逐段规划进度并在后端缺失时立即提示；候选地图 profile
+  可独立禁止另存为和打开其他地图，只允许将编辑原位保存到受管候选文件。
   构建产物写入
   `build/ros_qt5_gui_app`，不提交 Git。
 

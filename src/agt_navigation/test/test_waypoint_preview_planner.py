@@ -9,7 +9,12 @@ from nav_msgs.msg import Path as NavPath
 SCRIPT_DIR = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from waypoint_preview_planner import append_segment, valid_pose  # noqa: E402
+from waypoint_preview_planner import (  # noqa: E402
+    append_segment,
+    planning_progress,
+    valid_pose,
+    validated_segment_timeout,
+)
 
 
 def _pose(x, y):
@@ -44,3 +49,18 @@ def test_segments_join_without_duplicate_boundary_pose():
         (1.0, 0.0),
         (2.0, 0.0),
     ]
+
+
+def test_preview_progress_reports_current_and_total_segments():
+    assert planning_progress(1, 4) == "planning:1/3"
+    assert planning_progress(3, 4) == "planning:3/3"
+
+
+def test_preview_segment_timeout_must_be_positive_and_finite():
+    assert validated_segment_timeout(30) == 30.0
+    for value in (0, -1, math.inf, math.nan):
+        try:
+            validated_segment_timeout(value)
+        except ValueError:
+            continue
+        raise AssertionError(f"invalid timeout accepted: {value}")

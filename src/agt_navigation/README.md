@@ -49,7 +49,7 @@ ros2 launch agt_navigation offline_navigation.launch.py \
 
 新版 Task Library 可在无 Nav2/定位/底盘进程时编辑绑定地图版本的 schema-v1 任务组，保存到
 `runtime/maps/<map_id>/versions/<map_version_id>/tasks/`。它提供原子覆盖、备份、旧 JSON 导入、
-地图内容/几何失配和基础栅格点/线段检查；完整操作见
+地图内容/几何失配和基础栅格任务点端点检查；相邻点的实际绕行由 planner-only 预览判断。完整操作见
 [`docs/workflows/qt5_offline_task_group_editor.md`](../../docs/workflows/qt5_offline_task_group_editor.md)。
 
 维护版 Qt 的 **Start Task Chain** 已直接调用
@@ -78,14 +78,19 @@ MAP_YAML="$(realpath runtime/maps/<map_id>/<map_id>.yaml)"
 PLATFORM_PROFILE="$(realpath profiles/platforms/bunker.yaml)"
 
 ros2 launch agt_navigation waypoint_preview.launch.py \
-  map:="$MAP_YAML" platform_profile:="$PLATFORM_PROFILE"
+  map:="$MAP_YAML" platform_profile:="$PLATFORM_PROFILE" \
+  preview_segment_timeout_s:=30.0
 ```
 
 该入口只启动地图服务器、Planner Server、路径预览适配器和 `offline` Qt profile；不启动
 controller、BT Navigator、Waypoint Follower、安全使能或底盘。Qt 中 Task 的第一行是离线
 预览起点，后续行依次为途经点/终点；至少需要两行。点击“预览离线路径”后，适配器逐段
 调用 `ComputePathToPose`，合并后发布 `/plan`。离线 profile 会硬禁用“开始多点任务”，因此
-预览绝不会转化为运动命令。状态可通过以下命令检查：
+预览绝不会转化为运动命令。Task Center 显示当前段/总段数；每段超时会清空 `/plan` 并显示
+失败。预览 inflation layer 与 Bunker 正式 global costmap 使用相同的 `0.75 m` 膨胀半径和
+`4.0` 代价衰减系数；膨胀只影响规划代价和硬碰撞检查，不修改源 PGM 或平台 footprint。
+单独启动 offline Qt 而没有预览适配器时，按钮会立即提示专用 launch 未启动。
+状态也可通过以下命令检查：
 
 ```bash
 ros2 topic echo /agt/navigation/waypoint_preview_status

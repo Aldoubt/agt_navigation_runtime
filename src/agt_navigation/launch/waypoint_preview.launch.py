@@ -11,6 +11,7 @@ from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def _planner_nodes(context):
@@ -36,7 +37,15 @@ def _planner_nodes(context):
             executable="waypoint_preview_planner.py",
             name="agt_waypoint_preview_planner",
             output="screen",
-            parameters=[{"footprint_json": json.dumps(footprint)}],
+            parameters=[
+                {
+                    "footprint_json": json.dumps(footprint),
+                    "segment_timeout_s": ParameterValue(
+                        LaunchConfiguration("preview_segment_timeout_s"),
+                        value_type=float,
+                    ),
+                }
+            ],
         ),
         Node(
             package="nav2_lifecycle_manager",
@@ -61,6 +70,9 @@ def generate_launch_description():
     return LaunchDescription(
         [
             DeclareLaunchArgument("map"),
+            DeclareLaunchArgument(
+                "preview_segment_timeout_s", default_value="30.0"
+            ),
             DeclareLaunchArgument(
                 "platform_profile",
                 default_value=str(root / "profiles" / "platforms" / "bunker.yaml"),

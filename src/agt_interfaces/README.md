@@ -10,6 +10,8 @@ TASK-13 已启用 ROSIDL 代码生成，当前接口：
 - `srv/SetLocalizationMode.srv`：有界 `MANUAL_ONLY`、`AUTO_ON_START`、`AUTO_RECOVERY` 策略选择。
 - `msg/LocalizationStatus.msg`：机器可解析的全局定位状态、质量和稳定错误码。
 - `action/ChangeSystemMode.action`：白名单系统模式切换，不接受任意命令。
+- `action/ManageMappingSession.action`：统一建图会话的启动、采集完成、候选提交和状态查询；
+  前端不得自行编排栅格保存、建图停止、PCD 等待或地图版本登记。
 - `action/OptimizeMap.action`：离线优化接口预留，当前实现 fail-closed 未实现。
 - `action/Relocalize.action`：项目统一自动重定位 Goal、Feedback 和 Result 边界。
 - `action/ExecuteCoverageTask.action`：覆盖任务 Goal、Result 和 Feedback 数据结构。
@@ -24,3 +26,6 @@ Goal、Result、Feedback 执行 Python 序列化往返。
 自动重定位服务端属于 `agt_localization`；本包不实现候选搜索、配准、TF 或安全门禁。
 系统健康节点属于 `agt_system_manager`，任务服务端仍必须在 Action 执行层再次检查
 `TaskReadiness`。
+
+建图 Action 的字段、状态、时序和错误码见
+[`docs/interfaces/mapping_session_action.md`](../../docs/interfaces/mapping_session_action.md)。

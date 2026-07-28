@@ -249,10 +249,10 @@ def test_snapshot_uses_version_relative_path_and_ready_manifest_pcd_hash(tmp_pat
     assert snapshot.binding().localization_pcd_sha256 == declared
 
 
-def test_offline_validation_checks_occupied_unknown_and_line(tmp_path):
+def test_offline_validation_checks_waypoints_not_straight_chords(tmp_path):
     image = tmp_path / "fixture.pgm"
-    # top row: free, occupied; bottom row: unknown, free.
-    image.write_bytes(b"P5\n2 2\n255\n" + bytes((254, 0, 205, 254)))
+    # top row: free, occupied, free; bottom row: unknown, free, free.
+    image.write_bytes(b"P5\n3 2\n255\n" + bytes((254, 0, 254, 205, 254, 254)))
     yaml_path = _write_map(tmp_path)
     yaml_path.write_text(yaml_path.read_text(encoding="utf-8").replace("map.pgm", image.name), encoding="utf-8")
     snapshot = load_map_snapshot(yaml_path, map_id="site", map_version_id="v1")
@@ -271,11 +271,15 @@ def test_offline_validation_checks_occupied_unknown_and_line(tmp_path):
     assert any("unknown" in item for item in warning.warnings)
     crossing = _task(binding, [Waypoint("a", "A", 10.5, 21.5, 0.0), Waypoint("b", "B", 11.5, 21.5, 0.0)])
     report = validate_task_group(crossing, snapshot=snapshot)
-    assert any("occupied" in item for item in report.errors)
+    assert not report.ok
+    assert any("waypoint b" in item and "occupied" in item for item in report.errors)
+
+    free_chord = _task(binding, [Waypoint("a", "A", 10.5, 21.5, 0.0), Waypoint("b", "B", 12.5, 21.5, 0.0)])
+    assert validate_task_group(free_chord, snapshot=snapshot).ok
 
     free = _task(binding, [Waypoint("free", "free", 11.5, 20.5, 0.0)])
     assert validate_task_group(free, snapshot=snapshot).ok
-    outside = _task(binding, [Waypoint("outside", "outside", 12.0, 20.5, 0.0)])
+    outside = _task(binding, [Waypoint("outside", "outside", 13.0, 20.5, 0.0)])
     assert any(
         "outside" in item
         for item in validate_task_group(outside, snapshot=snapshot).errors
