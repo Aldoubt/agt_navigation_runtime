@@ -37,7 +37,12 @@ TEST(ExecuteCoverageTaskInterface, GeneratedTypesAreUsable)
 TEST(ExecuteWaypointTaskInterface, GeneratedTypesAreUsable)
 {
   agt_interfaces::action::ExecuteWaypointTask::Goal goal;
-  goal.task_file = "/runtime/maps/demo/task.json";
+  goal.map_id = "demo";
+  goal.map_version_id = "map_20260729_120000_abcdef12";
+  goal.task_group_id = "inspection_v01";
+  goal.task_revision = 3U;
+  goal.expected_content_sha256 = std::string("sha256:") + std::string(64U, 'a');
+  goal.client_request_id = "11111111-1111-4111-8111-111111111111";
   goal.poses.resize(0U);
   goal.loop = false;
   goal.loop_count = 1U;
@@ -45,6 +50,8 @@ TEST(ExecuteWaypointTaskInterface, GeneratedTypesAreUsable)
   agt_interfaces::action::ExecuteWaypointTask::Result result;
   result.success = false;
   result.error_code = 42U;
+  result.session_id = "session-1";
+  result.blocker_code = "NAV2_FAILED";
   result.missed_waypoints = {1, 3};
 
   agt_interfaces::action::ExecuteWaypointTask::Feedback feedback;
@@ -53,7 +60,9 @@ TEST(ExecuteWaypointTaskInterface, GeneratedTypesAreUsable)
   feedback.total_waypoints = 4U;
 
   EXPECT_EQ(goal.loop_count, static_cast<std::uint32_t>(1U));
+  EXPECT_EQ(goal.task_group_id, std::string("inspection_v01"));
   EXPECT_EQ(result.error_code, static_cast<std::uint16_t>(42U));
+  EXPECT_EQ(result.blocker_code, std::string("NAV2_FAILED"));
   EXPECT_EQ(result.missed_waypoints.size(), 2U);
   EXPECT_EQ(feedback.state, std::string("RUNNING"));
 }

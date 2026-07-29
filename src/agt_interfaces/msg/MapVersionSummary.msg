@@ -18,6 +18,9 @@ bool deleted
 bool valid
 string map_hash
 string manifest_sha256
+string navigation_yaml_sha256
+string navigation_image_sha256
+string localization_pcd_sha256
 string navigation_yaml
 string localization_pcd
 string processing_record

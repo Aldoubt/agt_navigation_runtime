@@ -31,8 +31,13 @@ def generate_launch_description():
                 "params_file", default_value=str(share / "config" / "nav2_bunker.yaml")
             ),
             DeclareLaunchArgument("map", default_value=str(share / "maps" / "offline_test.yaml")),
+            DeclareLaunchArgument("runtime_dir", default_value="runtime"),
+            DeclareLaunchArgument("maps_root", default_value=""),
             DeclareLaunchArgument("map_id", default_value=""),
             DeclareLaunchArgument("map_version_id", default_value=""),
+            DeclareLaunchArgument("current_map_yaml_sha256", default_value=""),
+            DeclareLaunchArgument("current_map_image_sha256", default_value=""),
+            DeclareLaunchArgument("current_localization_pcd_sha256", default_value=""),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("autostart", default_value="false"),
             DeclareLaunchArgument("enable_localization_gate", default_value="true"),
@@ -112,12 +117,31 @@ def generate_launch_description():
                         "use_sim_time": use_sim_time,
                         "require_localization_valid": True,
                         "require_task_readiness": True,
+                        "runtime_dir": LaunchConfiguration("runtime_dir"),
+                        "maps_root": LaunchConfiguration("maps_root"),
+                        "allow_legacy_local_task_file": False,
+                        "allow_direct_pose_goals": False,
                         "localization_status_timeout": ParameterValue(
                             LaunchConfiguration("localization_status_timeout"), value_type=float
                         ),
                         "current_map_id": LaunchConfiguration("map_id"),
                         "current_map_version_id": LaunchConfiguration("map_version_id"),
-                        "current_map_yaml_path": LaunchConfiguration("map"),
+                        "current_map_yaml_sha256": LaunchConfiguration("current_map_yaml_sha256"),
+                        "current_map_image_sha256": LaunchConfiguration("current_map_image_sha256"),
+                        "current_localization_pcd_sha256": LaunchConfiguration("current_localization_pcd_sha256"),
+                    }
+                ],
+            ),
+            Node(
+                package="agt_navigation",
+                executable="task_registry_node.py",
+                name="agt_task_registry",
+                output="screen",
+                parameters=[
+                    {
+                        "use_sim_time": use_sim_time,
+                        "runtime_dir": LaunchConfiguration("runtime_dir"),
+                        "maps_root": LaunchConfiguration("maps_root"),
                     }
                 ],
             ),

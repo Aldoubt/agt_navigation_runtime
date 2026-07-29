@@ -1,4 +1,5 @@
 import importlib.util
+import asyncio
 import json
 from pathlib import Path
 import threading
@@ -6,7 +7,7 @@ import time
 
 from action_msgs.msg import GoalStatus
 from agt_interfaces.action import ExecuteWaypointTask
-from agt_interfaces.msg import LocalizationStatus, TaskReadiness
+from agt_interfaces.msg import LocalizationStatus, MapVersionSummary
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from geometry_msgs.msg import PoseStamped
 import pytest
@@ -17,6 +18,7 @@ from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalRespons
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from agt_navigation.task_group import MapBinding, TaskGroup, Waypoint
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "waypoint_task_server.py"
 SPEC = importlib.util.spec_from_file_location("waypoint_task_server", SCRIPT)
@@ -25,7 +27,7 @@ SPEC.loader.exec_module(SERVER)
 
 
 @pytest.fixture
-def node():
+def node(tmp_path):
     if not rclpy.ok():
         rclpy.init()
     value = SERVER.WaypointTaskServer(
@@ -34,6 +36,9 @@ def node():
             Parameter("require_localization_valid", value=False),
             Parameter("require_safety_ready", value=False),
             Parameter("require_task_readiness", value=False),
+            Parameter("allow_legacy_local_task_file", value=True),
+            Parameter("allow_direct_pose_goals", value=True),
+            Parameter("maps_root", value=str(tmp_path)),
         ]
     )
     try:
@@ -52,10 +57,130 @@ def _request(loop=False, count=1):
     return request
 
 
+def _versioned_task(root, revision=1, version_id="v1"):
+    version = root / "site" / "versions" / version_id
+    (version / "tasks").mkdir(parents=True, exist_ok=True)
+    (version / "manifest.yaml").write_text(
+        "\n".join(
+            (
+                "schema_version: 1",
+                "map_id: site",
+                f"map_version_id: {version_id}",
+                "state: READY",
+            )
+        ),
+        encoding="utf-8",
+    )
+    task = TaskGroup(
+        task_group_id="route",
+        name="Route",
+        description="",
+        created_at="2026-07-29T00:00:00+00:00",
+        updated_at="2026-07-29T00:00:00+00:00",
+        revision=revision,
+        map_binding=MapBinding(
+            "site",
+            version_id,
+            map_yaml_sha256="sha256:yaml",
+            map_image_sha256="sha256:image",
+            localization_pcd_sha256="sha256:pcd",
+            resolution=1.0,
+            width=2,
+            height=2,
+            origin=(10.0, 20.0, 0.0),
+        ),
+        points=[Waypoint("wp_0001", "A", 10.5, 20.5, 0.0)],
+    )
+    task.content_sha256 = task.canonical_hash()
+    (version / "tasks" / "route.json").write_text(
+        json.dumps(task.to_dict(), ensure_ascii=False), encoding="utf-8"
+    )
+    return task
+
+
+def _formal_request(task, version_id="v1"):
+    request = ExecuteWaypointTask.Goal()
+    request.map_id = "site"
+    request.map_version_id = version_id
+    request.task_group_id = task.task_group_id
+    request.task_revision = task.revision
+    request.expected_content_sha256 = task.content_sha256
+    request.client_request_id = "request_1"
+    request.loop_count = 1
+    return request
+
+
+def _active_map(
+    *,
+    map_id="site",
+    version_id="v1",
+    yaml_hash="sha256:yaml",
+    image_hash="sha256:image",
+    pcd_hash="sha256:pcd",
+    valid=True,
+):
+    message = MapVersionSummary()
+    message.active = True
+    message.valid = valid
+    message.state = MapVersionSummary.STATE_READY
+    message.map_id = map_id
+    message.map_version_id = version_id
+    message.navigation_yaml_sha256 = yaml_hash
+    message.navigation_image_sha256 = image_hash
+    message.localization_pcd_sha256 = pcd_hash
+    return message
+
+
 def test_rejects_concurrent_and_unbounded_loops(node):
     assert node._goal_callback(_request(loop=True, count=0)) == GoalResponse.REJECT
     assert node._goal_callback(_request()) == GoalResponse.ACCEPT
-    assert node._goal_callback(_request()) == GoalResponse.REJECT
+    node._active = True
+    with pytest.raises(SERVER.Blocked) as exc:
+        node._claim_request(_request())
+    assert exc.value.problem.code == "TASK_ALREADY_ACTIVE"
+
+
+def test_rejected_concurrent_execute_does_not_clear_active_session(node):
+    class GoalHandle:
+        def __init__(self, request):
+            self.request = request
+            self.aborted = False
+
+        def abort(self):
+            self.aborted = True
+
+        def succeed(self):
+            pass
+
+    node._active = True
+    node._active_request_id = "running_request"
+    handle = GoalHandle(_request())
+    result = asyncio.run(node._execute(handle))
+
+    assert handle.aborted
+    assert not result.success
+    assert result.blocker_code == "TASK_ALREADY_ACTIVE"
+    assert node._active
+    assert node._active_request_id == "running_request"
+
+
+def test_legacy_task_file_is_disabled_by_default():
+    if not rclpy.ok():
+        rclpy.init()
+    value = SERVER.WaypointTaskServer(
+        parameter_overrides=[
+            Parameter("require_map", value=False),
+            Parameter("require_localization_valid", value=False),
+            Parameter("require_safety_ready", value=False),
+            Parameter("require_task_readiness", value=False),
+        ]
+    )
+    try:
+        assert value._goal_callback(_request()) == GoalResponse.REJECT
+    finally:
+        value.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 def test_safety_readiness_requires_enabled_and_clear_estop(node):
@@ -101,8 +226,32 @@ def test_portable_pose_input_requires_map_frame(node):
     assert points[0].x == 1.0
 
     request.poses[0].header.frame_id = "odom"
-    with pytest.raises(SERVER.TaskChainError, match="frame_id must be map"):
+    with pytest.raises(SERVER.Blocked) as exc:
         node._load_points(request)
+    assert exc.value.problem.code == "TASK_SCHEMA_INVALID"
+
+
+def test_formal_task_id_loads_from_robot_registry(node, tmp_path):
+    task = _versioned_task(tmp_path)
+    request = _formal_request(task)
+    points, binding, loaded = node._load_points_and_binding(request)
+    assert [point.name for point in points] == ["A"]
+    assert loaded.task_group_id == "route"
+    assert binding.map_id == "site"
+
+    request.task_revision = 99
+    with pytest.raises(SERVER.Blocked) as exc:
+        node._load_points_and_binding(request)
+    assert exc.value.problem.code == "TASK_REVISION_CONFLICT"
+
+
+def test_formal_task_rejects_content_hash_mismatch(node, tmp_path):
+    task = _versioned_task(tmp_path)
+    request = _formal_request(task)
+    request.expected_content_sha256 = "sha256:" + "0" * 64
+    with pytest.raises(SERVER.Blocked) as exc:
+        node._load_points_and_binding(request)
+    assert exc.value.problem.code == "TASK_CONTENT_HASH_MISMATCH"
 
 
 def test_new_task_group_loads_enabled_points_and_checks_active_map(node, tmp_path):
@@ -140,8 +289,9 @@ def test_new_task_group_loads_enabled_points_and_checks_active_map(node, tmp_pat
     )
     request = _request()
     request.task_file = str(task)
-    points, binding = node._load_points_and_binding(request)
+    points, binding, loaded_task = node._load_points_and_binding(request)
     assert [point.name for point in points] == ["A"]
+    assert loaded_task.task_group_id == "inspection_v01"
 
     current = OccupancyGrid()
     current.header.frame_id = "map"
@@ -151,26 +301,19 @@ def test_new_task_group_loads_enabled_points_and_checks_active_map(node, tmp_pat
     current.info.origin.position.x = 10.0
     current.info.origin.position.y = 20.0
     current.info.origin.orientation.w = 1.0
-    readiness = TaskReadiness()
-    readiness.ready = True
-    readiness.map_id = "site"
-    readiness.map_version_id = "map_v2"
-    node._task_readiness_callback(readiness)
-    assert "map_version_id" in node._validate_task_binding(binding, current)
+    node._active_map_callback(_active_map(version_id="map_v2"))
+    assert node._validate_task_binding(binding, current).code == "MAP_VERSION_MISMATCH"
 
-    readiness.map_version_id = "map_v1"
-    node._task_readiness_callback(readiness)
-    node.current_map_yaml_sha256 = "sha256:other"
-    assert "map_yaml_sha256" in node._validate_task_binding(binding, current)
+    node._active_map_callback(_active_map(version_id="map_v1", yaml_hash="sha256:other"))
+    assert node._validate_task_binding(binding, current).code == "MAP_YAML_HASH_MISMATCH"
 
-    node.current_map_yaml_sha256 = "sha256:yaml"
-    node.current_map_image_sha256 = "sha256:image"
-    node.current_localization_pcd_sha256 = "sha256:pcd"
+    node._active_map_callback(_active_map(version_id="map_v1"))
     assert node._validate_task_binding(binding, current) is None
 
-    node._readiness_map_version_id = ""
-    node.current_map_version_id = ""
-    assert "map_version_id" in node._validate_task_binding(binding, current)
+    inactive = _active_map(version_id="map_v1", valid=False)
+    inactive.active = False
+    node._active_map_callback(inactive)
+    assert node._validate_task_binding(binding, current).code == "NO_ACTIVE_MAP"
 
 
 def test_versioned_task_file_rejects_unsupported_schema(node, tmp_path):
@@ -180,8 +323,9 @@ def test_versioned_task_file_rejects_unsupported_schema(node, tmp_path):
     )
     request = _request()
     request.task_file = str(task)
-    with pytest.raises(SERVER.TaskChainError, match="unsupported task group"):
+    with pytest.raises(SERVER.Blocked) as exc:
         node._load_points_and_binding(request)
+    assert exc.value.problem.code == "TASK_SCHEMA_INVALID"
 
 
 def _wait(future, timeout=3.0):
@@ -204,6 +348,8 @@ def test_project_action_uses_follow_waypoints_result(
                 Parameter("require_safety_ready", value=False),
                 Parameter("require_localization_valid", value=False),
                 Parameter("require_task_readiness", value=False),
+                Parameter("allow_legacy_local_task_file", value=True),
+                Parameter("maps_root", value=str(tmp_path)),
         ]
     )
     mock_node = Node("mock_follow_waypoints")
@@ -285,6 +431,8 @@ def test_parent_cancel_reaches_active_follow_waypoints_child(tmp_path):
             Parameter("require_safety_ready", value=False),
             Parameter("require_localization_valid", value=False),
             Parameter("require_task_readiness", value=False),
+            Parameter("allow_legacy_local_task_file", value=True),
+            Parameter("maps_root", value=str(tmp_path)),
         ]
     )
     mock_node = Node("mock_cancel_follow_waypoints")
