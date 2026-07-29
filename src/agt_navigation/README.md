@@ -87,7 +87,9 @@ controller、BT Navigator、Waypoint Follower、安全使能或底盘。Qt 中 T
 预览起点，后续行依次为途经点/终点；至少需要两行。点击“预览离线路径”后，适配器逐段
 调用 `ComputePathToPose`，合并后发布 `/plan`。离线 profile 会硬禁用“开始多点任务”，因此
 预览绝不会转化为运动命令。Task Center 显示当前段/总段数；每段超时会清空 `/plan` 并显示
-失败。预览 inflation layer 与 Bunker 正式 global costmap 使用相同的 `0.75 m` 膨胀半径和
+失败。多段规划使用上一段 Nav2 返回的实际终点作为下一段起点，避免 planner 目标容差造成
+路径断裂或把原始任务点误当成可行起点；任务点顺序保持不变，结果仍是只读建议。预览
+inflation layer 与 Bunker 正式 global costmap 使用相同的 `0.75 m` 膨胀半径和
 `4.0` 代价衰减系数；膨胀只影响规划代价和硬碰撞检查，不修改源 PGM 或平台 footprint。
 单独启动 offline Qt 而没有预览适配器时，按钮会立即提示专用 launch 未启动。
 状态也可通过以下命令检查：

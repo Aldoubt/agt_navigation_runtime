@@ -2,6 +2,7 @@ import math
 from pathlib import Path
 import sys
 
+from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import Pose, PoseStamped
 from nav_msgs.msg import Path as NavPath
 
@@ -11,6 +12,8 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from waypoint_preview_planner import (  # noqa: E402
     append_segment,
+    goal_status_name,
+    next_segment_start,
     planning_progress,
     valid_pose,
     validated_segment_timeout,
@@ -54,6 +57,22 @@ def test_segments_join_without_duplicate_boundary_pose():
 def test_preview_progress_reports_current_and_total_segments():
     assert planning_progress(1, 4) == "planning:1/3"
     assert planning_progress(3, 4) == "planning:3/3"
+
+
+def test_next_segment_starts_at_previous_planner_endpoint():
+    requested = [_pose(0.0, 0.0), _pose(1.0, 0.0), _pose(2.0, 0.0)]
+    assert next_segment_start(requested, [], 1) is requested[0]
+
+    joined = []
+    append_segment(joined, _segment((0.0, 0.0), (0.9, 0.1)))
+    actual_endpoint = next_segment_start(requested, joined, 2)
+    assert actual_endpoint.position.x == 0.9
+    assert actual_endpoint.position.y == 0.1
+
+
+def test_preview_reports_readable_action_status():
+    assert goal_status_name(GoalStatus.STATUS_ABORTED) == "aborted"
+    assert goal_status_name(99) == "status 99"
 
 
 def test_preview_segment_timeout_must_be_positive_and_finite():

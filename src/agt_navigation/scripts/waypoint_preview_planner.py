@@ -45,6 +45,26 @@ def planning_progress(segment_index, pose_count):
     return f"planning:{segment_index}/{pose_count - 1}"
 
 
+def next_segment_start(requested_poses, joined, segment_index):
+    """Keep successive plans connected when Nav2 applies goal tolerance."""
+    if joined:
+        return joined[-1].pose
+    return requested_poses[segment_index - 1]
+
+
+def goal_status_name(status):
+    names = {
+        GoalStatus.STATUS_UNKNOWN: "unknown",
+        GoalStatus.STATUS_ACCEPTED: "accepted",
+        GoalStatus.STATUS_EXECUTING: "executing",
+        GoalStatus.STATUS_CANCELING: "canceling",
+        GoalStatus.STATUS_SUCCEEDED: "succeeded",
+        GoalStatus.STATUS_CANCELED: "canceled",
+        GoalStatus.STATUS_ABORTED: "aborted",
+    }
+    return names.get(status, f"status {status}")
+
+
 class WaypointPreviewPlanner(Node):
     """Planner-only multi-point preview; it never sends motion commands."""
 
@@ -169,7 +189,9 @@ class WaypointPreviewPlanner(Node):
         segment_index = self._segment_index
         self._status(planning_progress(segment_index, len(self._poses)))
         goal = ComputePathToPose.Goal()
-        goal.start = self._stamped(self._poses[self._segment_index - 1])
+        goal.start = self._stamped(
+            next_segment_start(self._poses, self._joined, self._segment_index)
+        )
         goal.goal = self._stamped(self._poses[self._segment_index])
         goal.use_start = True
         goal.planner_id = str(self.get_parameter("planner_id").value)
@@ -210,8 +232,11 @@ class WaypointPreviewPlanner(Node):
             return
         if wrapped.status != GoalStatus.STATUS_SUCCEEDED:
             self._fail(
-                f"segment {segment_index} failed with status {wrapped.status}"
+                f"segment {segment_index} {goal_status_name(wrapped.status)}"
             )
+            return
+        if not wrapped.result.path.poses:
+            self._fail(f"segment {segment_index} returned an empty path")
             return
         append_segment(self._joined, wrapped.result.path)
         self._segment_index += 1
