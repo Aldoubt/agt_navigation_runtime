@@ -47,12 +47,6 @@ LIVMapper::LIVMapper(rclcpp::Node::SharedPtr &node, std::string node_name, const
   pcl_wait_pub.reset(new PointCloudXYZI());
   pcl_wait_save.reset(new PointCloudXYZRGB());
   pcl_wait_save_intensity.reset(new PointCloudXYZI());
-  if (pcd_save_en && pcd_save_interval < 0 && pcd_save_incremental_voxel_en && !img_en)
-  {
-    localization_voxel_map =
-      std::make_unique<fast_livo::IncrementalVoxelMap>(
-        filter_size_pcd, pcd_save_max_abs_coordinate);
-  }
   voxelmap_manager.reset(new VoxelMapManager(voxel_config, voxel_map));
   vio_manager.reset(new VIOManager());
   root_dir = ROOT_DIR;
@@ -196,6 +190,17 @@ void LIVMapper::readParameters(rclcpp::Node::SharedPtr &node)
   this->node->get_parameter(
     "pcd_save.max_abs_coordinate", pcd_save_max_abs_coordinate);
   this->node->get_parameter("pcd_save.output_directory", pcd_output_directory);
+
+  // The PCD parameters are loaded here, after the constructor has initialized
+  // the other mapper components. Create the LIO-only persistence map only now,
+  // otherwise the runtime falls back to retaining the full raw cloud.
+  if (pcd_save_en && pcd_save_interval < 0 && pcd_save_incremental_voxel_en && !img_en &&
+    !localization_voxel_map)
+  {
+    localization_voxel_map =
+      std::make_unique<fast_livo::IncrementalVoxelMap>(
+        filter_size_pcd, pcd_save_max_abs_coordinate);
+  }
   this->node->get_parameter("extrin_calib.extrinsic_T", extrinT);
   this->node->get_parameter("extrin_calib.extrinsic_R", extrinR);
   this->node->get_parameter("extrin_calib.Pcl", cameraextrinT);

@@ -20,7 +20,8 @@
 - 上游许可证：GPL-2.0，见 `fast_livo2_ros2/LICENSE`
 - 本地调整：增加原生 TF 发布开关；使用 vikit 导出的 CMake target；增加
   `/cloud_registered_lidar` 当前帧雷达坐标点云，供 OctoMap 使用动态传感器原点；修正
-  上游 `package.xml` 与实际 GPL-2.0 许可证不一致的声明
+  上游 `package.xml` 与实际 GPL-2.0 许可证不一致的声明；修复 LIO-only 增量 PCD
+  持久化地图在参数加载前初始化导致的回退路径，确保建图退出时生成 READY 处理记录
 
 FAST-LIVO2 已 vendor 到主仓库，不再由 `nav_dependencies.repos` 下载，也不依赖 `/tmp`
 安装空间。算法接口和 topic remap 仍由 `agt_mapping` 管理。
