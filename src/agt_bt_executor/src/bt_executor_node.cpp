@@ -77,7 +77,10 @@ void BtExecutorNode::run(std::shared_ptr<GoalHandle> goal) {
     bb->set("task_content_sha256", g.expected_content_sha256); bb->set("loop_count", g.loop_count);
     bb->set("client_request_id", g.client_request_id);
     bb->set("relocalize_timeout_s", node_->get_parameter("relocalize_timeout_s").as_double());
-    bb->set("relocalize_max_candidates", static_cast<unsigned>(node_->get_parameter("relocalize_max_candidates").as_int()));
+    // The XML port is declared as int; keeping the blackboard type identical
+    // is required by BehaviorTree.CPP 4 and avoids a runtime tree-construction
+    // failure before the first readiness probe.
+    bb->set("relocalize_max_candidates", node_->get_parameter("relocalize_max_candidates").as_int());
     bb->set("waypoint_timeout_s", node_->get_parameter("waypoint_timeout_s").as_double());
     const auto period = std::chrono::duration<double>(1.0 / node_->get_parameter("tick_rate_hz").as_double());
     auto status = BT::NodeStatus::IDLE;

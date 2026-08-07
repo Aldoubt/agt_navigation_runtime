@@ -10,7 +10,7 @@
           <IsTaskReady task_id="{task_group_id}" gate_profile="task_execution" timeout_s="3.0" last_blocker_code="{last_blocker_code}" last_blocker_message="{last_blocker_message}"/>
         </Sequence>
       </Fallback>
-      <ExecuteWaypointTask map_id="{map_id}" map_version_id="{map_version_id}" task_group_id="{task_group_id}" task_revision="{task_revision}" expected_content_sha256="{task_content_sha256}" loop_count="{loop_count}" client_request_id="{client_request_id}" timeout_s="{waypoint_timeout_s}"/>
+      <ExecuteWaypointTask map_id="{map_id}" map_version_id="{map_version_id}" task_group_id="{task_group_id}" task_revision="{task_revision}" expected_content_sha256="{task_content_sha256}" loop_count="{loop_count}" client_request_id="{client_request_id}" timeout_s="{waypoint_timeout_s}" waypoint_state="{waypoint_state}" loop_index="{loop_index}" current_waypoint="{current_waypoint}" total_waypoints="{total_waypoints}"/>
     </Sequence>
   </BehaviorTree>
 </root>
