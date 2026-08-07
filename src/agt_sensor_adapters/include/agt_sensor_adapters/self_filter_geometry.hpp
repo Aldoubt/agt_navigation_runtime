@@ -2,8 +2,8 @@
 
 #include <array>
 #include <cstddef>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace agt_sensor_adapters
@@ -16,6 +16,7 @@ struct AxisAlignedBox
   std::array<double, 3> max;
   bool verified{false};
   std::string note;
+  bool generated_from_platform_body{false};
 
   bool contains(const std::array<double, 3> & point) const;
   AxisAlignedBox expanded(double padding) const;
@@ -31,6 +32,7 @@ struct SelfFilterGeometry
 
   bool contains(const std::array<double, 3> & point) const;
   std::vector<AxisAlignedBox> expanded_boxes() const;
+  std::vector<AxisAlignedBox> expanded_supplemental_boxes() const;
   bool has_unverified_box() const;
 };
 
