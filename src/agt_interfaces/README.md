@@ -17,20 +17,34 @@
 - `action/OptimizeMap.action`：离线优化接口预留，当前实现 fail-closed 未实现。
 - `action/Relocalize.action`：项目统一自动重定位 Goal、Feedback 和 Result 边界。
 - `action/ExecuteCoverageTask.action`：覆盖任务 Goal、Result 和 Feedback 数据结构。
-- `action/ExecuteWaypointTask.action`：Qt/其他前端到可靠 Nav2 多点执行器的任务边界。
+- `action/ExecuteWaypointTask.action`：项目级 waypoint navigation capability 边界；当前 MAP-oriented
+  baseline 的服务端内部使用 Nav2，多点任务的公开语义不等同于 Nav2 native Action。
 
 构建后可通过生成的 Python/C++ 类型使用。包内测试验证关键接口生成产物与 Python 序列化往返。
 
 `SemanticWaypointArray` 是地图语义产品，不等于 `ExecuteWaypointTask`。命名锚点的持久化与发布
 属于 `agt_ui_bridge/agt_semantic_map_server`；有序 waypoint task 的版本、hash、loop、cancel 和
-session 语义仍由 `agt_navigation` 的 Task Registry / project Action 负责。
+session 语义仍由 `agt_navigation` 的 Task Registry / project Action 负责。V25-08 进一步冻结：
 
-覆盖任务服务端属于 `agt_coverage_planning`，多点导航任务服务端属于 `agt_navigation`。
-自动重定位服务端属于 `agt_localization`；本包不实现候选搜索、配准、TF 或安全门禁。
-系统健康节点属于 `agt_system_manager`，任务服务端仍必须在 Action 执行层再次检查
+```text
+SemanticWaypoint != WaypointTask != Route != Runtime Path
+```
+
+其中 Route 是后续 navigation policy 的内部 resolved representation，Runtime Path 才是 controller
+消费的几何轨迹。本阶段不新增 `ExecuteRouteTask` 或 `ExecuteNavigationTask`，也不在现有 Action
+中增加 navigation mode 字段。
+
+覆盖任务服务端属于 `agt_coverage_planning`，多点导航 project Action 服务端属于
+`agt_navigation`。自动重定位服务端属于 `agt_localization`；本包不实现候选搜索、配准、TF 或安全
+门禁。系统健康节点属于 `agt_system_manager`，任务服务端仍必须在 Action 执行层再次检查
 `TaskReadiness`。
+
+Mission、Behavior Tree 和前端必须调用 project interfaces，不得因为当前 MAP backend 使用 Nav2
+而把 `NavigateToPose`、`NavigateThroughPoses`、`FollowPath` 或速度 topic 升级成业务接口。
 
 建图 Action 的字段、状态、时序和错误码见
 [`docs/interfaces/mapping_session_action.md`](../../docs/interfaces/mapping_session_action.md)。
 语义路点合同见
 [`docs/interfaces/semantic_waypoints.md`](../../docs/interfaces/semantic_waypoints.md)。
+导航语义基线见
+[`docs/architecture/navigation_semantics.md`](../../docs/architecture/navigation_semantics.md)。
