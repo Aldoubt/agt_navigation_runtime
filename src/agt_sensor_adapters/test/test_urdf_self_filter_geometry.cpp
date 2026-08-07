@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 
@@ -32,18 +33,25 @@ TEST(UrdfSelfFilterGeometry, ParsesPrimitiveCollisionGeometry)
 )urdf");
 
   ASSERT_EQ(geometry.primitives.size(), 2U);
-  EXPECT_EQ(geometry.primitives[0].link_name, "base_link");
-  EXPECT_EQ(geometry.primitives[0].type, agt_sensor_adapters::UrdfPrimitiveType::BOX);
-  EXPECT_DOUBLE_EQ(geometry.primitives[0].dimensions[0], 1.0);
-  EXPECT_DOUBLE_EQ(geometry.primitives[0].dimensions[1], 0.6);
-  EXPECT_DOUBLE_EQ(geometry.primitives[0].dimensions[2], 0.4);
-  EXPECT_DOUBLE_EQ(geometry.primitives[0].origin_xyz[0], 0.10);
-  EXPECT_DOUBLE_EQ(geometry.primitives[0].origin_xyz[1], -0.20);
-  EXPECT_DOUBLE_EQ(geometry.primitives[0].origin_xyz[2], 0.30);
+  const auto base_it = std::find_if(
+    geometry.primitives.begin(), geometry.primitives.end(),
+    [](const auto & primitive) { return primitive.link_name == "base_link"; });
+  const auto sphere_it = std::find_if(
+    geometry.primitives.begin(), geometry.primitives.end(),
+    [](const auto & primitive) { return primitive.link_name == "sphere_link"; });
 
-  EXPECT_EQ(geometry.primitives[1].link_name, "sphere_link");
-  EXPECT_EQ(geometry.primitives[1].type, agt_sensor_adapters::UrdfPrimitiveType::SPHERE);
-  EXPECT_DOUBLE_EQ(geometry.primitives[1].dimensions[0], 0.15);
+  ASSERT_NE(base_it, geometry.primitives.end());
+  ASSERT_NE(sphere_it, geometry.primitives.end());
+  EXPECT_EQ(base_it->type, agt_sensor_adapters::UrdfPrimitiveType::BOX);
+  EXPECT_DOUBLE_EQ(base_it->dimensions[0], 1.0);
+  EXPECT_DOUBLE_EQ(base_it->dimensions[1], 0.6);
+  EXPECT_DOUBLE_EQ(base_it->dimensions[2], 0.4);
+  EXPECT_DOUBLE_EQ(base_it->origin_xyz[0], 0.10);
+  EXPECT_DOUBLE_EQ(base_it->origin_xyz[1], -0.20);
+  EXPECT_DOUBLE_EQ(base_it->origin_xyz[2], 0.30);
+
+  EXPECT_EQ(sphere_it->type, agt_sensor_adapters::UrdfPrimitiveType::SPHERE);
+  EXPECT_DOUBLE_EQ(sphere_it->dimensions[0], 0.15);
 }
 
 TEST(UrdfSelfFilterGeometry, PrimitiveContainmentHonorsPadding)
