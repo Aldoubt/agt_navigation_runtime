@@ -130,6 +130,17 @@ std::vector<AxisAlignedBox> SelfFilterGeometry::expanded_boxes() const
   return result;
 }
 
+std::vector<AxisAlignedBox> SelfFilterGeometry::expanded_supplemental_boxes() const
+{
+  std::vector<AxisAlignedBox> result;
+  for (const auto & box : boxes) {
+    if (!box.generated_from_platform_body) {
+      result.push_back(box.expanded(padding));
+    }
+  }
+  return result;
+}
+
 bool SelfFilterGeometry::has_unverified_box() const
 {
   for (const auto & box : boxes) {
@@ -211,6 +222,7 @@ SelfFilterGeometry load_self_filter_geometry(const std::string & profile_path)
       {length / 2.0, width / 2.0, height},
       true,
       "Generated from platform.geometry length, width and height.",
+      true,
     });
   }
 
