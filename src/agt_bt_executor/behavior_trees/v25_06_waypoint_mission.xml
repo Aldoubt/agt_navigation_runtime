@@ -6,7 +6,7 @@
       <Fallback>
         <IsTaskReady task_id="{task_group_id}" gate_profile="task_execution" timeout_s="3.0" last_blocker_code="{last_blocker_code}" last_blocker_message="{last_blocker_message}"/>
         <Sequence>
-          <Relocalize mode="0" timeout_s="{relocalize_timeout_s}" max_candidates="{relocalize_max_candidates}" use_last_valid_pose="true" use_configured_candidates="true" publish_debug="false"/>
+          <Relocalize mode="0" timeout_s="{relocalize_timeout_s}" max_candidates="{relocalize_max_candidates}" use_last_valid_pose="true" use_configured_candidates="true" publish_debug="false" relocalize_error_code="{relocalize_error_code}" relocalize_failure_reason="{relocalize_failure_reason}"/>
           <IsTaskReady task_id="{task_group_id}" gate_profile="task_execution" timeout_s="3.0" last_blocker_code="{last_blocker_code}" last_blocker_message="{last_blocker_message}"/>
         </Sequence>
       </Fallback>

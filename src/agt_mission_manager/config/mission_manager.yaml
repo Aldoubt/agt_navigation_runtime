@@ -8,3 +8,6 @@ agt_mission_manager:
     task_readiness_timeout_s: 3.0
     waypoint_action_name: /agt/navigation/execute_waypoint_task
     execution_backend: sequential
+    bt_goal_response_timeout_s: 5.0
+    bt_result_timeout_s: 3700.0
+    bt_cancel_timeout_s: 2.0

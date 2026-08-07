@@ -186,12 +186,18 @@ class MissionManagerNode(Node):
         self._execution_backend = str(self.declare_parameter("execution_backend", "sequential").value)
         if self._execution_backend not in {"sequential", "behavior_tree"}:
             raise ValueError("execution_backend must be sequential or behavior_tree")
+        self._bt_goal_response_timeout_s = float(self.declare_parameter("bt_goal_response_timeout_s", 5.0).value)
+        self._bt_result_timeout_s = float(self.declare_parameter("bt_result_timeout_s", 3700.0).value)
+        self._bt_cancel_timeout_s = float(self.declare_parameter("bt_cancel_timeout_s", 2.0).value)
         if min(
             self._maximum_duration_s,
             self._maximum_event_timeout_s,
             server_wait,
             self._localization_timeout_s,
             self._readiness_timeout_s,
+            self._bt_goal_response_timeout_s,
+            self._bt_result_timeout_s,
+            self._bt_cancel_timeout_s,
         ) <= 0.0 or self._maximum_steps <= 0:
             raise ValueError("mission limits and timeouts must be positive")
 
@@ -235,7 +241,11 @@ class MissionManagerNode(Node):
             ),
             server_wait_timeout_s=server_wait,
         )
-        self._bt_runner = RosBehaviorTreeRunner(self, callback_group, server_wait_timeout_s=server_wait)
+        self._bt_runner = RosBehaviorTreeRunner(
+            self, callback_group, server_wait_timeout_s=server_wait,
+            goal_response_timeout_s=self._bt_goal_response_timeout_s,
+            result_timeout_s=self._bt_result_timeout_s,
+            cancel_timeout_s=self._bt_cancel_timeout_s)
         self.create_service(
             SetMissionRunState,
             "/agt/missions/set_run_state",
@@ -462,9 +472,14 @@ class MissionManagerNode(Node):
                     ),
                 )
             self._executor = executor
-            status = asyncio.run(
-                executor.execute(mission, lambda step: resolved_paths[step.id])
-            )
+            if self._execution_backend == "behavior_tree":
+                if len(mission.steps) != 1 or mission.steps[0].type != StepType.WAYPOINT_TASK:
+                    raise MissionError("BT_BACKEND_UNSUPPORTED_MISSION_SHAPE")
+                status = asyncio.run(executor.execute(mission, resolved_paths[mission.steps[0].id]))
+            else:
+                status = asyncio.run(
+                    executor.execute(mission, lambda step: resolved_paths[step.id])
+                )
             final_message = self._to_message(status)
             result.success = status.state == MissionState.SUCCEEDED
             result.error_code = int(status.error_code)

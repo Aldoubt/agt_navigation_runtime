@@ -8,8 +8,9 @@ public:
   ExecuteWaypointTask(const std::string &, const BT::NodeConfiguration &, rclcpp::Node::SharedPtr);
   static BT::PortsList providedPorts();
 protected:
+  BT::NodeStatus onStart() override;
   BT::NodeStatus onRunning() override;
-  bool makeGoal(Goal & goal) override; bool resultSuccess(const Result &) const override;
+  bool makeGoal(Goal & goal) override; bool resultSuccess(const Result &) override;
   void onFeedback(const Feedback &) override;
 private:
   std::mutex feedback_mutex_;

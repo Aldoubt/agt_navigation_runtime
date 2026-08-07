@@ -1,6 +1,9 @@
 #include "agt_bt_executor/bt_executor_node.hpp"
 #include <behaviortree_cpp/loggers/bt_cout_logger.h>
 #include <chrono>
+#include <algorithm>
+#include <cctype>
+#include <stdexcept>
 
 namespace agt_bt_executor {
 BtExecutorNode::BtExecutorNode(rclcpp::Node::SharedPtr node) : node_(std::move(node)) {
@@ -8,6 +11,13 @@ BtExecutorNode::BtExecutorNode(rclcpp::Node::SharedPtr node) : node_(std::move(n
   node_->declare_parameter("relocalize_timeout_s", 15.0);
   node_->declare_parameter("relocalize_max_candidates", 20);
   node_->declare_parameter("waypoint_timeout_s", 3600.0);
+  if (node_->get_parameter("tick_rate_hz").as_double() <= 0.0 ||
+    node_->get_parameter("relocalize_timeout_s").as_double() <= 0.0 ||
+    node_->get_parameter("relocalize_max_candidates").as_int() <= 0 ||
+    node_->get_parameter("waypoint_timeout_s").as_double() <= 0.0)
+  {
+    throw std::invalid_argument("BT executor timeout and rate parameters must be positive");
+  }
 }
 BtExecutorNode::~BtExecutorNode() { cancel_requested_ = true; if (worker_.joinable()) worker_.join(); }
 void BtExecutorNode::start() {
@@ -17,7 +27,30 @@ void BtExecutorNode::start() {
     std::bind(&BtExecutorNode::onAccepted, this, std::placeholders::_1));
 }
 rclcpp_action::GoalResponse BtExecutorNode::onGoal(const rclcpp_action::GoalUUID &, std::shared_ptr<const Action::Goal> goal) {
-  if (!goal || goal->tree_id != "v25_06_waypoint_mission" && goal->tree_id != "v25_05_smoke") return rclcpp_action::GoalResponse::REJECT;
+  if (!goal || (goal->tree_id != "v25_06_waypoint_mission" && goal->tree_id != "v25_05_smoke")) return rclcpp_action::GoalResponse::REJECT;
+  if (goal->tree_id == "v25_06_waypoint_mission") {
+    const auto valid_component = [](const std::string & value) {
+        if (value.empty() || value.size() > 128U) return false;
+        for (const auto ch : value) {
+          if (!(std::isalnum(static_cast<unsigned char>(ch)) || ch == '.' || ch == '_' || ch == '-')) return false;
+        }
+        return true;
+    };
+    const auto valid_hash = [](const std::string & value) {
+        if (value.size() != 71U || value.rfind("sha256:", 0) != 0) return false;
+        return std::all_of(value.begin() + 7, value.end(), [](const char ch) {
+          return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f');
+        });
+    };
+    if (!valid_component(goal->execution_id) || !valid_component(goal->map_id) ||
+      !valid_component(goal->map_version_id) || !valid_component(goal->task_group_id) ||
+      !valid_component(goal->client_request_id) || goal->task_revision == 0U ||
+      goal->loop_count == 0U || goal->loop_count > 10000U || !valid_hash(goal->expected_content_sha256))
+    {
+      RCLCPP_WARN(node_->get_logger(), "Rejecting invalid v25_06_waypoint_mission goal");
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+  }
   std::lock_guard<std::mutex> lock(mutex_);
   return active_ ? rclcpp_action::GoalResponse::REJECT : rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
@@ -54,14 +87,21 @@ void BtExecutorNode::run(std::shared_ptr<GoalHandle> goal) {
       auto feedback = std::make_shared<Action::Feedback>();
       feedback->tree_state = status == BT::NodeStatus::RUNNING ? "RUNNING" : (status == BT::NodeStatus::SUCCESS ? "SUCCESS" : "FAILURE");
       feedback->active_node = tree.rootNode()->name();
-      bb->get("loop_index", feedback->loop_index); bb->get("current_waypoint", feedback->current_waypoint); bb->get("total_waypoints", feedback->total_waypoints);
+      (void)bb->get("loop_index", feedback->loop_index); (void)bb->get("current_waypoint", feedback->current_waypoint); (void)bb->get("total_waypoints", feedback->total_waypoints);
       goal->publish_feedback(feedback);
       if (status != BT::NodeStatus::RUNNING) break;
       std::this_thread::sleep_for(period);
     }
     result->success = status == BT::NodeStatus::SUCCESS;
+    (void)bb->get("last_blocker_code", result->blocker_code);
+    (void)bb->get("last_blocker_message", result->blocker_message);
+    std::string relocalize_failure_reason;
+    if (!result->success && bb->get("relocalize_failure_reason", relocalize_failure_reason) && !relocalize_failure_reason.empty()) {
+      result->message = "relocalize failed: " + relocalize_failure_reason;
+    }
     result->error_code = result->success ? Action::Goal::ERROR_NONE : Action::Goal::ERROR_TREE_FAILED;
-    result->message = result->success ? "behavior tree succeeded" : "behavior tree failed";
+    if (result->success) result->message = "behavior tree succeeded";
+    else if (result->message.empty()) result->message = "behavior tree failed";
     if (result->success) goal->succeed(result); else goal->abort(result);
   } catch (const std::exception & e) {
     result->success = false; result->error_code = Action::Goal::ERROR_INTERNAL; result->message = e.what(); goal->abort(result);

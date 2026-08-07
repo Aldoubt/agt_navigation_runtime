@@ -135,7 +135,7 @@ public:
 
 protected:
   virtual bool makeGoal(typename ActionT::Goal &) = 0;
-  virtual bool resultSuccess(const typename ActionT::Result &) const = 0;
+  virtual bool resultSuccess(const typename ActionT::Result &) = 0;
   virtual void onFeedback(const typename ActionT::Feedback &) {}
 
   void cancelActive()

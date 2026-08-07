@@ -29,6 +29,8 @@ BT::NodeStatus IsTaskReady::executeTick()
 
 BT::NodeStatus IsTaskReady::onStart()
 {
+  setOutput("last_blocker_code", std::string{});
+  setOutput("last_blocker_message", std::string{});
   future_ = {};
   client_ = node_->create_client<agt_interfaces::srv::EvaluateTaskReadiness>(
     "/agt/system/evaluate_task_readiness");
@@ -42,9 +44,15 @@ BT::NodeStatus IsTaskReady::onStart()
   request->validate_task = true;
   std::string profile = "task_execution";
   getInput("gate_profile", profile);
-  request->gate_profile = profile == "relocalization" ?
-    agt_interfaces::srv::EvaluateTaskReadiness::Request::PROFILE_RELOCALIZATION :
-    agt_interfaces::srv::EvaluateTaskReadiness::Request::PROFILE_TASK_EXECUTION;
+  if (profile == "relocalization") {
+    request->gate_profile = agt_interfaces::srv::EvaluateTaskReadiness::Request::PROFILE_RELOCALIZATION;
+  } else if (profile == "task_execution") {
+    request->gate_profile = agt_interfaces::srv::EvaluateTaskReadiness::Request::PROFILE_TASK_EXECUTION;
+  } else {
+    setOutput("last_blocker_code", std::string{"INVALID_READINESS_PROFILE"});
+    setOutput("last_blocker_message", std::string{"readiness gate profile is not supported"});
+    return BT::NodeStatus::FAILURE;
+  }
   future_ = client_->async_send_request(request).future.share();
   started_ = std::chrono::steady_clock::now();
   return BT::NodeStatus::RUNNING;

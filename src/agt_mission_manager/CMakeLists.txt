@@ -21,6 +21,8 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_mission_fsm test/test_mission_fsm.py)
   ament_add_pytest_test(test_mission_executor test/test_mission_executor.py)
   ament_add_pytest_test(test_mission_storage test/test_mission_storage.py)
+  ament_add_pytest_test(test_bt_mission_executor test/test_bt_mission_executor.py)
+  ament_add_pytest_test(test_bt_backend_contract test/test_bt_backend_contract.py)
 endif()
 
 ament_package()
