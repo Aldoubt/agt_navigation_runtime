@@ -1,0 +1,8 @@
+<root BTCPP_format="4">
+  <BehaviorTree ID="V25_05_Smoke">
+    <Sequence>
+      <AlwaysSuccess/>
+      <Script code="smoke_ok:=true"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

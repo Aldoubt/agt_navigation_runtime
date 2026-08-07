@@ -1,0 +1,6 @@
+agt_bt_smoke_runner:
+  ros__parameters:
+    tick_rate_hz: 20.0
+    enable_groot2_monitoring: false
+    allowed_trees:
+      v25_05_smoke: v25_05_smoke.xml
