@@ -8,10 +8,42 @@
   将其标准化后只对外发布 `/agt/mapping/registered_points`。
 
 FAST-LIVO2 的正常 MID360 输入为 `/agt/sensors/lidar/custom_filtered`。该 topic 由
-`agt_livox_self_filter` 从保留的原始 `/agt/sensors/lidar/custom` 生成，因此车体点不会
-进入 FAST-LIVO2 配准、局部体素地图或本次会话生成的 PCD；后置
-`agt_perception/local_obstacle_filter` 仍继续保护 Nav2 障碍输入。
-- `odom -> base_footprint`：由当前连续里程计唯一发布。
+`agt_livox_self_filter` 从保留的原始 `/agt/sensors/lidar/custom` 生成。V2.5 默认
+`geometry_source:=urdf`：过滤器读取当前 `robot_description` 的 collision geometry，在
+`base_link`/collision link 中临时判断自身返回，但保留通过点的原始 Livox 坐标与逐点字段后再送入
+FAST-LIVO2。profile 模式保留为 A/B 回归，后置 `agt_perception/local_obstacle_filter` 仍继续保护
+Nav2 障碍输入。
+
+URDF 模式要求 `robot_description` 与当前平台严格匹配。BUNKER 不得先启动通用
+`description.launch.py` 的默认 MK-mini 几何再运行 BUNKER mapping；应由 `agt_bringup` 统一启动，
+或者显式使用平台专用 description：
+
+```bash
+# 推荐：由 bringup 统一保证平台描述、self-filter 和 mapping 参数一致
+ros2 launch agt_bringup system.launch.py mode:=mapping start_lidar_self_filter:=true
+
+# 仅做 mapping 模块调试时，BUNKER 必须先加载 BUNKER description
+ros2 launch agt_description bunker_description.launch.py
+source install/setup.bash
+ros2 launch agt_mapping fast_livo2_mapping.launch.py \
+  lidar_self_filter_geometry_source:=urdf
+```
+
+需要对照旧过滤几何时：
+
+```bash
+ros2 launch agt_mapping fast_livo2_mapping.launch.py \
+  lidar_self_filter_geometry_source:=profile
+```
+
+完全绕过过滤只用于显式 baseline：
+
+```bash
+ros2 launch agt_mapping fast_livo2_mapping.launch.py \
+  start_lidar_self_filter:=false
+```
+
+`odom -> base_footprint` 由当前连续里程计唯一发布。
 
 建图模式由 `agt_bringup` 覆盖 `pcd_save.pcd_save_en=true`。LIO-only 模式在运行中使用
 带符号 64 位稀疏体素键累计质心，正常退出时直接输出 `localization_map.pcd` 和
@@ -42,11 +74,6 @@ vendor 到 `third_party/rpg_vikit_ros2_fisheye`，全新工作区只需 source R
 公共接口。点数据不做二次坐标变换。
 注册点云保持 FAST-LIVO2 的 reliable QoS，以兼容 OctoMap 的 reliable 订阅。
 
-```bash
-ros2 launch agt_description description.launch.py
-source install/setup.bash
-ros2 launch agt_mapping fast_livo2_mapping.launch.py
-```
-
-当前已完成接口隔离、位姿换算、本仓库算法编译和局部雷达帧点云回放验证；完整 bag 的新旧
-轨迹/地图质量对比与实机验收仍待执行。
+当前已完成接口隔离、位姿换算、本仓库算法编译和局部雷达帧点云回放基础。URDF self-filter 的
+代码/配置/单测已加入 V25-02，但完整 `raw/profile/urdf` 同 bag 轨迹、地图质量、误删/漏删和实机
+验收仍待执行，验收前不得把该 P0 能力标记为 vehicle-validated DONE。
