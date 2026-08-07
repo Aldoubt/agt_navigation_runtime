@@ -22,6 +22,9 @@ def generate_launch_description():
                 "output_topic", default_value="/agt/sensors/lidar/custom_filtered"
             ),
             DeclareLaunchArgument("platform_profile", default_value=str(default_profile)),
+            DeclareLaunchArgument("geometry_source", default_value="urdf"),
+            DeclareLaunchArgument("urdf_reference_frame", default_value="base_link"),
+            DeclareLaunchArgument("robot_description_topic", default_value="/robot_description"),
             DeclareLaunchArgument("enabled", default_value="true"),
             DeclareLaunchArgument("transform_timeout_sec", default_value="0.10"),
             DeclareLaunchArgument("zero_point_epsilon", default_value="0.000001"),
@@ -31,9 +34,9 @@ def generate_launch_description():
                 "removed_points_topic",
                 default_value="/agt/sensors/lidar/self_filter/removed_points",
             ),
-            DeclareLaunchArgument("publish_filter_boxes", default_value="true"),
+            DeclareLaunchArgument("publish_filter_geometry", default_value="true"),
             DeclareLaunchArgument(
-                "filter_boxes_topic", default_value="/agt/sensors/lidar/self_filter/boxes"
+                "filter_geometry_topic", default_value="/agt/sensors/lidar/self_filter/geometry"
             ),
             DeclareLaunchArgument("diagnostics_topic", default_value="/diagnostics"),
             DeclareLaunchArgument("queue_depth", default_value="200000"),
@@ -49,6 +52,9 @@ def generate_launch_description():
                         "input_topic": LaunchConfiguration("input_topic"),
                         "output_topic": LaunchConfiguration("output_topic"),
                         "platform_profile": LaunchConfiguration("platform_profile"),
+                        "geometry_source": LaunchConfiguration("geometry_source"),
+                        "urdf_reference_frame": LaunchConfiguration("urdf_reference_frame"),
+                        "robot_description_topic": LaunchConfiguration("robot_description_topic"),
                         "enabled": ParameterValue(
                             LaunchConfiguration("enabled"), value_type=bool
                         ),
@@ -65,10 +71,10 @@ def generate_launch_description():
                             LaunchConfiguration("publish_removed_points"), value_type=bool
                         ),
                         "removed_points_topic": LaunchConfiguration("removed_points_topic"),
-                        "publish_filter_boxes": ParameterValue(
-                            LaunchConfiguration("publish_filter_boxes"), value_type=bool
+                        "publish_filter_geometry": ParameterValue(
+                            LaunchConfiguration("publish_filter_geometry"), value_type=bool
                         ),
-                        "filter_boxes_topic": LaunchConfiguration("filter_boxes_topic"),
+                        "filter_geometry_topic": LaunchConfiguration("filter_geometry_topic"),
                         "diagnostics_topic": LaunchConfiguration("diagnostics_topic"),
                         "queue_depth": ParameterValue(
                             LaunchConfiguration("queue_depth"), value_type=int
