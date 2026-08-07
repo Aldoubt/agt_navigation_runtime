@@ -1,7 +1,7 @@
 <root BTCPP_format="4">
   <TreeNodesModel>
     <Condition ID="IsTaskReady"><input_port name="task_id"/><input_port name="gate_profile"/><input_port name="timeout_s"/><output_port name="last_blocker_code"/><output_port name="last_blocker_message"/></Condition>
-    <Action ID="Relocalize"><input_port name="mode"/><input_port name="timeout_s"/><input_port name="max_candidates"/><input_port name="use_last_valid_pose"/><input_port name="use_configured_candidates"/><input_port name="publish_debug"/><output_port name="relocalize_error_code"/><output_port name="relocalize_failure_reason"/></Action>
+    <Action ID="Relocalize"><input_port name="mode"/><input_port name="timeout_s"/><input_port name="max_candidates"/><input_port name="use_last_valid_pose"/><input_port name="use_configured_candidates"/><input_port name="publish_debug"/><output_port name="last_blocker_code"/><output_port name="last_blocker_message"/><output_port name="relocalize_error_code"/><output_port name="relocalize_failure_reason"/></Action>
     <Action ID="ExecuteWaypointTask"><input_port name="map_id"/><input_port name="map_version_id"/><input_port name="task_group_id"/><input_port name="task_revision"/><input_port name="expected_content_sha256"/><input_port name="loop_count"/><input_port name="client_request_id"/><input_port name="timeout_s"/></Action>
   </TreeNodesModel>
 </root>

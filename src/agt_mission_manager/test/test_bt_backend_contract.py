@@ -26,3 +26,12 @@ def test_public_mission_action_remains_single_owner_and_bt_has_no_motion_ownersh
     assert '"/agt/missions/execute"' in manager
     for forbidden in ("/agt/missions/status", "/cmd_vel", "/tf", "/tf_static", "FollowWaypoints", "NavigateToPose", "NavigateThroughPoses"):
         assert forbidden not in bt_source
+
+
+def test_relocalize_clears_previous_readiness_blocker():
+    source = (ROOT.parent / "agt_bt_executor/src/relocalize_action.cpp").read_text(encoding="utf-8")
+    tree = (ROOT.parent / "agt_bt_executor/behavior_trees/v25_06_waypoint_mission.xml").read_text(encoding="utf-8")
+    assert 'setOutput("last_blocker_code", std::string{});' in source
+    assert 'setOutput("last_blocker_message", std::string{});' in source
+    assert 'last_blocker_code="{last_blocker_code}"' in tree
+    assert 'last_blocker_message="{last_blocker_message}"' in tree

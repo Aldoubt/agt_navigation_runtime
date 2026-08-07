@@ -7,6 +7,7 @@ public:
   Relocalize(const std::string &, const BT::NodeConfiguration &, rclcpp::Node::SharedPtr);
   static BT::PortsList providedPorts();
 protected:
+  BT::NodeStatus onStart() override;
   bool makeGoal(Goal & goal) override; bool resultSuccess(const Result &) override;
   void onFeedback(const Feedback &) override;
 };

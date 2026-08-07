@@ -72,3 +72,24 @@ def test_readiness_blocker_is_preserved_and_not_localization_guess(tmp_path):
     assert status.error_code == 3
     assert status.blocker_codes == ["SENSOR_INPUT_UNHEALTHY"]
     assert status.blocker_messages == ["sensor unhealthy"]
+
+
+def test_task_readiness_failure_then_relocalize_failure_is_child_failed(tmp_path):
+    """A stale TaskExecution blocker must not classify a Relocalize failure."""
+    class ReadinessThenRelocalizeFailure(Runner):
+        def __init__(self):
+            super().__init__()
+            self.previous_readiness_blocker = "TASK_EXECUTION_NOT_READY"
+
+        async def run(self, _task, execution_id, _feedback):
+            self.execution_id = execution_id
+            # The Relocalize BT node clears the shared blocker outputs before
+            # its action starts; the final result therefore has no blocker.
+            return False, 6, "relocalize failed: no candidates", "", ""
+
+    status = execute(
+        tmp_path, mission(MissionStep("route", StepType.WAYPOINT_TASK)),
+        ReadinessThenRelocalizeFailure())
+    assert status.state == MissionState.FAILED
+    assert status.error_code == 6
+    assert status.error_code != 3  # READINESS_LOST
