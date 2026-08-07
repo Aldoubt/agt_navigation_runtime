@@ -53,6 +53,7 @@ def generate_launch_description():
             default_value=str(mapping_share.parents[3] / "profiles" / "platforms" / "bunker.yaml"),
         ),
         DeclareLaunchArgument("start_lidar_self_filter", default_value="true"),
+        DeclareLaunchArgument("lidar_self_filter_geometry_source", default_value="urdf"),
         DeclareLaunchArgument(
             "lidar_self_filter_params_file",
             default_value=str(sensor_share / "config" / "livox_self_filter.yaml"),
@@ -72,6 +73,7 @@ def generate_launch_description():
             launch_arguments={
                 "filter_params_file": LaunchConfiguration("lidar_self_filter_params_file"),
                 "platform_profile": LaunchConfiguration("platform_profile"),
+                "geometry_source": LaunchConfiguration("lidar_self_filter_geometry_source"),
                 "use_sim_time": LaunchConfiguration("use_sim_time"),
             }.items(),
             condition=IfCondition(LaunchConfiguration("start_lidar_self_filter")),
