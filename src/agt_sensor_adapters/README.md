@@ -10,21 +10,27 @@ ros2 launch agt_sensor_adapters mid360.launch.py
 统一输出：
 
 - `/agt/sensors/lidar/custom`：`livox_ros_driver2/msg/CustomMsg`，保留每点
-  `offset_time/line/tag` 的原始输入，供自滤除和历史 bag 回放使用。
-- `/agt/sensors/lidar/custom_filtered`：同类型的前置 BUNKER 车体自滤除输出，供
-  FAST-LIVO2 使用；原始 topic 不会被覆盖。
+  `offset_time/line/tag` 的原始输入，供自滤除和历史 bag 回放使用；
+- `/agt/sensors/lidar/custom_filtered`：同类型的前置自身点云滤除输出，供
+  FAST-LIVO2 使用；通过点仍保持原始 Livox 坐标、顺序和逐点字段，原始 topic 不会被覆盖；
 - `/agt/sensors/imu/data`：MID360 内置 IMU，frame 为 `livox_frame`。
 
 `agt_livox_self_filter` 在 FAST-LIVO2 launch 中默认启动，真实驱动和历史 bag 回放共用
-同一节点。过滤盒来自 `profiles/platforms/bunker.yaml` 的 `geometry.self_filter`，不使用
-Nav2 的 80 mm `navigation_footprint`。启用过滤时若
-`base_footprint <- header.frame_id` TF 不可用，默认丢弃整帧；只有显式设置
-`fail_open_on_tf_error:=true` 才允许透传。原始 `(0,0,0)` 占位点由
-`zero_point_epsilon` 默认按无效点删除。
+同一节点。V2.5 默认 `geometry_source:=urdf`：机器人主体过滤几何读取
+`/robot_description` 的 URDF collision，默认以 `base_link` 为参考 frame；当前实时实现支持
+box/sphere/cylinder，mesh 必须先在 URDF 中提供 primitive collision proxy。profile 中的
+`geometry.self_filter.padding` 和显式 boxes 仍作为过滤策略与补充结构；profile 自动生成的
+chassis body 在 URDF 模式下不重复参与过滤。`geometry_source:=profile` 保留为旧几何 A/B
+回归模式。
+
+启用过滤时如果 robot description、collision link TF 或输入 frame TF 不可用，默认 fail-closed
+丢弃整帧；只有显式设置 `fail_open_on_tf_error:=true` 才允许调试透传。原始 `(0,0,0)` 占位点由
+`zero_point_epsilon` 默认按无效点删除。完整合同和 A/B 方法见
+[`../../docs/architecture/livox_custom_self_filter.md`](../../docs/architecture/livox_custom_self_filter.md)。
 
 这里有意使用 `xfer_format=1` 的 Livox 原生消息。选定的
 `Aldoubt/FASTLIVO2_ROS2@a713004` 只有 Livox `CustomMsg` 路径会使用每点时间、线号和
-回波标签；它没有 MID360 PointCloud2 handler。PointCloud2 仍作为 V2 注册点云等通用
+回波标签；它没有 MID360 PointCloud2 handler。PointCloud2 仍作为 V2.5 注册点云等通用
 输出格式，不作为该后端的原始输入。
 
 网络配置填写在 `config/mid360_network.json`。当前实车基线为：主机网卡
@@ -58,5 +64,5 @@ ros2 launch agt_sensor_adapters mid360.launch.py \
 启动前会检查 JSON 文件存在；实车启动后必须确认 `/agt/sensors/lidar/custom` 和
 `/agt/sensors/imu/data` 正在发布。
 
-离线只能验证构建、launch 和配置格式。实机后需检查 topic、QoS、点云/IMU 频率、
-时间戳、丢包和 frame，再将结果记录到根 README 的模块验收清单。
+离线只能验证构建、launch、URDF/profile 合同和配置格式。实机后需检查 topic、QoS、
+点云/IMU 频率、时间戳、丢包、frame、自滤除误删/漏删，再将结果记录到正式实验/验收文档。
