@@ -19,6 +19,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/BagSessionSummary.msg"
   "msg/ExperimentSummary.msg"
   "msg/RobotState.msg"
+  "msg/SemanticWaypoint.msg"
+  "msg/SemanticWaypointArray.msg"
   "msg/SystemHealth.msg"
   "msg/TaskReadiness.msg"
   "srv/EvaluateTaskReadiness.srv"
