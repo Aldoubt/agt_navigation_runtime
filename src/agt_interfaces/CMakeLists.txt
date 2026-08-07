@@ -64,6 +64,10 @@ if(BUILD_TESTING)
     test/test_execute_waypoint_task_serialization.py
   )
   ament_add_pytest_test(
+    test_semantic_waypoint_interfaces
+    test/test_semantic_waypoint_interfaces.py
+  )
+  ament_add_pytest_test(
     test_localization_interfaces
     test/test_localization_interfaces.py
   )
