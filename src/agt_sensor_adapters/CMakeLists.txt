@@ -55,6 +55,7 @@ if(BUILD_TESTING)
   target_link_libraries(test_self_filter_geometry agt_sensor_filter_geometry)
 
   ament_add_gtest(test_urdf_self_filter_geometry test/test_urdf_self_filter_geometry.cpp)
+  ament_target_dependencies(test_urdf_self_filter_geometry urdf)
   target_link_libraries(test_urdf_self_filter_geometry agt_sensor_filter_geometry)
 endif()
 
