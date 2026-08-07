@@ -37,7 +37,7 @@ BUNKER 外廓尺寸来自已提供的产品图。对 `mapping_20260719_172810` �
 - `lidar_link` 是 V2 的传感器无关坐标系。
 - `livox_frame` 保留旧 MID360/FAST-LIVO2 链的 frame 名称，与 `lidar_link` 重合。
 - `imu_link` 表示 MID360 内置 IMU，目前与雷达原点重合。
-- Phase 3 接入 FAST-LIVO2 时必须关闭或拦截其原生 `odom -> livox_frame` TF，转换为
+- FAST-LIVO2 integration must close or intercept its native `odom -> livox_frame` TF, converting it to
   V2 约定的 `odom -> base_footprint`，否则会产生多父节点。
 
 ## 验收

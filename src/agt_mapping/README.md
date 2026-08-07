@@ -4,7 +4,8 @@
 
 - `/agt/mapping/odometry`：`odom` 下的 `base_footprint` 里程计。
 - `/agt/mapping/registered_points`：注册点云。
-- `/agt/mapping/registered_points_lidar`：供射线地图使用的当前帧雷达坐标点云。
+- FAST-LIVO2 的 backend 输入 topic 是 adapter 内部接口，不属于对外 topic contract；adapter
+  将其标准化后只对外发布 `/agt/mapping/registered_points`。
 
 FAST-LIVO2 的正常 MID360 输入为 `/agt/sensors/lidar/custom_filtered`。该 topic 由
 `agt_livox_self_filter` 从保留的原始 `/agt/sensors/lidar/custom` 生成，因此车体点不会

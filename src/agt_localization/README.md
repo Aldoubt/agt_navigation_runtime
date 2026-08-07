@@ -5,7 +5,7 @@
 
 ## 接口
 
-- 输入点云：`/agt/mapping/registered_points_lidar` (`sensor_msgs/PointCloud2`)
+- 输入点云：`/agt/mapping/registered_points` (`sensor_msgs/PointCloud2`)
 - 手动对比入口：`/initialpose` (`geometry_msgs/PoseWithCovarianceStamped`，语义为 `map -> base_link`，默认启用)
 - 结构化状态：`/agt/localization/status` (`agt_interfaces/LocalizationStatus`)
 - 兼容文本状态：`/agt/localization/status_text` (`std_msgs/String`)
@@ -30,7 +30,7 @@ FAST-LIVO2 参数管理，不应重复填入这里。
 
 ```bash
 source /opt/ros/humble/setup.bash
-source /home/yangxuan/ros2_ws/install/setup.bash
+source "$AGT_WS/install/setup.bash"
 source install/setup.bash
 ros2 launch agt_localization relocalization.launch.py \
   global_map_pcd:=/absolute/path/to/global_map.pcd \
@@ -56,7 +56,7 @@ external coarse pose 中至少一种有界来源。
 
 ## Tracking supervisor
 
-节点只缓存 `/agt/mapping/registered_points_lidar` 的最新一帧；一次 `runCandidates()` 固定使用
+节点只缓存 `/agt/mapping/registered_points` 的最新一帧；一次 `runCandidates()` 固定使用
 这一帧及其 `cloud_stamp`，所有候选不会切换到其他点云。动态 `odom -> tracking_frame` 查询在
 该点云时间执行，静态 `base_link -> lidar_link` 外参可以使用静态 TF。
 

@@ -204,7 +204,7 @@ public:
     base_frame_ = declare_parameter<std::string>("base_frame", "base_link");
     tracking_frame_ = declare_parameter<std::string>("tracking_frame", "lidar_link");
     cloud_topic_ = declare_parameter<std::string>(
-      "cloud_topic", "/agt/mapping/registered_points_lidar");
+      "cloud_topic", "/agt/mapping/registered_points");
     initialpose_topic_ = declare_parameter<std::string>("initialpose_topic", "/initialpose");
     relocalize_action_name_ = declare_parameter<std::string>(
       "relocalize_action_name", "/agt/localization/relocalize");

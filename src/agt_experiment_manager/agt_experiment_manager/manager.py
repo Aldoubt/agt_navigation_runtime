@@ -64,7 +64,7 @@ class ExperimentManager:
         "localization_inputs": (
             "/clock",
             "/tf_static",
-            "/agt/mapping/registered_points_lidar",
+            "/agt/mapping/registered_points",
             "/agt/sensors/imu/data",
         ),
     }
@@ -479,7 +479,7 @@ class ExperimentManager:
                     "topic_names": topic_names,
                     "mapping_input_ready": bag_input_topics.issubset(topic_set),
                     "contains_mapping_outputs": bool(
-                        {"/agt/mapping/odometry", "/agt/mapping/registered_points_lidar"} & topic_set
+                        {"/agt/mapping/odometry", "/agt/mapping/registered_points"} & topic_set
                     ),
                     "contains_navigation_outputs": bool(
                         {

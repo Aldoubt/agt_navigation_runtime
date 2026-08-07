@@ -97,10 +97,6 @@ def generate_launch_description():
             }],
             remappings=[
                 ("/cloud_registered", "/agt/mapping/backend/registered_points"),
-                (
-                    "/cloud_registered_lidar",
-                    "/agt/mapping/registered_points_lidar",
-                ),
             ],
         ),
         Node(
