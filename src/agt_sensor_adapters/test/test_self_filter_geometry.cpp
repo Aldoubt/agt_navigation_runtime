@@ -44,12 +44,20 @@ platform:
 
   ASSERT_EQ(geometry.boxes.size(), 2U);
   EXPECT_EQ(geometry.boxes.front().name, "chassis_body");
+  EXPECT_TRUE(geometry.boxes.front().generated_from_platform_body);
+  EXPECT_FALSE(geometry.boxes.back().generated_from_platform_body);
   EXPECT_DOUBLE_EQ(geometry.boxes.front().min[0], -0.5);
   EXPECT_DOUBLE_EQ(geometry.boxes.front().max[2], 0.4);
   const auto expanded = geometry.expanded_boxes();
   EXPECT_DOUBLE_EQ(expanded.front().min[0], -0.53);
   EXPECT_TRUE(expanded.front().contains({0.0, 0.0, 0.43}));
   EXPECT_TRUE(geometry.has_unverified_box());
+
+  const auto supplemental = geometry.expanded_supplemental_boxes();
+  ASSERT_EQ(supplemental.size(), 1U);
+  EXPECT_EQ(supplemental.front().name, "elevated");
+  EXPECT_DOUBLE_EQ(supplemental.front().min[0], -0.23);
+  EXPECT_DOUBLE_EQ(supplemental.front().max[2], 0.53);
 }
 
 TEST(SelfFilterGeometry, BoxContainsInclusiveBoundariesAndRejectsOutsidePoints)
