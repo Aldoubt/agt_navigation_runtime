@@ -12,8 +12,11 @@ void registerAgtBtNodes(BT::BehaviorTreeFactory & factory, rclcpp::Node::SharedP
 }
 
 BT::Tree createAllowlistedTree(BT::BehaviorTreeFactory & factory, const std::string & tree_id) {
-  if (tree_id != "v25_05_smoke") throw std::invalid_argument("unknown BT tree id: " + tree_id);
-  const auto path = ament_index_cpp::get_package_share_directory("agt_bt_executor") + "/behavior_trees/v25_05_smoke.xml";
+  std::string filename;
+  if (tree_id == "v25_05_smoke") filename = "v25_05_smoke.xml";
+  else if (tree_id == "v25_06_waypoint_mission") filename = "v25_06_waypoint_mission.xml";
+  else throw std::invalid_argument("unknown BT tree id: " + tree_id);
+  const auto path = ament_index_cpp::get_package_share_directory("agt_bt_executor") + "/behavior_trees/" + filename;
   return factory.createTreeFromFile(path);
 }
 }

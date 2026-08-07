@@ -21,8 +21,12 @@ add_executable(bt_smoke_runner src/bt_smoke_runner.cpp)
 target_compile_features(bt_smoke_runner PRIVATE cxx_std_17)
 target_link_libraries(bt_smoke_runner ${PROJECT_NAME})
 ament_target_dependencies(bt_smoke_runner ament_index_cpp behaviortree_cpp rclcpp)
+add_executable(bt_executor_node src/bt_executor_node.cpp)
+target_compile_features(bt_executor_node PRIVATE cxx_std_17)
+target_link_libraries(bt_executor_node ${PROJECT_NAME})
+ament_target_dependencies(bt_executor_node ament_index_cpp agt_interfaces behaviortree_cpp rclcpp rclcpp_action)
 
-install(TARGETS ${PROJECT_NAME} bt_smoke_runner ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION lib/${PROJECT_NAME})
+install(TARGETS ${PROJECT_NAME} bt_smoke_runner bt_executor_node ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY behavior_trees config launch DESTINATION share/${PROJECT_NAME})
 

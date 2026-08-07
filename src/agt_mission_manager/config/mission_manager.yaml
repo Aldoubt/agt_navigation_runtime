@@ -7,3 +7,4 @@ agt_mission_manager:
     localization_status_timeout_s: 10.0
     task_readiness_timeout_s: 3.0
     waypoint_action_name: /agt/navigation/execute_waypoint_task
+    execution_backend: sequential

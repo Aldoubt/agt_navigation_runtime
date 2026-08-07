@@ -26,6 +26,7 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from agt_mission_manager.audit_log import AuditLog
+from agt_mission_manager.bt_mission_executor import BehaviorTreeMissionExecutor, RosBehaviorTreeRunner
 from agt_mission_manager.mission_executor import (
     EventInbox, MissionExecutor, WaypointCursor, WaypointResult,
 )
@@ -182,6 +183,9 @@ class MissionManagerNode(Node):
         self._readiness_timeout_s = float(
             self.declare_parameter("task_readiness_timeout_s", 3.0).value
         )
+        self._execution_backend = str(self.declare_parameter("execution_backend", "sequential").value)
+        if self._execution_backend not in {"sequential", "behavior_tree"}:
+            raise ValueError("execution_backend must be sequential or behavior_tree")
         if min(
             self._maximum_duration_s,
             self._maximum_event_timeout_s,
@@ -231,6 +235,7 @@ class MissionManagerNode(Node):
             ),
             server_wait_timeout_s=server_wait,
         )
+        self._bt_runner = RosBehaviorTreeRunner(self, callback_group, server_wait_timeout_s=server_wait)
         self.create_service(
             SetMissionRunState,
             "/agt/missions/set_run_state",
@@ -252,6 +257,7 @@ class MissionManagerNode(Node):
     def destroy_node(self):
         self._server.destroy()
         self._waypoint_runner.destroy()
+        self._bt_runner.destroy()
         return super().destroy_node()
 
     def _restore_interrupted_status(self) -> None:
@@ -445,6 +451,16 @@ class MissionManagerNode(Node):
                     goal_handle.publish_feedback(ExecuteMission.Feedback(status=self._to_message(status))),
                 ),
             )
+            if self._execution_backend == "behavior_tree":
+                executor = BehaviorTreeMissionExecutor(
+                    storage=self._storage,
+                    audit=AuditLog(audit_path),
+                    runner=self._bt_runner,
+                    status_callback=lambda status: (
+                        self._publish_status(status),
+                        goal_handle.publish_feedback(ExecuteMission.Feedback(status=self._to_message(status))),
+                    ),
+                )
             self._executor = executor
             status = asyncio.run(
                 executor.execute(mission, lambda step: resolved_paths[step.id])

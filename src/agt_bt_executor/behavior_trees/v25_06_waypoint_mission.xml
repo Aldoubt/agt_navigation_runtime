@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="V25_06_WaypointMission">
+    <Sequence>
+      <IsTaskReady task_id="{task_group_id}" gate_profile="relocalization" timeout_s="3.0" last_blocker_code="{last_blocker_code}" last_blocker_message="{last_blocker_message}"/>
+      <Fallback>
+        <IsTaskReady task_id="{task_group_id}" gate_profile="task_execution" timeout_s="3.0" last_blocker_code="{last_blocker_code}" last_blocker_message="{last_blocker_message}"/>
+        <Sequence>
+          <Relocalize mode="0" timeout_s="{relocalize_timeout_s}" max_candidates="{relocalize_max_candidates}" use_last_valid_pose="true" use_configured_candidates="true" publish_debug="false"/>
+          <IsTaskReady task_id="{task_group_id}" gate_profile="task_execution" timeout_s="3.0" last_blocker_code="{last_blocker_code}" last_blocker_message="{last_blocker_message}"/>
+        </Sequence>
+      </Fallback>
+      <ExecuteWaypointTask map_id="{map_id}" map_version_id="{map_version_id}" task_group_id="{task_group_id}" task_revision="{task_revision}" expected_content_sha256="{task_content_sha256}" loop_count="{loop_count}" client_request_id="{client_request_id}" timeout_s="{waypoint_timeout_s}"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

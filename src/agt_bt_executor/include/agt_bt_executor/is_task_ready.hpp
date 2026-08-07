@@ -15,6 +15,7 @@ public:
     const std::string &, const BT::NodeConfiguration &, rclcpp::Node::SharedPtr);
 
   static BT::PortsList providedPorts();
+  BT::NodeStatus executeTick() override;
   BT::NodeStatus onStart() override;
   BT::NodeStatus onRunning() override;
   void onHalted() override;

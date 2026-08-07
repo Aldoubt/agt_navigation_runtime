@@ -46,6 +46,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/ExecuteWaypointTask.action"
   "action/OptimizeMap.action"
   "action/ExecuteMission.action"
+  "action/ExecuteBehaviorTree.action"
   DEPENDENCIES action_msgs builtin_interfaces std_msgs geometry_msgs nav_msgs
 )
 
