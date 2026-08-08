@@ -1,7 +1,9 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 #include <agt_interfaces/action/relocalize.hpp>
@@ -89,7 +91,7 @@ private:
     request_in_flight_.store(true);
     auto options = rclcpp_action::Client<Relocalize>::SendGoalOptions();
     options.goal_response_callback =
-      [this](GoalHandleRelocalize::SharedPtr handle) {
+      [this](const GoalHandleRelocalize::SharedPtr & handle) {
         if (!handle) {
           request_in_flight_.store(false);
           RCLCPP_WARN(get_logger(), "Automatic relocalization request was rejected");
