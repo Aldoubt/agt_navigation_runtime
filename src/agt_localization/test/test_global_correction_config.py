@@ -47,6 +47,7 @@ def test_recovery_trigger_reuses_existing_relocalize_action_and_candidates():
     assert params["enabled"] is True
     assert params["trigger_recovering"] is True
     assert params["trigger_lost"] is True
+    assert params["poll_period_s"] > 0.0
     assert params["use_last_valid_pose"] is True
     assert params["use_configured_candidates"] is True
     assert params["use_external_coarse_pose"] is True
@@ -56,6 +57,9 @@ def test_recovery_trigger_reuses_existing_relocalize_action_and_candidates():
     assert "use_configured_candidates" in source
     assert "use_last_valid_pose" in source
     assert "use_external_coarse_pose" in source
+    assert "maybeTriggerFromLatestState" in source
+    assert "retry_timer_" in source
+    assert "latest_localization_state_" in source
 
 
 def test_correction_manager_owns_canonical_localization_acceptance_and_escalation():
