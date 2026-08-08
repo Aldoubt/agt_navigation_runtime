@@ -36,6 +36,11 @@ target_compile_features(agt_localization_map_readiness PUBLIC cxx_std_17)
 target_include_directories(agt_localization_map_readiness PUBLIC include)
 target_link_libraries(agt_localization_map_readiness yaml-cpp OpenSSL::Crypto)
 
+add_library(agt_localization_global_correction src/global_correction_core.cpp)
+target_compile_features(agt_localization_global_correction PUBLIC cxx_std_17)
+target_include_directories(agt_localization_global_correction PUBLIC include)
+target_link_libraries(agt_localization_global_correction Eigen3::Eigen)
+
 add_executable(relocalization_node src/relocalization_node.cpp)
 target_compile_features(relocalization_node PRIVATE cxx_std_17)
 target_include_directories(relocalization_node PRIVATE include ${PCL_INCLUDE_DIRS})
@@ -50,21 +55,28 @@ target_link_libraries(
   agt_localization_quality
   agt_localization_supervisor
   agt_localization_map_readiness
+  relocalization_core::relocalization_core
+  ${PCL_LIBRARIES}
 )
 
-install(TARGETS agt_localization_candidates
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION lib
+add_executable(global_correction_manager src/global_correction_manager.cpp)
+target_compile_features(global_correction_manager PRIVATE cxx_std_17)
+target_include_directories(global_correction_manager PRIVATE include)
+ament_target_dependencies(global_correction_manager
+  agt_interfaces geometry_msgs rclcpp std_msgs tf2 tf2_ros
+)
+target_link_libraries(
+  global_correction_manager
+  Eigen3::Eigen
+  agt_localization_global_correction
 )
 
-install(TARGETS agt_localization_supervisor
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION lib
-)
-
-install(TARGETS agt_localization_map_readiness
+install(TARGETS
+  agt_localization_candidates
+  agt_localization_quality
+  agt_localization_supervisor
+  agt_localization_map_readiness
+  agt_localization_global_correction
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib
@@ -73,11 +85,12 @@ install(TARGETS agt_localization_map_readiness
 install(DIRECTORY include/
   DESTINATION include
 )
-target_link_libraries(relocalization_node
-  relocalization_core::relocalization_core ${PCL_LIBRARIES}
-)
 
-install(TARGETS relocalization_node DESTINATION lib/${PROJECT_NAME})
+install(TARGETS
+  relocalization_node
+  global_correction_manager
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
@@ -102,6 +115,9 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_tracking_validation agt_interfaces)
   target_link_libraries(
     test_tracking_validation agt_localization_supervisor Eigen3::Eigen)
+  ament_add_gtest(test_global_correction_core test/test_global_correction_core.cpp)
+  target_link_libraries(
+    test_global_correction_core agt_localization_global_correction Eigen3::Eigen)
   ament_add_pytest_test(
     test_relocalization_config
     test/test_relocalization_config.py
