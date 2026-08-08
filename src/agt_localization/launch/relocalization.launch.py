@@ -68,6 +68,12 @@ def generate_launch_description():
                         ),
                     },
                 ],
+                remappings=[
+                    (
+                        "/agt/localization/status",
+                        "/agt/localization/evidence_status",
+                    )
+                ],
             ),
             Node(
                 package="agt_localization",
