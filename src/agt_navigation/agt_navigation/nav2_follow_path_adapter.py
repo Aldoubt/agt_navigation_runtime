@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections import deque
 import math
+import threading
 from typing import Callable
 
 from action_msgs.msg import GoalStatus
@@ -39,6 +41,13 @@ class Nav2FollowPathTrackerAdapter:
 
     The adapter never requests a global path. F/R semantics stay at the Route
     layer and may select different controller IDs for the same FollowPath action.
+
+    Feedback delivery is serialized through a FIFO queue. This is important even
+    though normal rclpy futures are asynchronous: a fake, intra-process, or very
+    fast ActionServer may complete the next segment while the previous segment's
+    feedback sink is still on the stack. Nested sink calls would reverse externally
+    observed segment-completion order. The queue keeps transport timing from
+    changing Route runtime semantics.
     """
 
     def __init__(
@@ -73,8 +82,16 @@ class Nav2FollowPathTrackerAdapter:
         self._send_future = None
         self._cancel_requested = False
 
+        # Do not allow feedback_sink to be re-entered by an immediately completed
+        # next FollowPath goal. _emit() appends under the lock, while the active
+        # dispatcher drains callbacks outside the lock in FIFO order.
+        self._emit_lock = threading.RLock()
+        self._emit_queue = deque()
+        self._emitting = False
+
     def set_feedback_sink(self, sink: Callable[[TrackerFeedback], None] | None) -> None:
-        self._feedback_sink = sink
+        with self._emit_lock:
+            self._feedback_sink = sink
 
     @property
     def active_segment_id(self) -> str:
@@ -114,8 +131,33 @@ class Nav2FollowPathTrackerAdapter:
         return self._node.get_clock().now().to_msg()
 
     def _emit(self, feedback: TrackerFeedback) -> None:
-        if self._feedback_sink is not None:
-            self._feedback_sink(feedback)
+        """Deliver tracker feedback FIFO without re-entering the configured sink."""
+        with self._emit_lock:
+            self._emit_queue.append(feedback)
+            if self._emitting:
+                return
+            self._emitting = True
+
+        while True:
+            with self._emit_lock:
+                if not self._emit_queue:
+                    # Empty-check and ownership release are atomic with respect to
+                    # concurrent producers, so no queued feedback can be stranded.
+                    self._emitting = False
+                    return
+                item = self._emit_queue.popleft()
+                sink = self._feedback_sink
+            if sink is None:
+                continue
+            try:
+                sink(item)
+            except Exception:
+                # A sink failure is a programming/runtime error. Do not replay
+                # already queued terminal events after the caller handles it.
+                with self._emit_lock:
+                    self._emit_queue.clear()
+                    self._emitting = False
+                raise
 
     def _feedback_callback(self, message) -> None:
         feedback = message.feedback
