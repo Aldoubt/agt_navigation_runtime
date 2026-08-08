@@ -1,0 +1,24 @@
+schema_version: 1
+
+platform:
+  name: route_smoke_diff
+  kinematics: differential
+
+  # This profile exists only for the software-only V25-09B system smoke.
+  # It is not a physical BUNKER or MK-mini acceptance artifact.
+  route_acceptance:
+    enabled: true
+    verification_status: SOFTWARE_ONLY
+
+  geometry:
+    verified: false
+    footprint:
+      - [0.30, 0.22]
+      - [0.30, -0.22]
+      - [-0.30, -0.22]
+      - [-0.30, 0.22]
+
+  limits:
+    max_forward_speed: 0.25
+    max_reverse_speed: 0.15
+    max_angular_speed: 0.50
