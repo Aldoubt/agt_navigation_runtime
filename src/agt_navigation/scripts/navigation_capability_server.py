@@ -9,7 +9,6 @@ adds an optional, hash-bound ROUTE backend without changing the Action schema.
 from __future__ import annotations
 
 import importlib.util
-import json
 import math
 from pathlib import Path
 
@@ -19,7 +18,7 @@ from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
-from rclpy.parameter import Parameter
+from rclpy.time import Time
 from tf2_ros import Buffer, TransformListener
 import yaml
 
@@ -142,7 +141,7 @@ class NavigationCapabilityServer(_BASE.WaypointTaskServer):
             transform = self._tf_buffer.lookup_transform(
                 "map",
                 "odom",
-                rclpy.time.Time(),
+                Time(),
                 timeout=Duration(seconds=self.nav2_wait_timeout),
             )
         except Exception as exc:
@@ -341,11 +340,18 @@ class NavigationCapabilityServer(_BASE.WaypointTaskServer):
 
             asset = resolved.asset
             total_segments = len(asset.segments)
-            segment_indices = {
-                segment.segment_id: index for index, segment in enumerate(asset.segments)
-            }
             self.session.transition(
                 _BASE.NavigationSessionStatus.STATE_ACCEPTED,
+                total_waypoints=total_segments,
+            )
+            # ROUTE is running once the exact READY asset has been accepted and
+            # the first odom RuntimePath is about to be handed to FollowPath.
+            # Do not depend on Nav2 producing at least one feedback sample before
+            # it returns a terminal result.
+            self.session.transition(
+                _BASE.NavigationSessionStatus.STATE_RUNNING,
+                loop_index=0,
+                current_waypoint=0,
                 total_waypoints=total_segments,
             )
 
