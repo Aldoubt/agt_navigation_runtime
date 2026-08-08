@@ -1,0 +1,26 @@
+schema_version: 1
+capture_rig:
+  profile_id: handheld_mid360
+  role: HANDHELD_CAPTURE_RIG
+  description: Handheld Livox MID360 capture rig; not an execution vehicle.
+  rig_frame: handheld_rig
+  vehicle_mounting: NONE
+  sensors:
+    lidar:
+      model: mid360
+      frame_id: lidar_link
+      topic: /agt/sensors/lidar/custom
+    imu:
+      model: mid360_internal
+      frame_id: imu_link
+      topic: /agt/sensors/imu/data
+  calibration:
+    sensor_calibration: runtime/calibrations/handheld_mid360_sensor_v01.yaml
+    status: RECORDED_PENDING_NUMERIC_VERIFICATION
+  forbidden_fields:
+    - footprint
+    - wheelbase
+    - track_width
+    - minimum_turning_radius
+    - navigation_footprint
+    - vehicle_controller
