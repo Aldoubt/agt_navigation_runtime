@@ -38,6 +38,11 @@ def generate_launch_description():
             DeclareLaunchArgument("current_map_yaml_sha256", default_value=""),
             DeclareLaunchArgument("current_map_image_sha256", default_value=""),
             DeclareLaunchArgument("current_localization_pcd_sha256", default_value=""),
+            DeclareLaunchArgument("execution_vehicle_profile", default_value=""),
+            DeclareLaunchArgument("route_controller_id_forward", default_value="FollowPath"),
+            DeclareLaunchArgument("route_controller_id_reverse", default_value="FollowPath"),
+            DeclareLaunchArgument("route_goal_checker_id", default_value="general_goal_checker"),
+            DeclareLaunchArgument("route_progress_checker_id", default_value="progress_checker"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("autostart", default_value="false"),
             DeclareLaunchArgument("enable_localization_gate", default_value="true"),
@@ -109,7 +114,7 @@ def generate_launch_description():
             ),
             Node(
                 package="agt_navigation",
-                executable="waypoint_task_server.py",
+                executable="navigation_capability_server.py",
                 name="agt_waypoint_task_server",
                 output="screen",
                 parameters=[
@@ -129,6 +134,11 @@ def generate_launch_description():
                         "current_map_yaml_sha256": LaunchConfiguration("current_map_yaml_sha256"),
                         "current_map_image_sha256": LaunchConfiguration("current_map_image_sha256"),
                         "current_localization_pcd_sha256": LaunchConfiguration("current_localization_pcd_sha256"),
+                        "execution_vehicle_profile": LaunchConfiguration("execution_vehicle_profile"),
+                        "route_controller_id_forward": LaunchConfiguration("route_controller_id_forward"),
+                        "route_controller_id_reverse": LaunchConfiguration("route_controller_id_reverse"),
+                        "route_goal_checker_id": LaunchConfiguration("route_goal_checker_id"),
+                        "route_progress_checker_id": LaunchConfiguration("route_progress_checker_id"),
                     }
                 ],
             ),
@@ -166,14 +176,12 @@ def generate_launch_description():
             ),
             Node(
                 package="nav2_lifecycle_manager",
-                executable="lifecycle_manager",
+                executable="lifecycle_manager_keepout_filter",
                 name="lifecycle_manager_keepout_filter",
                 output="screen",
                 parameters=[
                     {"use_sim_time": use_sim_time},
-                    {
-                        "autostart": True
-                    },
+                    {"autostart": True},
                     {"node_names": ["costmap_filter_info_server"]},
                     {"bond_timeout": 4.0},
                 ],
