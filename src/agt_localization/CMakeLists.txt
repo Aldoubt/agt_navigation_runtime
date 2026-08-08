@@ -41,6 +41,10 @@ target_compile_features(agt_localization_global_correction PUBLIC cxx_std_17)
 target_include_directories(agt_localization_global_correction PUBLIC include)
 target_link_libraries(agt_localization_global_correction Eigen3::Eigen)
 
+add_library(agt_localization_recovery_trigger src/recovery_trigger_policy.cpp)
+target_compile_features(agt_localization_recovery_trigger PUBLIC cxx_std_17)
+target_include_directories(agt_localization_recovery_trigger PUBLIC include)
+
 add_executable(relocalization_node src/relocalization_node.cpp)
 target_compile_features(relocalization_node PRIVATE cxx_std_17)
 target_include_directories(relocalization_node PRIVATE include ${PCL_INCLUDE_DIRS})
@@ -71,12 +75,24 @@ target_link_libraries(
   agt_localization_global_correction
 )
 
+add_executable(recovery_trigger_manager src/recovery_trigger_manager.cpp)
+target_compile_features(recovery_trigger_manager PRIVATE cxx_std_17)
+target_include_directories(recovery_trigger_manager PRIVATE include)
+ament_target_dependencies(recovery_trigger_manager
+  agt_interfaces rclcpp rclcpp_action
+)
+target_link_libraries(
+  recovery_trigger_manager
+  agt_localization_recovery_trigger
+)
+
 install(TARGETS
   agt_localization_candidates
   agt_localization_quality
   agt_localization_supervisor
   agt_localization_map_readiness
   agt_localization_global_correction
+  agt_localization_recovery_trigger
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib
@@ -89,6 +105,7 @@ install(DIRECTORY include/
 install(TARGETS
   relocalization_node
   global_correction_manager
+  recovery_trigger_manager
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -118,9 +135,17 @@ if(BUILD_TESTING)
   ament_add_gtest(test_global_correction_core test/test_global_correction_core.cpp)
   target_link_libraries(
     test_global_correction_core agt_localization_global_correction Eigen3::Eigen)
+  ament_add_gtest(test_recovery_trigger_policy test/test_recovery_trigger_policy.cpp)
+  target_link_libraries(
+    test_recovery_trigger_policy agt_localization_recovery_trigger
+  )
   ament_add_pytest_test(
     test_relocalization_config
     test/test_relocalization_config.py
+  )
+  ament_add_pytest_test(
+    test_global_correction_config
+    test/test_global_correction_config.py
   )
 endif()
 
