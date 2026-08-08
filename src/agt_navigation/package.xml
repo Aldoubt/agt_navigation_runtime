@@ -9,6 +9,7 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
   <exec_depend>action_msgs</exec_depend>
   <exec_depend>agt_interfaces</exec_depend>
+  <exec_depend>builtin_interfaces</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>diagnostic_msgs</exec_depend>
   <exec_depend>nav2_behaviors</exec_depend>
