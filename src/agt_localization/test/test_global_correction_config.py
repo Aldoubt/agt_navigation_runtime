@@ -34,6 +34,7 @@ def test_global_correction_policy_is_fail_closed_and_state_specific():
     assert params["future_tolerance_s"] >= 0.0
     assert params["min_interval_s"] > 0.0
     assert params["max_fitness_score"] > 0.0
+    assert params["correction_rejections_to_lost"] > 0
     assert 0.0 < params["tracking_max_translation_m"] < params["recovering_max_translation_m"]
     assert 0.0 < params["tracking_max_yaw_rad"] < params["recovering_max_yaw_rad"]
     assert params["allow_lost_reanchor"] is True
@@ -57,7 +58,7 @@ def test_recovery_trigger_reuses_existing_relocalize_action_and_candidates():
     assert "use_external_coarse_pose" in source
 
 
-def test_correction_manager_owns_canonical_localization_acceptance():
+def test_correction_manager_owns_canonical_localization_acceptance_and_escalation():
     source = (ROOT / "src" / "global_correction_manager.cpp").read_text(encoding="utf-8")
 
     assert "evidence_status_topic_" in source
@@ -65,7 +66,11 @@ def test_correction_manager_owns_canonical_localization_acceptance():
     assert "canonical_status_pub_->publish" in source
     assert "global correction rejected:" in source
     assert "STATE_RECOVERING" in source
+    assert "STATE_LOST" in source
     assert "localization_accepted = false" in source
+    assert "correction_rejections_to_lost_" in source
+    assert "consecutive_correction_rejections_" in source
+    assert "consecutive_correction_rejections_ >= correction_rejections_to_lost_" in source
 
 
 def test_cmake_registers_v25_10_core_and_policy_tests():
