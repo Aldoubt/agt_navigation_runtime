@@ -3,6 +3,8 @@
     global_frame: map
     odom_frame: odom
     base_frame: base_footprint
+    evidence_status_topic: /agt/localization/evidence_status
+    canonical_status_topic: /agt/localization/status
     map_id: ""
     map_hash: ""
 
