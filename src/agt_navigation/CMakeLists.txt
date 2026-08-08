@@ -46,6 +46,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_route_task_binding test/test_route_task_binding.py
   )
+  ament_add_pytest_test(
+    test_navigation_capability_server test/test_navigation_capability_server.py
+  )
 endif()
 
 ament_package()
