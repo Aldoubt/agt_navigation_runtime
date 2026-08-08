@@ -1,0 +1,12 @@
+/**:
+  ros__parameters:
+    enabled: true
+    relocalize_action_name: /agt/localization/relocalize
+    cooldown_s: 5.0
+    trigger_recovering: true
+    trigger_lost: true
+    max_candidates: 64
+    request_timeout_s: 15.0
+    use_last_valid_pose: true
+    use_configured_candidates: true
+    use_external_coarse_pose: true
