@@ -367,6 +367,14 @@ class RouteNavigationCore:
         self._project_and_start_tracker()
         return completion
 
+    def fail(self) -> None:
+        """Abort the active Route because an external runtime boundary failed."""
+        if self.state in {"COMPLETED", "FAILED", "CANCELED"}:
+            return
+        self.tracker.cancel()
+        self.state = "FAILED"
+        self._active_path = None
+
     def cancel(self) -> None:
         if self.state in {"COMPLETED", "FAILED", "CANCELED"}:
             return
