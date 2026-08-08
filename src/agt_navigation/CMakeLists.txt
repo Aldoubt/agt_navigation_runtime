@@ -11,6 +11,7 @@ install(PROGRAMS
   scripts/execute_waypoint_task.py
   scripts/goal_pose_bridge.py
   scripts/navigation_capability_server.py
+  scripts/route_controller_smoke.py
   scripts/start_waypoint_preview_rviz.sh
   scripts/task_registry_node.py
   scripts/waypoint_task_server.py
