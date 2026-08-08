@@ -1,14 +1,19 @@
 #include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include <Eigen/Core>
 #include <agt_interfaces/msg/localization_status.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <tf2/exceptions.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
@@ -64,7 +69,7 @@ public:
   {
     global_frame_ = declare_parameter<std::string>("global_frame", "map");
     odom_frame_ = declare_parameter<std::string>("odom_frame", "odom");
-    base_frame_ = declare_parameter<std::string>("base_frame", "base_link");
+    base_frame_ = declare_parameter<std::string>("base_frame", "base_footprint");
     expected_map_id_ = declare_parameter<std::string>("map_id", "");
     expected_map_hash_ = declare_parameter<std::string>("map_hash", "");
     tf_publish_rate_hz_ = declare_parameter<double>("tf_publish_rate_hz", 20.0);
@@ -145,8 +150,7 @@ private:
     try {
       odom_from_base_msg = tf_buffer_.lookupTransform(
         odom_frame_, base_frame_, pose_stamp,
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-          std::chrono::duration<double>(tf_lookup_timeout_s_)));
+        rclcpp::Duration::from_seconds(tf_lookup_timeout_s_));
     } catch (const tf2::TransformException & error) {
       RCLCPP_WARN_THROTTLE(
         get_logger(), *get_clock(), 2000,
@@ -176,7 +180,6 @@ private:
       {
         std::lock_guard<std::mutex> lock(transform_mutex_);
         latest_map_from_odom_ = decision.map_from_odom;
-        latest_generation_ = decision.generation;
         has_transform_ = true;
       }
       RCLCPP_INFO(
@@ -237,7 +240,6 @@ private:
 
   std::unique_ptr<agt_localization::GlobalCorrectionCore> core_;
   Eigen::Matrix4d latest_map_from_odom_{Eigen::Matrix4d::Identity()};
-  std::uint64_t latest_generation_{0};
   bool has_transform_{false};
   std::mutex transform_mutex_;
 
