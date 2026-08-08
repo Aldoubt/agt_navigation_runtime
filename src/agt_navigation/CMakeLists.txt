@@ -6,20 +6,32 @@ find_package(ament_cmake_python REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
 
-# Files created through the GitHub contents API may arrive with mode 0644.
-# Under colcon --symlink-install, install(PROGRAMS) can otherwise leave a
-# symlink whose target is not executable, so ros2 run will not discover it.
-# Materialize newly added entry-point scripts into the build tree with explicit
-# executable permissions before installing them.
+# Files written through repository APIs may arrive with mode 0644. Under
+# colcon --symlink-install, installing source scripts directly can therefore
+# leave libexec symlinks whose targets are not executable, and ros2 run/launch
+# will report "executable ... not found". Materialize every ROS entry point in
+# the build tree with explicit executable permissions, then install only those
+# generated copies.
 set(AGT_NAVIGATION_GENERATED_SCRIPT_DIR
   "${CMAKE_CURRENT_BINARY_DIR}/generated_scripts"
 )
 file(MAKE_DIRECTORY "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}")
-foreach(_script
-    route_controller_smoke.py
-    route_system_smoke.py
-    route_system_smoke_fixture.py
+
+set(AGT_NAVIGATION_ENTRYPOINTS
+  differential_drive_simulator.py
+  execute_waypoint_task.py
+  goal_pose_bridge.py
+  navigation_capability_server.py
+  route_controller_smoke.py
+  route_system_smoke.py
+  route_system_smoke_fixture.py
+  start_waypoint_preview_rviz.sh
+  task_registry_node.py
+  waypoint_task_server.py
+  waypoint_preview_planner.py
 )
+
+foreach(_script IN LISTS AGT_NAVIGATION_ENTRYPOINTS)
   file(COPY
     "${CMAKE_CURRENT_SOURCE_DIR}/scripts/${_script}"
     DESTINATION "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}"
@@ -30,18 +42,15 @@ foreach(_script
   )
 endforeach()
 
+set(AGT_NAVIGATION_GENERATED_ENTRYPOINTS "")
+foreach(_script IN LISTS AGT_NAVIGATION_ENTRYPOINTS)
+  list(APPEND AGT_NAVIGATION_GENERATED_ENTRYPOINTS
+    "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}/${_script}"
+  )
+endforeach()
+
 install(PROGRAMS
-  scripts/differential_drive_simulator.py
-  scripts/execute_waypoint_task.py
-  scripts/goal_pose_bridge.py
-  scripts/navigation_capability_server.py
-  scripts/start_waypoint_preview_rviz.sh
-  scripts/task_registry_node.py
-  scripts/waypoint_task_server.py
-  scripts/waypoint_preview_planner.py
-  "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}/route_controller_smoke.py"
-  "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}/route_system_smoke.py"
-  "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}/route_system_smoke_fixture.py"
+  ${AGT_NAVIGATION_GENERATED_ENTRYPOINTS}
   DESTINATION lib/${PROJECT_NAME}
 )
 
