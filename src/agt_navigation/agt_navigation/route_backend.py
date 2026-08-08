@@ -108,9 +108,12 @@ class RouteBackendExecutor:
 
             def sink(feedback: TrackerFeedback) -> None:
                 try:
+                    status = str(feedback.status).upper()
+                    if status == "FAILED" and feedback.failure_reason:
+                        local_failure["reason"] = str(feedback.failure_reason)
                     active = core.active_segment
                     if (
-                        str(feedback.status).upper() == "SUCCEEDED"
+                        status == "SUCCEEDED"
                         and active is not None
                         and segment_indices[active.segment_id] + 1 < len(self.asset.segments)
                     ):
