@@ -15,14 +15,20 @@ set(AGT_NAVIGATION_GENERATED_SCRIPT_DIR
   "${CMAKE_CURRENT_BINARY_DIR}/generated_scripts"
 )
 file(MAKE_DIRECTORY "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}")
-file(COPY
-  "${CMAKE_CURRENT_SOURCE_DIR}/scripts/route_controller_smoke.py"
-  DESTINATION "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}"
-  FILE_PERMISSIONS
-    OWNER_READ OWNER_WRITE OWNER_EXECUTE
-    GROUP_READ GROUP_EXECUTE
-    WORLD_READ WORLD_EXECUTE
+foreach(_script
+    route_controller_smoke.py
+    route_system_smoke.py
+    route_system_smoke_fixture.py
 )
+  file(COPY
+    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/${_script}"
+    DESTINATION "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}"
+    FILE_PERMISSIONS
+      OWNER_READ OWNER_WRITE OWNER_EXECUTE
+      GROUP_READ GROUP_EXECUTE
+      WORLD_READ WORLD_EXECUTE
+  )
+endforeach()
 
 install(PROGRAMS
   scripts/differential_drive_simulator.py
@@ -34,6 +40,8 @@ install(PROGRAMS
   scripts/waypoint_task_server.py
   scripts/waypoint_preview_planner.py
   "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}/route_controller_smoke.py"
+  "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}/route_system_smoke.py"
+  "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}/route_system_smoke_fixture.py"
   DESTINATION lib/${PROJECT_NAME}
 )
 
