@@ -42,6 +42,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_nav2_follow_path_adapter test/test_nav2_follow_path_adapter.py
   )
+  ament_add_pytest_test(
+    test_route_task_binding test/test_route_task_binding.py
+  )
 endif()
 
 ament_package()
