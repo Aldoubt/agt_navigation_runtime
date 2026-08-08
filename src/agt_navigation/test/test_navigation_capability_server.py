@@ -10,7 +10,7 @@ from agt_interfaces.msg import MapVersionSummary
 from agt_navigation.route_runtime import MapOdomSnapshot
 from agt_navigation.route_task_binding import sha256_file
 from agt_navigation.task_group import MapBinding, TaskGroup, Waypoint
-from nav2_msgs.action import FollowPath
+from nav2_msgs.action import FollowPath, FollowWaypoints
 from nav_msgs.msg import OccupancyGrid
 import pytest
 import rclpy
@@ -150,7 +150,7 @@ def _prepare_assets(root: Path):
         ),
         encoding="utf-8",
     )
-    return task, profile
+    return task, profile, version
 
 
 def _set_active_map(server):
@@ -176,8 +176,20 @@ def _set_active_map(server):
     server._active_map_callback(active)
 
 
+def _formal_request(task, request_id):
+    request = ExecuteWaypointTask.Goal()
+    request.map_id = "site"
+    request.map_version_id = "map_v1"
+    request.task_group_id = "inspection"
+    request.task_revision = 1
+    request.expected_content_sha256 = task.content_sha256
+    request.loop_count = 1
+    request.client_request_id = request_id
+    return request
+
+
 def test_execute_waypoint_task_selects_route_follow_path_without_follow_waypoints(tmp_path):
-    task, profile = _prepare_assets(tmp_path)
+    task, profile, _version = _prepare_assets(tmp_path)
     if not rclpy.ok():
         rclpy.init()
 
@@ -231,16 +243,7 @@ def test_execute_waypoint_task_selects_route_follow_path_without_follow_waypoint
     thread.start()
     try:
         assert client.wait_for_server(timeout_sec=2.0)
-        request = ExecuteWaypointTask.Goal()
-        request.map_id = "site"
-        request.map_version_id = "map_v1"
-        request.task_group_id = "inspection"
-        request.task_revision = 1
-        request.expected_content_sha256 = task.content_sha256
-        request.loop_count = 1
-        request.client_request_id = "route_request_1"
-
-        handle = _wait(client.send_goal_async(request))
+        handle = _wait(client.send_goal_async(_formal_request(task, "route_request_1")))
         assert handle.accepted
         wrapped = _wait(handle.get_result_async())
 
@@ -259,6 +262,69 @@ def test_execute_waypoint_task_selects_route_follow_path_without_follow_waypoint
         executor.shutdown(timeout_sec=2.0)
         thread.join(timeout=2.0)
         follow_path_server.destroy()
+        for value in (client_node, mock_node, task_server):
+            value.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_task_without_route_binding_preserves_map_follow_waypoints_backend(tmp_path):
+    task, _profile, version = _prepare_assets(tmp_path)
+    (version / "tasks" / "inspection.route.yaml").unlink()
+    if not rclpy.ok():
+        rclpy.init()
+
+    task_server = SERVER.NavigationCapabilityServer(
+        parameter_overrides=[
+            Parameter("require_map", value=False),
+            Parameter("require_safety_ready", value=False),
+            Parameter("require_localization_valid", value=False),
+            Parameter("require_task_readiness", value=False),
+            Parameter("maps_root", value=str(tmp_path)),
+        ],
+    )
+    _set_active_map(task_server)
+    mock_node = Node("mock_follow_waypoints_map_backend")
+    received = []
+
+    def execute_follow_waypoints(goal_handle):
+        received.append(goal_handle.request)
+        goal_handle.succeed()
+        result = FollowWaypoints.Result()
+        result.missed_waypoints = []
+        return result
+
+    follow_waypoints_server = ActionServer(
+        mock_node, FollowWaypoints, "follow_waypoints", execute_follow_waypoints
+    )
+    client_node = Node("map_capability_test_client")
+    client = ActionClient(
+        client_node,
+        ExecuteWaypointTask,
+        "/agt/navigation/execute_waypoint_task",
+    )
+    executor = MultiThreadedExecutor(num_threads=6)
+    for value in (task_server, mock_node, client_node):
+        executor.add_node(value)
+    thread = threading.Thread(target=executor.spin, daemon=True)
+    thread.start()
+    try:
+        assert client.wait_for_server(timeout_sec=2.0)
+        handle = _wait(client.send_goal_async(_formal_request(task, "map_request_1")))
+        assert handle.accepted
+        wrapped = _wait(handle.get_result_async())
+
+        assert wrapped.status == GoalStatus.STATUS_SUCCEEDED
+        assert wrapped.result.success
+        assert len(received) == 1
+        assert len(received[0].poses) == 1
+        assert received[0].poses[0].header.frame_id == "map"
+        # No FollowPath server exists. Success proves a task with no execution
+        # binding still follows the legacy MAP / FollowWaypoints path.
+    finally:
+        executor.shutdown(timeout_sec=2.0)
+        thread.join(timeout=2.0)
+        follow_waypoints_server.destroy()
         for value in (client_node, mock_node, task_server):
             value.destroy_node()
         if rclpy.ok():
