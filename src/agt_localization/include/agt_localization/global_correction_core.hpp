@@ -4,7 +4,7 @@
 #include <limits>
 #include <string>
 
-#include <Eigen/Core>
+#include <Eigen/Dense>
 
 namespace agt_localization
 {
