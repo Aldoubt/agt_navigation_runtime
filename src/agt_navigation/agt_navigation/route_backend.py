@@ -3,14 +3,19 @@
 This layer bridges the pure RouteNavigationCore to a Nav2 FollowPath tracker. It
 never requests a global path and never owns TF; a snapshot provider supplies the
 currently authoritative map->odom transform at segment boundaries.
+
+The runner is intentionally based on ``rclpy.task.Future`` rather than Python's
+``asyncio`` event loop. rclpy Action execute callbacks are awaitable, but they are
+scheduled by the rclpy executor and do not guarantee an asyncio running loop.
 """
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 import threading
 from typing import Callable
+
+from rclpy.task import Future
 
 from .nav2_follow_path_adapter import Nav2FollowPathTrackerAdapter
 from .route_runtime import (
@@ -61,13 +66,22 @@ class RouteBackendExecutor:
         self._completion_sink = completion_sink
         self._lock = threading.RLock()
         self._core: RouteNavigationCore | None = None
+        self._completion_future: Future | None = None
         self._failure_reason = ""
+
+    def _signal_completion(self) -> None:
+        """Wake the rclpy Action execute coroutine exactly once for this loop."""
+        with self._lock:
+            future = self._completion_future
+            if future is not None and not future.done():
+                future.set_result(True)
 
     def cancel(self) -> None:
         with self._lock:
             core = self._core
         if core is not None:
             core.cancel()
+        self._signal_completion()
 
     def fail(self, reason: str) -> None:
         with self._lock:
@@ -75,6 +89,7 @@ class RouteBackendExecutor:
             core = self._core
         if core is not None:
             core.fail()
+        self._signal_completion()
 
     async def run(
         self,
@@ -89,9 +104,24 @@ class RouteBackendExecutor:
 
         for loop_index in range(int(loop_count)):
             if cancel_requested():
-                return RouteBackendResult(False, True, "task canceled", tuple(completions), total_global_planner_requests)
+                return RouteBackendResult(
+                    False,
+                    True,
+                    "task canceled",
+                    tuple(completions),
+                    total_global_planner_requests,
+                )
+            with self._lock:
+                external_failure = self._failure_reason
+            if external_failure:
+                return RouteBackendResult(
+                    False,
+                    False,
+                    external_failure,
+                    tuple(completions),
+                    total_global_planner_requests,
+                )
 
-            done = threading.Event()
             local_failure = {"reason": ""}
             tracker = Nav2FollowPathTrackerAdapter(
                 action_client=self._action_client,
@@ -103,8 +133,10 @@ class RouteBackendExecutor:
             )
             core = RouteNavigationCore(self.asset, tracker)
             segment_indices = {
-                segment.segment_id: index for index, segment in enumerate(self.asset.segments)
+                segment.segment_id: index
+                for index, segment in enumerate(self.asset.segments)
             }
+            completion_future = Future()
 
             def sink(feedback: TrackerFeedback) -> None:
                 try:
@@ -115,7 +147,8 @@ class RouteBackendExecutor:
                     if (
                         status == "SUCCEEDED"
                         and active is not None
-                        and segment_indices[active.segment_id] + 1 < len(self.asset.segments)
+                        and segment_indices[active.segment_id] + 1
+                        < len(self.asset.segments)
                     ):
                         # Freeze a fresh authoritative alignment only for the next
                         # segment. The current RuntimePath has already completed.
@@ -130,43 +163,46 @@ class RouteBackendExecutor:
                         if self._completion_sink is not None:
                             self._completion_sink(completion, loop_index, index)
                     if core.state in {"COMPLETED", "FAILED", "CANCELED"}:
-                        done.set()
+                        self._signal_completion()
                 except Exception as exc:
                     local_failure["reason"] = str(exc)
                     core.fail()
-                    done.set()
+                    self._signal_completion()
 
             tracker.set_feedback_sink(sink)
             with self._lock:
+                # Install the wakeup Future before starting the tracker. A fake or
+                # intra-process FollowPath server may complete synchronously while
+                # core.start() is still on the stack.
                 self._core = core
-                self._failure_reason = ""
+                self._completion_future = completion_future
             try:
                 core.start(self._snapshot_provider())
             except Exception:
                 with self._lock:
                     self._core = None
+                    self._completion_future = None
                 raise
 
-            while not done.is_set():
-                if cancel_requested():
-                    core.cancel()
-                    done.set()
-                    break
-                with self._lock:
-                    external_failure = self._failure_reason
-                if external_failure:
-                    core.fail()
-                    done.set()
-                    break
-                await asyncio.sleep(0.01)
+            # rclpy Future is awaitable by the rclpy executor without requiring an
+            # asyncio running loop. Tracker terminal feedback, parent cancel, or a
+            # runtime-gate failure resolves this Future.
+            await completion_future
 
             total_global_planner_requests += core.metrics.global_planner_requests
             with self._lock:
                 external_failure = self._failure_reason
                 self._core = None
+                self._completion_future = None
             failure_reason = external_failure or local_failure["reason"]
             if cancel_requested() or core.state == "CANCELED":
-                return RouteBackendResult(False, True, "task canceled", tuple(completions), total_global_planner_requests)
+                return RouteBackendResult(
+                    False,
+                    True,
+                    "task canceled",
+                    tuple(completions),
+                    total_global_planner_requests,
+                )
             if core.state != "COMPLETED":
                 return RouteBackendResult(
                     False,
@@ -176,4 +212,10 @@ class RouteBackendExecutor:
                     total_global_planner_requests,
                 )
 
-        return RouteBackendResult(True, False, "", tuple(completions), total_global_planner_requests)
+        return RouteBackendResult(
+            True,
+            False,
+            "",
+            tuple(completions),
+            total_global_planner_requests,
+        )
