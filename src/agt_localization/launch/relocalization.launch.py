@@ -20,6 +20,10 @@ def generate_launch_description():
                 "correction_params_file",
                 default_value=str(package_share / "config" / "global_correction.yaml"),
             ),
+            DeclareLaunchArgument(
+                "recovery_params_file",
+                default_value=str(package_share / "config" / "recovery_trigger.yaml"),
+            ),
             DeclareLaunchArgument("global_map_pcd", default_value=""),
             DeclareLaunchArgument("global_map_processing_record", default_value=""),
             DeclareLaunchArgument("configured_candidates_yaml", default_value=""),
@@ -75,6 +79,21 @@ def generate_launch_description():
                     {
                         "map_id": LaunchConfiguration("map_id"),
                         "map_hash": LaunchConfiguration("map_hash"),
+                        "use_sim_time": ParameterValue(
+                            LaunchConfiguration("use_sim_time"), value_type=bool
+                        ),
+                    },
+                ],
+            ),
+            Node(
+                package="agt_localization",
+                executable="recovery_trigger_manager",
+                name="agt_recovery_trigger_manager",
+                output="screen",
+                parameters=[
+                    LaunchConfiguration("recovery_params_file"),
+                    {
+                        "relocalize_action_name": "/agt/localization/relocalize",
                         "use_sim_time": ParameterValue(
                             LaunchConfiguration("use_sim_time"), value_type=bool
                         ),
