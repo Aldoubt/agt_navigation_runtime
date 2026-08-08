@@ -74,9 +74,8 @@ class RouteSystemSmokeFixture(Node):
         self.create_timer(0.5, self._publish)
         self._publish()
         self.get_logger().info(
-            "Synthetic READY route fixture prepared at %s task_hash=%s",
-            str(self._version_root()),
-            self._task.content_sha256,
+            "Synthetic READY route fixture prepared at "
+            f"{self._version_root()} task_hash={self._task.content_sha256}"
         )
 
     def _version_root(self) -> Path:
