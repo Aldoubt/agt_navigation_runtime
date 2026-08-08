@@ -1,27 +1,59 @@
 platform:
   name: mk_mini
-  kinematics: differential
+  kinematics: ackermann
   footprint_frame: base_footprint
   base_frame: base_link
   geometry:
-    # Provisional until the physical chassis is measured.
+    # Outer envelope remains provisional until a physical chassis measurement is
+    # recorded. Do not infer vehicle acceptance from these dimensions alone.
     verified: false
     length: 0.70
     width: 0.55
     height: 0.20
     base_link_z: 0.10
+
+    # Project baseline geometry used by the existing MK-mini integration.
+    wheel_base_verified: true
+    wheel_base: 0.60
+    track_width_verified: true
+    track_width: 0.517
+    wheel_diameter_verified: true
+    wheel_diameter: 0.24
+    ground_clearance_verified: true
+    ground_clearance: 0.111
+
+    # Ackermann route acceptance must remain fail-closed until the steering
+    # limit / minimum turning radius is physically verified. The numeric zero is
+    # only a schema-compatible placeholder for legacy readers and MUST NOT be
+    # interpreted as in-place-rotation capability.
+    min_turning_radius_verified: false
+    min_turning_radius: 0.0
+    steering_limit_verified: false
+    max_steering_angle_rad: null
+
     footprint:
       - [0.35, 0.275]
       - [0.35, -0.275]
       - [-0.35, -0.275]
       - [-0.35, 0.275]
+
   max_linear_velocity: 1.0
+  max_reverse_velocity: 0.5
   max_angular_velocity: 1.0
+
+  route_acceptance:
+    enabled: false
+    blocked_reason: >-
+      Ackermann kinematics are canonical, but minimum turning radius and the
+      final navigation footprint still require vehicle measurement before a
+      MK-mini Route Asset may be promoted as vehicle-feasible.
+
   coverage_repair:
     enabled: false
     planner_id: CoverageRepairHybrid
     planner_family: hybrid_a_star
     allow_in_place_rotation: false
     disabled_reason: >-
-      TASK-12 requires Ackermann kinematics and a calibrated positive minimum
-      turning radius, but this provisional profile still declares differential.
+      Ackermann geometry is now canonical, but the positive minimum turning
+      radius / steering limit is not yet verified. Keep repair and formal route
+      feasibility disabled until that measurement is frozen in this profile.
