@@ -4,7 +4,7 @@
     global_map_processing_record: ""
     global_frame: map
     odom_frame: odom
-    base_frame: base_link
+    base_frame: base_footprint
     tracking_frame: lidar_link
     cloud_topic: /agt/mapping/registered_points
     initialpose_topic: /initialpose
