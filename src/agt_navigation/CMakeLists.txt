@@ -39,6 +39,9 @@ if(BUILD_TESTING)
     test_waypoint_preview_launch test/test_waypoint_preview_launch.py
   )
   ament_add_pytest_test(test_route_runtime test/test_route_runtime.py)
+  ament_add_pytest_test(
+    test_nav2_follow_path_adapter test/test_nav2_follow_path_adapter.py
+  )
 endif()
 
 ament_package()
