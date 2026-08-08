@@ -26,6 +26,14 @@ namespace
 
 using LocalizationStatus = agt_interfaces::msg::LocalizationStatus;
 
+bool isHealthState(std::uint8_t state)
+{
+  return state == LocalizationStatus::STATE_TRACKING ||
+         state == LocalizationStatus::STATE_DEGRADED ||
+         state == LocalizationStatus::STATE_RECOVERING ||
+         state == LocalizationStatus::STATE_LOST;
+}
+
 agt_localization::CorrectionTrackingState correctionState(std::uint8_t state)
 {
   if (state == LocalizationStatus::STATE_LOST) {
@@ -70,6 +78,10 @@ public:
     global_frame_ = declare_parameter<std::string>("global_frame", "map");
     odom_frame_ = declare_parameter<std::string>("odom_frame", "odom");
     base_frame_ = declare_parameter<std::string>("base_frame", "base_footprint");
+    evidence_status_topic_ = declare_parameter<std::string>(
+      "evidence_status_topic", "/agt/localization/evidence_status");
+    canonical_status_topic_ = declare_parameter<std::string>(
+      "canonical_status_topic", "/agt/localization/status");
     expected_map_id_ = declare_parameter<std::string>("map_id", "");
     expected_map_hash_ = declare_parameter<std::string>("map_hash", "");
     tf_publish_rate_hz_ = declare_parameter<double>("tf_publish_rate_hz", 20.0);
@@ -107,11 +119,12 @@ public:
     core_ = std::make_unique<agt_localization::GlobalCorrectionCore>(policy);
     core_->setExpectedMapIdentity(expected_map_id_, expected_map_hash_);
 
-    status_pub_ = create_publisher<std_msgs::msg::String>(
+    correction_status_pub_ = create_publisher<std_msgs::msg::String>(
       "/agt/localization/global_correction_status", 10);
-    localization_sub_ = create_subscription<LocalizationStatus>(
-      "/agt/localization/status", 10,
-      std::bind(&GlobalCorrectionManager::localizationCallback, this, std::placeholders::_1));
+    canonical_status_pub_ = create_publisher<LocalizationStatus>(canonical_status_topic_, 10);
+    evidence_status_sub_ = create_subscription<LocalizationStatus>(
+      evidence_status_topic_, 10,
+      std::bind(&GlobalCorrectionManager::localizationEvidenceCallback, this, std::placeholders::_1));
 
     const auto period = std::chrono::duration<double>(1.0 / tf_publish_rate_hz_);
     tf_timer_ = create_wall_timer(
@@ -120,29 +133,43 @@ public:
 
     RCLCPP_INFO(
       get_logger(),
-      "Global correction manager ready as sole map->odom authority. map_id=%s map_hash=%s",
-      expected_map_id_.c_str(), expected_map_hash_.c_str());
+      "Global correction manager ready as canonical localization + map->odom authority. evidence=%s canonical=%s map_id=%s",
+      evidence_status_topic_.c_str(), canonical_status_topic_.c_str(), expected_map_id_.c_str());
   }
 
 private:
-  void localizationCallback(const LocalizationStatus::SharedPtr status)
+  void localizationEvidenceCallback(const LocalizationStatus::SharedPtr status)
   {
     if (!status) {
       return;
     }
-    if (!status->localization_accepted || !status->pose_valid ||
-      status->error_code != LocalizationStatus::ERROR_NONE)
+
+    agt_localization::CorrectionTrackingState evidence_state;
     {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      evidence_state = policy_state_;
+    }
+
+    const bool accepted_evidence =
+      status->localization_accepted && status->pose_valid &&
+      status->error_code == LocalizationStatus::ERROR_NONE;
+    if (!accepted_evidence) {
+      if (isHealthState(status->state)) {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        policy_state_ = correctionState(status->state);
+      }
+      canonical_status_pub_->publish(*status);
       return;
     }
+
     const auto & global_pose = status->global_pose;
     if (global_pose.header.frame_id != global_frame_) {
-      publishDecision(false, "GLOBAL_POSE_FRAME_MISMATCH", 0U, 0.0, 0.0);
+      publishRejectedCanonical(*status, evidence_state, "GLOBAL_POSE_FRAME_MISMATCH");
       return;
     }
     const rclcpp::Time pose_stamp(global_pose.header.stamp);
     if (pose_stamp.nanoseconds() <= 0) {
-      publishDecision(false, "GLOBAL_POSE_TIMESTAMP_INVALID", 0U, 0.0, 0.0);
+      publishRejectedCanonical(*status, evidence_state, "GLOBAL_POSE_TIMESTAMP_INVALID");
       return;
     }
 
@@ -156,7 +183,7 @@ private:
         get_logger(), *get_clock(), 2000,
         "Correction evidence rejected because odom->base TF is unavailable at pose stamp: %s",
         error.what());
-      publishDecision(false, "ODOM_BASE_TF_UNAVAILABLE", 0U, 0.0, 0.0);
+      publishRejectedCanonical(*status, evidence_state, "ODOM_BASE_TF_UNAVAILABLE");
       return;
     }
 
@@ -173,30 +200,58 @@ private:
     observation.map_id = status->map_id;
     observation.map_hash = status->map_hash;
     observation.localization_accepted = true;
-    observation.tracking_state = correctionState(status->state);
+    observation.tracking_state = evidence_state;
 
     const auto decision = core_->evaluate(observation);
-    if (decision.accepted) {
-      {
-        std::lock_guard<std::mutex> lock(transform_mutex_);
-        latest_map_from_odom_ = decision.map_from_odom;
-        has_transform_ = true;
-      }
-      RCLCPP_INFO(
-        get_logger(),
-        "Accepted global correction generation=%llu reanchor=%s delta_translation=%.3f delta_yaw=%.3f",
-        static_cast<unsigned long long>(decision.generation),
-        decision.reanchor ? "true" : "false",
-        decision.delta_translation_m, decision.delta_yaw_rad);
-    } else {
+    publishDecision(
+      decision.accepted, decision.code, decision.generation,
+      decision.delta_translation_m, decision.delta_yaw_rad);
+
+    if (!decision.accepted) {
       RCLCPP_WARN_THROTTLE(
         get_logger(), *get_clock(), 2000,
         "Rejected global correction code=%s message=%s",
         decision.code.c_str(), decision.message.c_str());
+      publishRejectedCanonical(*status, evidence_state, decision.code);
+      return;
     }
-    publishDecision(
-      decision.accepted, decision.code, decision.generation,
+
+    {
+      std::lock_guard<std::mutex> lock(transform_mutex_);
+      latest_map_from_odom_ = decision.map_from_odom;
+      has_transform_ = true;
+    }
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      policy_state_ = correctionState(status->state);
+    }
+    canonical_status_pub_->publish(*status);
+    RCLCPP_INFO(
+      get_logger(),
+      "Accepted global correction generation=%llu reanchor=%s delta_translation=%.3f delta_yaw=%.3f",
+      static_cast<unsigned long long>(decision.generation),
+      decision.reanchor ? "true" : "false",
       decision.delta_translation_m, decision.delta_yaw_rad);
+  }
+
+  void publishRejectedCanonical(
+    const LocalizationStatus & evidence,
+    agt_localization::CorrectionTrackingState previous_state,
+    const std::string & code)
+  {
+    LocalizationStatus rejected = evidence;
+    rejected.localization_accepted = false;
+    rejected.pose_valid = false;
+    rejected.error_code = LocalizationStatus::ERROR_BACKEND_FAILED;
+    rejected.state = previous_state == agt_localization::CorrectionTrackingState::kLost ?
+      LocalizationStatus::STATE_LOST : LocalizationStatus::STATE_RECOVERING;
+    rejected.message = "global correction rejected: " + code;
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      policy_state_ = correctionState(rejected.state);
+    }
+    canonical_status_pub_->publish(rejected);
+    publishDecision(false, code, core_->generation(), 0.0, 0.0);
   }
 
   void publishDecision(
@@ -212,7 +267,7 @@ private:
            << ",\"delta_yaw_rad\":" << delta_yaw_rad
            << "}";
     message.data = stream.str();
-    status_pub_->publish(message);
+    correction_status_pub_->publish(message);
   }
 
   void publishTf()
@@ -233,6 +288,8 @@ private:
   std::string global_frame_;
   std::string odom_frame_;
   std::string base_frame_;
+  std::string evidence_status_topic_;
+  std::string canonical_status_topic_;
   std::string expected_map_id_;
   std::string expected_map_hash_;
   double tf_publish_rate_hz_{20.0};
@@ -242,13 +299,17 @@ private:
   Eigen::Matrix4d latest_map_from_odom_{Eigen::Matrix4d::Identity()};
   bool has_transform_{false};
   std::mutex transform_mutex_;
+  agt_localization::CorrectionTrackingState policy_state_{
+    agt_localization::CorrectionTrackingState::kTracking};
+  std::mutex state_mutex_;
 
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   rclcpp::TimerBase::SharedPtr tf_timer_;
-  rclcpp::Subscription<LocalizationStatus>::SharedPtr localization_sub_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status_pub_;
+  rclcpp::Subscription<LocalizationStatus>::SharedPtr evidence_status_sub_;
+  rclcpp::Publisher<LocalizationStatus>::SharedPtr canonical_status_pub_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr correction_status_pub_;
 };
 
 int main(int argc, char ** argv)
