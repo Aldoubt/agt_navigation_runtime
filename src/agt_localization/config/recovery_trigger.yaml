@@ -3,6 +3,7 @@
     enabled: true
     relocalize_action_name: /agt/localization/relocalize
     cooldown_s: 5.0
+    poll_period_s: 1.0
     trigger_recovering: true
     trigger_lost: true
     max_candidates: 64
