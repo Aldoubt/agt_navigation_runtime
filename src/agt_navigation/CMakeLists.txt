@@ -49,6 +49,10 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_navigation_capability_server test/test_navigation_capability_server.py
   )
+  ament_add_pytest_test(
+    test_navigation_capability_runtime_gates
+    test/test_navigation_capability_runtime_gates.py
+  )
 endif()
 
 ament_package()
