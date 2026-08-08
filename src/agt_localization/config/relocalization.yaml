@@ -20,7 +20,9 @@
     manual_initialpose_enabled: true
     map_id: ""
     map_hash: ""
-    publish_tf: true
+    # V25-10: relocalization produces accepted global-pose evidence only.
+    # global_correction_manager is the sole production map->odom TF authority.
+    publish_tf: false
     publish_aligned_cloud: true
     candidate_max: 128
     max_expanded_candidates: 4096
