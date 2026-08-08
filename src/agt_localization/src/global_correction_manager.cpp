@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -86,6 +87,8 @@ public:
     expected_map_hash_ = declare_parameter<std::string>("map_hash", "");
     tf_publish_rate_hz_ = declare_parameter<double>("tf_publish_rate_hz", 20.0);
     tf_lookup_timeout_s_ = declare_parameter<double>("tf_lookup_timeout_s", 0.20);
+    correction_rejections_to_lost_ = declare_parameter<int>(
+      "correction_rejections_to_lost", 3);
 
     agt_localization::GlobalCorrectionPolicy policy;
     policy.max_age_s = declare_parameter<double>("max_age_s", 1.0);
@@ -111,9 +114,10 @@ public:
     policy.allow_lost_reanchor = declare_parameter<bool>("allow_lost_reanchor", true);
 
     if (!std::isfinite(tf_publish_rate_hz_) || tf_publish_rate_hz_ <= 0.0 ||
-      !std::isfinite(tf_lookup_timeout_s_) || tf_lookup_timeout_s_ <= 0.0)
+      !std::isfinite(tf_lookup_timeout_s_) || tf_lookup_timeout_s_ <= 0.0 ||
+      correction_rejections_to_lost_ <= 0)
     {
-      throw std::runtime_error("TF publication and lookup rates must be positive");
+      throw std::runtime_error("global correction manager limits must be positive");
     }
 
     core_ = std::make_unique<agt_localization::GlobalCorrectionCore>(policy);
@@ -157,6 +161,9 @@ private:
       if (isHealthState(status->state)) {
         std::lock_guard<std::mutex> lock(state_mutex_);
         policy_state_ = correctionState(status->state);
+        if (status->state == LocalizationStatus::STATE_TRACKING) {
+          consecutive_correction_rejections_ = 0;
+        }
       }
       canonical_status_pub_->publish(*status);
       return;
@@ -164,11 +171,13 @@ private:
 
     const auto & global_pose = status->global_pose;
     if (global_pose.header.frame_id != global_frame_) {
+      publishDecision(false, "GLOBAL_POSE_FRAME_MISMATCH", core_->generation(), 0.0, 0.0);
       publishRejectedCanonical(*status, evidence_state, "GLOBAL_POSE_FRAME_MISMATCH");
       return;
     }
     const rclcpp::Time pose_stamp(global_pose.header.stamp);
     if (pose_stamp.nanoseconds() <= 0) {
+      publishDecision(false, "GLOBAL_POSE_TIMESTAMP_INVALID", core_->generation(), 0.0, 0.0);
       publishRejectedCanonical(*status, evidence_state, "GLOBAL_POSE_TIMESTAMP_INVALID");
       return;
     }
@@ -183,6 +192,7 @@ private:
         get_logger(), *get_clock(), 2000,
         "Correction evidence rejected because odom->base TF is unavailable at pose stamp: %s",
         error.what());
+      publishDecision(false, "ODOM_BASE_TF_UNAVAILABLE", core_->generation(), 0.0, 0.0);
       publishRejectedCanonical(*status, evidence_state, "ODOM_BASE_TF_UNAVAILABLE");
       return;
     }
@@ -224,6 +234,7 @@ private:
     {
       std::lock_guard<std::mutex> lock(state_mutex_);
       policy_state_ = correctionState(status->state);
+      consecutive_correction_rejections_ = 0;
     }
     canonical_status_pub_->publish(*status);
     RCLCPP_INFO(
@@ -243,15 +254,23 @@ private:
     rejected.localization_accepted = false;
     rejected.pose_valid = false;
     rejected.error_code = LocalizationStatus::ERROR_BACKEND_FAILED;
-    rejected.state = previous_state == agt_localization::CorrectionTrackingState::kLost ?
-      LocalizationStatus::STATE_LOST : LocalizationStatus::STATE_RECOVERING;
-    rejected.message = "global correction rejected: " + code;
+
+    int rejection_count = 0;
     {
       std::lock_guard<std::mutex> lock(state_mutex_);
+      ++consecutive_correction_rejections_;
+      rejection_count = consecutive_correction_rejections_;
+      const bool force_lost =
+        previous_state == agt_localization::CorrectionTrackingState::kLost ||
+        consecutive_correction_rejections_ >= correction_rejections_to_lost_;
+      rejected.state = force_lost ?
+        LocalizationStatus::STATE_LOST : LocalizationStatus::STATE_RECOVERING;
       policy_state_ = correctionState(rejected.state);
     }
+    rejected.consecutive_failures = std::max(
+      rejected.consecutive_failures, static_cast<std::uint32_t>(rejection_count));
+    rejected.message = "global correction rejected: " + code;
     canonical_status_pub_->publish(rejected);
-    publishDecision(false, code, core_->generation(), 0.0, 0.0);
   }
 
   void publishDecision(
@@ -294,6 +313,7 @@ private:
   std::string expected_map_hash_;
   double tf_publish_rate_hz_{20.0};
   double tf_lookup_timeout_s_{0.20};
+  int correction_rejections_to_lost_{3};
 
   std::unique_ptr<agt_localization::GlobalCorrectionCore> core_;
   Eigen::Matrix4d latest_map_from_odom_{Eigen::Matrix4d::Identity()};
@@ -301,6 +321,7 @@ private:
   std::mutex transform_mutex_;
   agt_localization::CorrectionTrackingState policy_state_{
     agt_localization::CorrectionTrackingState::kTracking};
+  int consecutive_correction_rejections_{0};
   std::mutex state_mutex_;
 
   tf2_ros::Buffer tf_buffer_;
