@@ -10,6 +10,7 @@
 
     tf_publish_rate_hz: 20.0
     tf_lookup_timeout_s: 0.20
+    correction_rejections_to_lost: 3
 
     max_age_s: 1.0
     future_tolerance_s: 0.10
