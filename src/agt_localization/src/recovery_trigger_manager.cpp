@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 
@@ -28,6 +29,7 @@ public:
       "relocalize_action_name", "/agt/localization/relocalize");
     max_candidates_ = declare_parameter<int>("max_candidates", 64);
     request_timeout_s_ = declare_parameter<double>("request_timeout_s", 15.0);
+    poll_period_s_ = declare_parameter<double>("poll_period_s", 1.0);
     use_last_valid_pose_ = declare_parameter<bool>("use_last_valid_pose", true);
     use_configured_candidates_ = declare_parameter<bool>("use_configured_candidates", true);
     use_external_coarse_pose_ = declare_parameter<bool>("use_external_coarse_pose", true);
@@ -36,7 +38,9 @@ public:
     config.cooldown_s = declare_parameter<double>("cooldown_s", 5.0);
     config.trigger_recovering = declare_parameter<bool>("trigger_recovering", true);
     config.trigger_lost = declare_parameter<bool>("trigger_lost", true);
-    if (max_candidates_ <= 0 || request_timeout_s_ <= 0.0 || config.cooldown_s < 0.0) {
+    if (max_candidates_ <= 0 || request_timeout_s_ <= 0.0 ||
+      poll_period_s_ <= 0.0 || config.cooldown_s < 0.0)
+    {
       throw std::runtime_error("recovery trigger limits must be valid");
     }
 
@@ -49,11 +53,15 @@ public:
     status_sub_ = create_subscription<LocalizationStatus>(
       "/agt/localization/status", 10,
       std::bind(&RecoveryTriggerManager::statusCallback, this, std::placeholders::_1));
+    retry_timer_ = create_wall_timer(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::duration<double>(poll_period_s_)),
+      std::bind(&RecoveryTriggerManager::maybeTriggerFromLatestState, this));
 
     RCLCPP_INFO(
       get_logger(),
-      "Recovery trigger manager ready. enabled=%s action=%s",
-      enabled_ ? "true" : "false", action_name_.c_str());
+      "Recovery trigger manager ready. enabled=%s action=%s poll_period=%.2fs",
+      enabled_ ? "true" : "false", action_name_.c_str(), poll_period_s_);
   }
 
 private:
@@ -62,8 +70,34 @@ private:
     if (!enabled_ || !status || !policy_) {
       return;
     }
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      latest_localization_state_ = status->state;
+      has_localization_state_ = true;
+    }
+    maybeTrigger(status->state);
+  }
+
+  void maybeTriggerFromLatestState()
+  {
+    if (!enabled_ || !policy_) {
+      return;
+    }
+    std::uint8_t state = 0U;
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      if (!has_localization_state_) {
+        return;
+      }
+      state = latest_localization_state_;
+    }
+    maybeTrigger(state);
+  }
+
+  void maybeTrigger(std::uint8_t localization_state)
+  {
     agt_localization::RecoveryTriggerInput input;
-    input.localization_state = status->state;
+    input.localization_state = localization_state;
     input.now_s = now().seconds();
     input.request_in_flight = request_in_flight_.load();
     const auto decision = policy_->evaluate(input);
@@ -126,14 +160,19 @@ private:
   std::string action_name_;
   int max_candidates_{64};
   double request_timeout_s_{15.0};
+  double poll_period_s_{1.0};
   bool use_last_valid_pose_{true};
   bool use_configured_candidates_{true};
   bool use_external_coarse_pose_{true};
   std::atomic<bool> request_in_flight_{false};
 
   std::unique_ptr<agt_localization::RecoveryTriggerPolicy> policy_;
+  std::uint8_t latest_localization_state_{0U};
+  bool has_localization_state_{false};
+  std::mutex state_mutex_;
   rclcpp_action::Client<Relocalize>::SharedPtr client_;
   rclcpp::Subscription<LocalizationStatus>::SharedPtr status_sub_;
+  rclcpp::TimerBase::SharedPtr retry_timer_;
 };
 
 int main(int argc, char ** argv)
