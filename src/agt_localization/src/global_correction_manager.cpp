@@ -165,9 +165,9 @@ private:
           consecutive_correction_rejections_ = 0;
         }
       }
-      LocalizationStatus evidence = *status;
-      evidence.correction_generation = 0U;
-      canonical_status_pub_->publish(evidence);
+      LocalizationStatus canonical = *status;
+      canonical.correction_generation = core_->generation();
+      canonical_status_pub_->publish(canonical);
       return;
     }
 
