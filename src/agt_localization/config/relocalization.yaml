@@ -24,6 +24,8 @@
     # global_correction_manager is the sole production map->odom TF authority.
     publish_tf: false
     publish_aligned_cloud: true
+    publish_initial_guess_cloud: false
+    publish_aligned_candidate_cloud: false
     candidate_max: 128
     max_expanded_candidates: 4096
     candidate_position_dedup_tolerance: 1.0e-3

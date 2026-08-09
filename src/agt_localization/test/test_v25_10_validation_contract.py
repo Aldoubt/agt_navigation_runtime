@@ -87,6 +87,27 @@ def test_fresh_barrier_precedes_manual_goal_and_ordered_cleanup_is_present():
     assert source.index("recorder = subprocess.Popen") < source.index("playback = subprocess.Popen")
 
 
+def test_manual_action_never_pauses_clock_source():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "signal.SIGSTOP" not in source
+    assert "signal.SIGCONT" not in source
+    assert source.index("node.barrier.accept(now_s)") < source.index("fresh_cloud_time")
+    assert source.index("fresh_cloud_time") < source.index("node.action.send_goal_async")
+
+
+def test_fresh_stamp_tf_gate_occurs_after_fresh_barrier():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert source.index('stage("FRESH_CLOUD"') < source.index("fresh_cloud_time")
+    assert 'nanoseconds=int(node.fresh_cloud_stamp * 1e9)' in source
+    assert '"odom", "lidar_link", fresh_cloud_time' in source
+
+
+def test_fresh_stamp_tf_gate_precedes_action_dispatch():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert source.index('stage("PRE_ACTION_TF_GATE"') < source.index("node.action.send_goal_async")
+    assert '"goal_not_dispatched": True' in source
+
+
 def test_clock_preflight_requires_zero_publishers():
     assert validation.clock_gate_code(0, before_playback=True) is None
     assert validation.clock_gate_code(1, before_playback=True) == "CLOCK_PUBLISHER_CONFLICT"
@@ -159,17 +180,9 @@ def test_rviz_pointcloud_qos_matches_validation_publishers():
     assert "ReliabilityPolicy.RELIABLE" in publisher
 
 
-def test_manual_action_freezes_single_player_during_expensive_action_preparation():
-    source = SCRIPT.read_text(encoding="utf-8")
-    assert "playback_process.send_signal(signal.SIGSTOP)" in source
-    assert "playback_process.send_signal(signal.SIGCONT)" in source
-    assert source.index("node.barrier.accept(now_s)") < source.index("signal.SIGSTOP")
-    assert source.index("signal.SIGSTOP") < source.index("node.action.send_goal_async")
-
-
 def test_action_lifecycle_and_feedback_are_durable():
     source = SCRIPT.read_text(encoding="utf-8")
-    for stage in ("ACTION_DISPATCHED", "ACCEPTED", "FIRST_FEEDBACK", "RESULT"):
+    for stage in ("FRESH_CLOUD", "PRE_ACTION_TF_GATE", "ACTION_DISPATCHED", "ACTION_GOAL_ACCEPTED", "FIRST_FEEDBACK", "ACTION_RESULT"):
         assert 'stage("%s"' % stage in source
     assert 'os.fsync(stream.fileno())' in source
     assert 'action_feedback.jsonl' in source
@@ -178,8 +191,34 @@ def test_action_lifecycle_and_feedback_are_durable():
 def test_cloud_stamp_tf_gates_precede_action_dispatch():
     source = SCRIPT.read_text(encoding="utf-8")
     assert '"imu_link", "lidar_link"' in source
-    assert '"odom", "lidar_link", cloud_time' in source
-    assert source.index("ODOM_LIDAR_CLOUD_STAMP_GATE") < source.index("ACTION_DISPATCHED")
+    assert '"odom", "lidar_link", fresh_cloud_time' in source
+    assert source.index("ODOM_LIDAR_FRESH_STAMP_TF_MISSING") < source.index("ACTION_DISPATCHED")
+
+
+def test_goal_and_result_have_independent_timeouts():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "goal_response_deadline = time.monotonic() + 5.0" in source
+    assert "action_result_deadline = time.monotonic() + goal.timeout_s + 5.0" in source
+    assert "ACTION_GOAL_RESPONSE_TIMEOUT" in source
+    assert "ACTION_RESULT_TIMEOUT" in source
+    assert "ACTION_RESULT_TIMEOUT\", \"Relocalize result timed out" in source
+    assert "RELOCALIZE_REJECTED\", \"Relocalize result timed out" not in source
+
+
+def test_action_timeout_not_classified_as_relocalize_rejected():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "ACTION_GOAL_RESPONSE_TIMEOUT" in source
+    assert "ACTION_RESULT_TIMEOUT" in source
+    assert 'failure("relocalization", "ACTION_RESULT_TIMEOUT"' in source
+    assert 'failure("relocalization", "RELOCALIZE_REJECTED", "Relocalize result timed out"' not in source
+
+
+def test_action_lifecycle_stages_are_durable():
+    source = SCRIPT.read_text(encoding="utf-8")
+    for stage in ("FRESH_CLOUD", "PRE_ACTION_TF_GATE", "ACTION_DISPATCHED",
+                  "ACTION_GOAL_ACCEPTED", "FIRST_FEEDBACK", "ACTION_RESULT"):
+        assert 'stage("%s"' % stage in source
+    assert "self.data[\"stages\"]" in (ROOT / "scripts/v25_10_realbag_validation.py").read_text()
 
 
 def test_optional_debug_cloud_contract():
@@ -191,3 +230,28 @@ def test_optional_debug_cloud_contract():
     assert "/agt/localization/aligned_candidate" in source
     assert "Value: /agt/localization/initial_guess" in rviz
     assert "Value: /agt/localization/aligned_candidate" in rviz
+
+
+def test_handheld_debug_clouds_enabled():
+    config = yaml.safe_load((ROOT / "config/relocalization_handheld_validation.yaml").read_text())["/**"]["ros__parameters"]
+    assert config["publish_initial_guess_cloud"] is True
+    assert config["publish_aligned_candidate_cloud"] is True
+
+
+def test_initial_guess_published_before_backend_call():
+    source = (ROOT / "src/relocalization_node.cpp").read_text(encoding="utf-8")
+    assert source.index("initial_guess_cloud_pub_->publish") < source.index("relocalizer_.relocalize(request)")
+
+
+def test_aligned_candidate_can_publish_before_final_acceptance():
+    source = (ROOT / "src/relocalization_node.cpp").read_text(encoding="utf-8")
+    candidate_publish = source.index("aligned_candidate_cloud_pub_->publish")
+    final_quality = source.index("if (attempt.quality.accepted)")
+    assert candidate_publish < final_quality
+
+
+def test_rviz_enables_map_frame_debug_clouds():
+    rviz = (ROOT / "rviz/v25_10_realbag_validation.rviz").read_text(encoding="utf-8")
+    assert "Fixed Frame: map" in rviz
+    assert "Name: Initial Guess\n" in rviz and "Name: Aligned Candidate\n" in rviz
+    assert "Name: Current Registered Cloud (visible after map->odom)" in rviz

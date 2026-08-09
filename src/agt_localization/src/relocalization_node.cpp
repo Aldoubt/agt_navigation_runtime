@@ -1072,14 +1072,12 @@ private:
         candidateToPose(candidate) * base_from_tracking;
       request.request_time_sec = cloud_stamp.seconds();
       request.enable_debug_outputs = publish_debug;
-      RCLCPP_DEBUG(
-        get_logger(),
-        "Relocalization candidate source=%s tracking_validation=%s initial_guess_source=%s",
-        candidate.source.c_str(), tracking_validation ? "true" : "false",
-        tracking_validation ? "odom_propagated_tracking_prediction" : candidate.source.c_str());
-      attempt.result = relocalizer_.relocalize(request);
-      attempt.debug = relocalizer_.latestDebugInfo();
-      attempt.map_to_base = attempt.result.estimated_pose * tracking_from_base;
+      if (goal_handle) {
+        RCLCPP_INFO(
+          get_logger(),
+          "Relocalization candidate BEGIN index=%zu total=%zu candidate_id=%s candidate_source=%s",
+          index + 1U, candidates.size(), candidate.id.c_str(), candidate.source.c_str());
+      }
       if (publish_debug && publish_initial_guess_cloud_) {
         CloudT initial_guess_cloud;
         pcl::transformPointCloud(*scan_cloud, initial_guess_cloud, request.initial_guess);
@@ -1088,6 +1086,21 @@ private:
         initial_guess_msg.header.stamp = cloud_stamp;
         initial_guess_msg.header.frame_id = global_frame_;
         initial_guess_cloud_pub_->publish(initial_guess_msg);
+      }
+      RCLCPP_DEBUG(
+        get_logger(),
+        "Relocalization candidate source=%s tracking_validation=%s initial_guess_source=%s",
+        candidate.source.c_str(), tracking_validation ? "true" : "false",
+        tracking_validation ? "odom_propagated_tracking_prediction" : candidate.source.c_str());
+      attempt.result = relocalizer_.relocalize(request);
+      attempt.debug = relocalizer_.latestDebugInfo();
+      attempt.map_to_base = attempt.result.estimated_pose * tracking_from_base;
+      if (publish_debug && publish_aligned_candidate_cloud_ && attempt.result.aligned_cloud) {
+        sensor_msgs::msg::PointCloud2 aligned_candidate_msg;
+        pcl::toROSMsg(*attempt.result.aligned_cloud, aligned_candidate_msg);
+        aligned_candidate_msg.header.stamp = cloud_stamp;
+        aligned_candidate_msg.header.frame_id = global_frame_;
+        aligned_candidate_cloud_pub_->publish(aligned_candidate_msg);
       }
 
       agt_localization::QualityObservation observation;
@@ -1124,6 +1137,20 @@ private:
         attempt.quality.accepted = false;
         attempt.quality.error_code = coreErrorCode(attempt.result);
         attempt.quality.message = attempt.result.status_message;
+      }
+
+      if (goal_handle) {
+        RCLCPP_INFO(
+          get_logger(),
+          "Relocalization candidate END index=%zu total=%zu candidate_id=%s candidate_source=%s "
+          "runtime_ms=%.3f fitness=%.6f has_converged=%s status_code=%s quality_accepted=%s "
+          "translation_innovation=%.3f yaw_innovation=%.3f",
+          index + 1U, candidates.size(), candidate.id.c_str(), candidate.source.c_str(),
+          attempt.debug.backend_runtime_ms, attempt.result.fitness_score,
+          attempt.result.has_converged ? "true" : "false",
+          relocalization_core::toString(attempt.result.status_code).c_str(),
+          attempt.quality.accepted ? "true" : "false",
+          attempt.quality.translation_innovation, attempt.quality.yaw_innovation);
       }
 
       (void)makeRunStatus(

@@ -383,7 +383,7 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
             self.goal_send_ros_time = None
             self.goal_send_wall_time = None
             self.fresh_cloud_stamp = None
-            self.playback_paused = False
+            self.last_action_stage = None
             self.time_diagnostics = TimeDiagnostics(directory / "time_diagnostics.jsonl")
             clock_qos = QoSProfile(depth=10)
             clock_qos.reliability = ReliabilityPolicy.BEST_EFFORT
@@ -437,6 +437,7 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
     action_result = None
     try:
         def stage(name, status, **details):
+            node.last_action_stage = name
             if stage_update:
                 stage_update(name, status, **details)
 
@@ -467,16 +468,6 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
         except Exception as error:
             return failure("tf", "IMU_LIDAR_TF_MISSING", str(error), {"target_frame": "imu_link", "source_frame": "lidar_link"})
         stage("IMU_LIDAR_TF_GATE", "PASS", target_frame="imu_link", source_frame="lidar_link")
-        cloud_time = rclpy.time.Time(nanoseconds=int(node.barrier.mapping_gate_last_cloud_stamp * 1e9))
-        try:
-            node.tf.lookup_transform("odom", "lidar_link", cloud_time)
-        except Exception as error:
-            return failure("tf", "ODOM_LIDAR_CLOUD_STAMP_TF_MISSING", str(error), {
-                "target_frame": "odom", "source_frame": "lidar_link",
-                "cloud_stamp": node.barrier.mapping_gate_last_cloud_stamp})
-        stage("ODOM_LIDAR_CLOUD_STAMP_GATE", "PASS",
-              target_frame="odom", source_frame="lidar_link",
-              cloud_stamp=node.barrier.mapping_gate_last_cloud_stamp)
         try:
             node.tf.lookup_transform("odom", "imu_link", rclpy.time.Time())
         except Exception as error:
@@ -495,6 +486,8 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
                 return failure("recovery", "AUTO_RECOVERY_NOT_ACCEPTED", "Recovery trigger did not produce accepted correction", node.latest)
             stage("CORRECTION", "PASS", mode="auto_recovery")
             return None
+        if playback_process is None or playback_process.poll() is not None:
+            return failure("playback", "PLAYBACK_EXITED", "source bag playback ended before Action dispatch", {})
         fresh_deadline = min(gate_deadline, time.monotonic() + timeout)
         while time.monotonic() < fresh_deadline:
             now_s = node.get_clock().now().nanoseconds * 1e-9
@@ -510,11 +503,19 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
                 "mapping_gate_last_cloud_stamp": node.barrier.mapping_gate_last_cloud_stamp,
                 "latest_stamp": node.barrier.latest_stamp,
                 "fresh_action_max_age_s": node.barrier.max_age_s})
-        if playback_process is None or playback_process.poll() is not None:
-            return failure("playback", "PLAYBACK_EXITED", "source bag playback ended before Action dispatch", {})
-        playback_process.send_signal(signal.SIGSTOP)
-        node.playback_paused = True
-        stage("PLAYBACK_PAUSED_FOR_ACTION", "PASS")
+        stage("FRESH_CLOUD", "PASS", fresh_cloud_stamp=node.fresh_cloud_stamp)
+        fresh_cloud_time = rclpy.time.Time(nanoseconds=int(node.fresh_cloud_stamp * 1e9))
+        try:
+            node.tf.lookup_transform("odom", "lidar_link", fresh_cloud_time)
+        except Exception as error:
+            return failure("PRE_ACTION_TF", "ODOM_LIDAR_FRESH_STAMP_TF_MISSING", str(error), {
+                "target_frame": "odom", "source_frame": "lidar_link",
+                "fresh_cloud_stamp": node.fresh_cloud_stamp,
+                "goal_not_dispatched": True})
+        node.tf_gate_complete_wall_time = time.time()
+        stage("PRE_ACTION_TF_GATE", "PASS", target_frame="odom", source_frame="lidar_link",
+              fresh_cloud_stamp=node.fresh_cloud_stamp,
+              tf_gate_complete_wall_time=node.tf_gate_complete_wall_time)
         goal = Relocalize.Goal()
         goal.mode = Relocalize.Goal.MODE_LOCAL_CANDIDATES
         goal.use_initial_pose = False
@@ -527,12 +528,12 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
         node.goal_send_ros_time = node.get_clock().now().nanoseconds * 1e-9
         node.goal_send_wall_time = time.time()
         node.cloud_age_at_goal_send_s = node.goal_send_ros_time - node.fresh_cloud_stamp
-        node.time_diagnostics.append("freshness_pass", fresh_cloud_stamp=node.fresh_cloud_stamp,
-                                     goal_send_ros_time=node.goal_send_ros_time,
-                                     cloud_age_at_goal_send_s=node.cloud_age_at_goal_send_s)
-        stage("ACTION_DISPATCHED", "PASS", cloud_stamp=node.fresh_cloud_stamp,
-              cloud_age_at_goal_send_s=node.cloud_age_at_goal_send_s)
-
+        if node.cloud_age_at_goal_send_s > FRESH_CLOUD_MAX_AGE_S:
+            return failure("ACTION_INPUT_FRESHNESS", "STALE_CLOUD_AT_ACTION",
+                           "fresh cloud exceeded the action dispatch age limit", {
+                               "fresh_cloud_stamp": node.fresh_cloud_stamp,
+                               "goal_not_dispatched": True,
+                               "cloud_age_at_goal_send_s": node.cloud_age_at_goal_send_s})
         def on_feedback(feedback_message):
             item = {"wall_time": time.time(), "ros_time": node.get_clock().now().nanoseconds * 1e-9,
                     "state": int(feedback_message.feedback.state),
@@ -549,24 +550,52 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
                 stage("FIRST_FEEDBACK", "PASS", elapsed_s=item["elapsed_s"],
                       tested_candidates=item["tested_candidates"])
 
-        send = node.action.send_goal_async(goal, feedback_callback=on_feedback)
-        stage("FRESH_CLOUD", "PASS", fresh_cloud_stamp=node.fresh_cloud_stamp,
+        try:
+            send = node.action.send_goal_async(goal, feedback_callback=on_feedback)
+        except Exception as error:
+            stage("ACTION_DISPATCHED", "FAIL", code="ACTION_DISPATCH_FAILED")
+            return failure("relocalization", "ACTION_DISPATCH_FAILED", str(error), {
+                "fresh_cloud_stamp": node.fresh_cloud_stamp, "goal_not_dispatched": True})
+        stage("ACTION_DISPATCHED", "PASS", cloud_stamp=node.fresh_cloud_stamp,
+              fresh_cloud_stamp=node.fresh_cloud_stamp,
+              tf_gate_complete_wall_time=node.tf_gate_complete_wall_time,
+              goal_send_wall_time=node.goal_send_wall_time,
+              goal_send_ros_time=node.goal_send_ros_time,
               cloud_age_at_goal_send_s=node.cloud_age_at_goal_send_s)
-        while not send.done() and time.monotonic() < gate_deadline:
+        node.time_diagnostics.append("freshness_pass", fresh_cloud_stamp=node.fresh_cloud_stamp,
+                                     goal_send_ros_time=node.goal_send_ros_time,
+                                     cloud_age_at_goal_send_s=node.cloud_age_at_goal_send_s)
+        goal_response_deadline = time.monotonic() + 5.0
+        while not send.done() and time.monotonic() < goal_response_deadline:
             spin(0.1)
+        if not send.done():
+            return failure("relocalization", "ACTION_GOAL_RESPONSE_TIMEOUT",
+                           "Relocalize goal response timed out", {
+                               "last_action_stage": node.last_action_stage,
+                               "feedback_count": len(node.feedback),
+                               "fresh_cloud_stamp": node.fresh_cloud_stamp,
+                               "goal_send_ros_time": node.goal_send_ros_time,
+                               "elapsed_wall_s": time.monotonic() - (node.goal_send_wall_time or time.time())})
         handle = send.result()
         if handle is None or not handle.accepted:
-            stage("ACCEPTED", "FAIL")
+            stage("ACTION_GOAL_ACCEPTED", "FAIL")
             return failure("relocalization", "RELOCALIZE_REJECTED", "Relocalize goal was rejected", {})
         node.goal_handle = handle
-        stage("ACCEPTED", "PASS")
+        stage("ACTION_GOAL_ACCEPTED", "PASS")
         result_future = handle.get_result_async()
-        while not result_future.done() and time.monotonic() < gate_deadline:
+        action_result_deadline = time.monotonic() + goal.timeout_s + 5.0
+        while not result_future.done() and time.monotonic() < action_result_deadline:
             spin(0.1)
         if not result_future.done():
-            return failure("relocalization", "RELOCALIZE_REJECTED", "Relocalize result timed out", {})
+            return failure("relocalization", "ACTION_RESULT_TIMEOUT", "Relocalize result timed out", {
+                "last_action_stage": node.last_action_stage,
+                "feedback_count": len(node.feedback),
+                "last_feedback": node.feedback[-1] if node.feedback else None,
+                "fresh_cloud_stamp": node.fresh_cloud_stamp,
+                "goal_send_ros_time": node.goal_send_ros_time,
+                "elapsed_wall_s": time.monotonic() - (node.goal_send_wall_time or time.time())})
         action_result = result_future.result().result
-        stage("RESULT", "PASS" if action_result.success else "FAIL",
+        stage("ACTION_RESULT", "PASS" if action_result.success else "FAIL",
               success=bool(action_result.success), error_code=int(action_result.error_code))
         classification = classify_action_result(action_result.error_code, action_result.success)
         action_payload = {"success": action_result.success, "error_code": int(action_result.error_code), "failure_reason": action_result.failure_reason, **classification,
@@ -574,11 +603,7 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
                           "goal_send_wall_time": node.goal_send_wall_time, "cloud_age_at_goal_send_s": node.cloud_age_at_goal_send_s}
         (directory / "action_result.json").write_text(json.dumps(action_payload, indent=2), encoding="utf-8")
         if not action_result.success:
-            playback_process.send_signal(signal.SIGCONT)
-            node.playback_paused = False
             return failure(classification["stage"].lower(), classification["code"], action_result.failure_reason, action_payload)
-        playback_process.send_signal(signal.SIGCONT)
-        node.playback_paused = False
         stage("RELOCALIZE_ACTION", "PASS", registration_executed=True)
         evidence_deadline = time.monotonic() + min(20.0, max(1.0, timeout))
         while time.monotonic() < evidence_deadline and not node.latest.get("evidence", {}).get("accepted", False):
@@ -602,8 +627,6 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
         (directory / "correction_events.jsonl").write_text("\n".join(json.dumps(item) for item in node.events["correction"]) + "\n", encoding="utf-8")
         return None
     finally:
-        if node.playback_paused and playback_process is not None and playback_process.poll() is None:
-            playback_process.send_signal(signal.SIGCONT)
         if node.goal_handle is not None and not action_result:
             cancel = node.goal_handle.cancel_goal_async()
             deadline = time.monotonic() + action_cancel_timeout_s
@@ -641,6 +664,22 @@ def write_report(directory, preflight_result, error=None, summary=None):
             pass
     if error:
         payload["failure"] = error
+    timeout_evidence = error.get("evidence", {}) if error else {}
+    timeout_report = ""
+    if error and error.get("code") in ("ACTION_GOAL_RESPONSE_TIMEOUT", "ACTION_RESULT_TIMEOUT"):
+        timeout_report = (
+            "\n## Action timeout diagnostics\n\n"
+            "- `last_action_stage`: `%s`\n"
+            "- `feedback_count`: `%s`\n"
+            "- `last_feedback`: `%s`\n"
+            "- `fresh_cloud_stamp`: `%s`\n"
+            "- `goal_send_ros_time`: `%s`\n"
+            "- `elapsed_wall_s`: `%s`\n"
+            % (timeout_evidence.get("last_action_stage"), timeout_evidence.get("feedback_count"),
+               json.dumps(timeout_evidence.get("last_feedback"), sort_keys=True),
+               timeout_evidence.get("fresh_cloud_stamp"), timeout_evidence.get("goal_send_ros_time"),
+               timeout_evidence.get("elapsed_wall_s"))
+        )
     debug_rate = payload.get("playback", {}).get("classification") == "DEBUG_PLAYBACK_RATE"
     result_label = "DEBUG RUN COMPLETED" if debug_rate and not error else ("PASS" if not error else "FAIL")
     atomic_write(directory / "result.md",
@@ -648,6 +687,7 @@ def write_report(directory, preflight_result, error=None, summary=None):
         "This is REAL-DATA PIPELINE validation, not positioning-accuracy validation.\n\n"
         "## Result\n\n" + result_label + "\n\n" +
         ("Failure: `%s` — %s\n" % (error["code"], error["message"]) if error else "All recorded gates passed.\n") +
+        timeout_report +
         "\n## Validation evidence\n\n" +
         "```json\n" + json.dumps(payload, indent=2, sort_keys=True) + "\n```\n",
         )
