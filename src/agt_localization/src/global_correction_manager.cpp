@@ -165,7 +165,9 @@ private:
           consecutive_correction_rejections_ = 0;
         }
       }
-      canonical_status_pub_->publish(*status);
+      LocalizationStatus evidence = *status;
+      evidence.correction_generation = 0U;
+      canonical_status_pub_->publish(evidence);
       return;
     }
 
@@ -231,12 +233,19 @@ private:
       latest_map_from_odom_ = decision.map_from_odom;
       has_transform_ = true;
     }
+    tf_broadcaster_->sendTransform(
+      agt_localization::eigenToTransformMsg(
+        decision.map_from_odom.cast<float>(), now(), global_frame_, odom_frame_));
     {
       std::lock_guard<std::mutex> lock(state_mutex_);
       policy_state_ = correctionState(status->state);
       consecutive_correction_rejections_ = 0;
     }
-    canonical_status_pub_->publish(*status);
+    LocalizationStatus canonical = *status;
+    canonical.correction_generation = decision.generation;
+    canonical.localization_accepted = true;
+    canonical.pose_valid = true;
+    canonical_status_pub_->publish(canonical);
     RCLCPP_INFO(
       get_logger(),
       "Accepted global correction generation=%llu reanchor=%s delta_translation=%.3f delta_yaw=%.3f",
@@ -254,6 +263,7 @@ private:
     rejected.localization_accepted = false;
     rejected.pose_valid = false;
     rejected.error_code = LocalizationStatus::ERROR_BACKEND_FAILED;
+    rejected.correction_generation = core_->generation();
 
     int rejection_count = 0;
     {

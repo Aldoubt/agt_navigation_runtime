@@ -54,7 +54,7 @@ def _safety_message(*, ready: bool, estop: bool = False) -> DiagnosticArray:
     return message
 
 
-def _localization_message(*, ready: bool) -> LocalizationStatus:
+def _localization_message(*, ready: bool, generation=None) -> LocalizationStatus:
     message = LocalizationStatus()
     message.state = LocalizationStatus.STATE_TRACKING
     message.pose_valid = bool(ready)
@@ -63,6 +63,7 @@ def _localization_message(*, ready: bool) -> LocalizationStatus:
     message.status_stale = False
     message.map_id = "site"
     message.map_hash = "sha256:pcd"
+    message.correction_generation = (1 if ready else 0) if generation is None else generation
     return message
 
 
@@ -243,3 +244,42 @@ def test_runtime_gate_loss_fails_parent_and_cancels_follow_path(
         assert harness.child_canceled.wait(timeout=2.0)
     finally:
         harness.close()
+
+
+def test_route_generation_zero_fails_closed_and_rejected_status_cancels(tmp_path):
+    if not rclpy.ok():
+        rclpy.init()
+    server = SERVER.NavigationCapabilityServer(
+        route_snapshot_provider=lambda: HELPERS.MapOdomSnapshot(
+            10.0, 20.0, 0.0, generation=1
+        ),
+        parameter_overrides=[
+            Parameter("require_map", value=False),
+            Parameter("require_safety_ready", value=False),
+            Parameter("require_localization_valid", value=True),
+            Parameter("require_task_readiness", value=False),
+            Parameter("maps_root", value=str(tmp_path)),
+            Parameter("localization_status_timeout", value=5.0),
+        ],
+    )
+    try:
+        class FakeExecutor:
+            def fail(self, reason):
+                self.reason = reason
+
+            def cancel(self):
+                pass
+
+        server._localization_callback(_localization_message(ready=True, generation=0))
+        server._route_executor = FakeExecutor()
+        server._active = True
+        problem = server._runtime_gate_problem()
+        assert problem.code == "ROUTE_ALIGNMENT_GENERATION_UNAVAILABLE"
+
+        server._localization_callback(_localization_message(ready=False, generation=7))
+        assert not server._localization_is_ready()
+        assert server._localization_correction_generation == 7
+    finally:
+        server.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()

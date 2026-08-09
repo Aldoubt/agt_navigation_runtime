@@ -134,3 +134,27 @@ TEST(GlobalCorrectionCore, RejectsBadFitnessAndMeasurementInnovation)
   bad_translation.measurement_translation_innovation_m = 10.0;
   EXPECT_EQ(core.evaluate(bad_translation).code, "MEASUREMENT_TRANSLATION_REJECTED");
 }
+
+TEST(GlobalCorrectionCore, GenerationIsMonotonicAcrossAcceptedAndRejectedEvidence)
+{
+  agt_localization::GlobalCorrectionCore core;
+  core.setExpectedMapIdentity("greenhouse_a", "sha256:map-a");
+
+  EXPECT_EQ(core.generation(), 0U);
+  ASSERT_TRUE(core.evaluate(observation(
+    10.0, pose(1.0, 0.0, 0.0), pose(1.0, 0.0, 0.0))).accepted);
+  EXPECT_EQ(core.generation(), 1U);
+
+  auto rejected = observation(11.0, pose(2.0, 0.0, 0.0), pose(1.0, 0.0, 0.0));
+  rejected.fitness_score = 10.0;
+  EXPECT_FALSE(core.evaluate(rejected).accepted);
+  EXPECT_EQ(core.generation(), 1U);
+
+  auto duplicate = observation(10.0, pose(1.0, 0.0, 0.0), pose(1.0, 0.0, 0.0));
+  EXPECT_FALSE(core.evaluate(duplicate).accepted);
+  EXPECT_EQ(core.generation(), 1U);
+
+  ASSERT_TRUE(core.evaluate(observation(
+    12.0, pose(1.1, 0.0, 0.0), pose(1.0, 0.0, 0.0))).accepted);
+  EXPECT_EQ(core.generation(), 2U);
+}

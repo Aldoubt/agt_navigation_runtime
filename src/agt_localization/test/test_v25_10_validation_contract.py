@@ -35,6 +35,12 @@ def test_rviz_references_validation_topics():
     assert "Fixed Frame: map" in rviz
 
 
+def test_validation_rviz_is_valid_yaml():
+    rviz = yaml.safe_load((ROOT / "rviz/v25_10_realbag_validation.rviz").read_text())
+    assert isinstance(rviz, dict)
+    assert rviz["Visualization Manager"]["Fixed Frame"] == "map"
+
+
 def test_processing_record_is_ready_and_hash_bound():
     asset = Path(__file__).parents[3] / "runtime/localization_validation/handheld_20260719"
     record = yaml.safe_load((asset / "processing_record.yaml").read_text())
@@ -64,6 +70,14 @@ def test_action_and_playback_classification_contract():
     assert stale["registration_executed"] is False
     assert validation.playback_gate(1.0)["pipeline_pass_allowed"]
     assert validation.playback_gate(0.5)["classification"] == "DEBUG_PLAYBACK_RATE"
+
+
+def test_freshness_cli_parameter_controls_dispatch_check():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "FreshCloudBarrier(fresh_action_max_age_s)" in source
+    assert "node.cloud_age_at_goal_send_s > fresh_action_max_age_s" in source
+    assert "node.cloud_age_at_goal_send_s > FRESH_CLOUD_MAX_AGE_S" not in source
+    assert "max_cloud_age_s: 0.5" in (ROOT / "config/relocalization.yaml").read_text()
 
 
 def test_validation_modes_and_launch_recovery_wiring():
@@ -230,6 +244,14 @@ def test_optional_debug_cloud_contract():
     assert "/agt/localization/aligned_candidate" in source
     assert "Value: /agt/localization/initial_guess" in rviz
     assert "Value: /agt/localization/aligned_candidate" in rviz
+
+
+def test_localization_status_uses_correction_generation():
+    message = (Path(__file__).parents[2] / "agt_interfaces/msg/LocalizationStatus.msg").read_text()
+    assert "uint64 correction_generation" in message
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "message.correction_generation" in source
+    assert 'getattr(message, "generation"' not in source
 
 
 def test_handheld_debug_clouds_enabled():

@@ -89,6 +89,10 @@ if(BUILD_TESTING)
     test_navigation_capability_runtime_gates
     test/test_navigation_capability_runtime_gates.py
   )
+  ament_add_pytest_test(
+    test_v25_10_route_correction_generation
+    test/test_v25_10_route_correction_generation.py
+  )
 endif()
 
 ament_package()

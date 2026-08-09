@@ -382,6 +382,7 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
             self.goal_handle = None
             self.goal_send_ros_time = None
             self.goal_send_wall_time = None
+            self.goal_send_monotonic = None
             self.fresh_cloud_stamp = None
             self.last_action_stage = None
             self.time_diagnostics = TimeDiagnostics(directory / "time_diagnostics.jsonl")
@@ -423,7 +424,7 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
                 self.time_diagnostics.tf_message(int(stamp.sec) * 1000000000 + int(stamp.nanosec))
 
         def status(self, name, message):
-            data = {"state": int(message.state), "accepted": bool(message.localization_accepted), "pose_valid": bool(message.pose_valid), "generation": int(getattr(message, "generation", 0)), "fitness": float(message.fitness_score), "error_code": int(message.error_code), "message": message.message}
+            data = {"state": int(message.state), "accepted": bool(message.localization_accepted), "pose_valid": bool(message.pose_valid), "correction_generation": int(message.correction_generation), "fitness": float(message.fitness_score), "error_code": int(message.error_code), "message": message.message}
             self.latest[name] = data
             self.events[name].append(data)
 
@@ -527,13 +528,15 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
         goal.timeout_s = 15.0
         node.goal_send_ros_time = node.get_clock().now().nanoseconds * 1e-9
         node.goal_send_wall_time = time.time()
+        node.goal_send_monotonic = time.monotonic()
         node.cloud_age_at_goal_send_s = node.goal_send_ros_time - node.fresh_cloud_stamp
-        if node.cloud_age_at_goal_send_s > FRESH_CLOUD_MAX_AGE_S:
+        if node.cloud_age_at_goal_send_s > fresh_action_max_age_s:
             return failure("ACTION_INPUT_FRESHNESS", "STALE_CLOUD_AT_ACTION",
                            "fresh cloud exceeded the action dispatch age limit", {
                                "fresh_cloud_stamp": node.fresh_cloud_stamp,
                                "goal_not_dispatched": True,
-                               "cloud_age_at_goal_send_s": node.cloud_age_at_goal_send_s})
+                               "cloud_age_at_goal_send_s": node.cloud_age_at_goal_send_s,
+                               "fresh_action_max_age_s": fresh_action_max_age_s})
         def on_feedback(feedback_message):
             item = {"wall_time": time.time(), "ros_time": node.get_clock().now().nanoseconds * 1e-9,
                     "state": int(feedback_message.feedback.state),
@@ -575,7 +578,7 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
                                "feedback_count": len(node.feedback),
                                "fresh_cloud_stamp": node.fresh_cloud_stamp,
                                "goal_send_ros_time": node.goal_send_ros_time,
-                               "elapsed_wall_s": time.monotonic() - (node.goal_send_wall_time or time.time())})
+                               "elapsed_wall_s": time.monotonic() - (node.goal_send_monotonic or time.monotonic())})
         handle = send.result()
         if handle is None or not handle.accepted:
             stage("ACTION_GOAL_ACCEPTED", "FAIL")
@@ -593,7 +596,7 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
                 "last_feedback": node.feedback[-1] if node.feedback else None,
                 "fresh_cloud_stamp": node.fresh_cloud_stamp,
                 "goal_send_ros_time": node.goal_send_ros_time,
-                "elapsed_wall_s": time.monotonic() - (node.goal_send_wall_time or time.time())})
+                "elapsed_wall_s": time.monotonic() - (node.goal_send_monotonic or time.monotonic())})
         action_result = result_future.result().result
         stage("ACTION_RESULT", "PASS" if action_result.success else "FAIL",
               success=bool(action_result.success), error_code=int(action_result.error_code))
@@ -620,9 +623,9 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
             return failure("correction", "MAP_ODOM_TF_MISSING", str(error), node.latest)
         canonical = node.latest.get("correction", {})
         if (not canonical.get("accepted") or canonical.get("state") != LocalizationStatus.STATE_TRACKING
-                or canonical.get("generation", 0) < 1 or not canonical.get("pose_valid")):
+                or canonical.get("correction_generation", 0) < 1 or not canonical.get("pose_valid")):
             return failure("correction", "CANONICAL_STATUS_INVALID", "canonical status is not TRACKING", canonical)
-        stage("CORRECTION", "PASS", generation=canonical.get("generation"), state=canonical.get("state"))
+        stage("CORRECTION", "PASS", correction_generation=canonical.get("correction_generation"), state=canonical.get("state"))
         (directory / "localization_events.jsonl").write_text("\n".join(json.dumps(item) for item in node.events["evidence"]) + "\n", encoding="utf-8")
         (directory / "correction_events.jsonl").write_text("\n".join(json.dumps(item) for item in node.events["correction"]) + "\n", encoding="utf-8")
         return None

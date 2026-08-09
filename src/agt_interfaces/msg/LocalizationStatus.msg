@@ -40,6 +40,9 @@ string candidate_source
 string candidate_id
 string map_id
 string map_hash
+# 0 means no accepted GlobalCorrectionManager correction (or relocalization evidence).
+# >0 is the accepted map->odom correction generation in canonical localization status.
+uint64 correction_generation
 
 geometry_msgs/PoseWithCovarianceStamped global_pose
 

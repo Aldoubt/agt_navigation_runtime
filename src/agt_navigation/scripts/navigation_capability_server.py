@@ -44,7 +44,7 @@ class NavigationCapabilityServer(_BASE.WaypointTaskServer):
         self._route_snapshot_provider_override = route_snapshot_provider
         self._route_resolver = RouteTaskResolver(self.maps_root)
         self._route_executor = None
-        self._route_snapshot_generation = 0
+        self._localization_correction_generation = 0
 
         profile_value = str(
             self.declare_parameter("execution_vehicle_profile", "").value
@@ -132,6 +132,11 @@ class NavigationCapabilityServer(_BASE.WaypointTaskServer):
                     "route_snapshot_invalid",
                     "route snapshot provider must return MapOdomSnapshot",
                 )
+            if int(snapshot.generation) <= 0:
+                raise RouteRuntimeError(
+                    "ROUTE_ALIGNMENT_GENERATION_UNAVAILABLE",
+                    "route snapshot has no accepted correction generation",
+                )
             return snapshot
         if self._tf_buffer is None:
             raise RouteRuntimeError(
@@ -155,9 +160,27 @@ class NavigationCapabilityServer(_BASE.WaypointTaskServer):
             1.0 - 2.0 * (q.y * q.y + q.z * q.z),
         )
         with self._lock:
-            self._route_snapshot_generation += 1
-            generation = self._route_snapshot_generation
+            generation = self._localization_correction_generation
+        if generation <= 0:
+            raise RouteRuntimeError(
+                "ROUTE_ALIGNMENT_GENERATION_UNAVAILABLE",
+                "canonical localization has no accepted correction generation",
+            )
         return MapOdomSnapshot(float(t.x), float(t.y), yaw, generation=generation)
+
+    def _runtime_gate_problem(self):
+        problem = super()._runtime_gate_problem()
+        if problem is not None:
+            return problem
+        with self._lock:
+            route_active = self._route_executor is not None and self._active
+            generation = self._localization_correction_generation
+        if route_active and self.require_localization_valid and generation <= 0:
+            return _BASE.blocker(
+                "ROUTE_ALIGNMENT_GENERATION_UNAVAILABLE",
+                "canonical localization has no accepted correction generation",
+            )
+        return None
 
     def _cancel_route_backend(self, *, failed_reason: str = "") -> None:
         with self._lock:
@@ -182,10 +205,17 @@ class NavigationCapabilityServer(_BASE.WaypointTaskServer):
     def _localization_callback(self, message):
         super()._localization_callback(message)
         with self._lock:
+            self._localization_correction_generation = int(message.correction_generation)
             route_active = self._route_executor is not None and self._active
-        if route_active and self.require_localization_valid and not self._localization_is_ready():
-            self._fail_for_runtime_loss("LOCALIZATION_NOT_READY")
-            self._cancel_route_backend(failed_reason="LOCALIZATION_NOT_READY")
+        if route_active and self.require_localization_valid:
+            if not self._localization_is_ready():
+                self._fail_for_runtime_loss("LOCALIZATION_NOT_READY")
+                self._cancel_route_backend(failed_reason="LOCALIZATION_NOT_READY")
+            elif self._localization_correction_generation <= 0:
+                self._fail_for_runtime_loss("ROUTE_ALIGNMENT_GENERATION_UNAVAILABLE")
+                self._cancel_route_backend(
+                    failed_reason="ROUTE_ALIGNMENT_GENERATION_UNAVAILABLE"
+                )
 
     def _task_readiness_callback(self, message):
         super()._task_readiness_callback(message)
@@ -292,6 +322,18 @@ class NavigationCapabilityServer(_BASE.WaypointTaskServer):
             gate_problem = self._runtime_gate_problem()
             if gate_problem is not None:
                 return self._reject_route_goal(goal_handle, result, gate_problem)
+            if self.require_localization_valid:
+                with self._lock:
+                    correction_generation = self._localization_correction_generation
+                if correction_generation <= 0:
+                    return self._reject_route_goal(
+                        goal_handle,
+                        result,
+                        _BASE.blocker(
+                            "ROUTE_ALIGNMENT_GENERATION_UNAVAILABLE",
+                            "canonical localization has no accepted correction generation",
+                        ),
+                    )
 
             if not self.execution_vehicle_profile_sha256:
                 return self._reject_route_goal(
