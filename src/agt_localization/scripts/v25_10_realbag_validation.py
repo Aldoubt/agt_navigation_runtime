@@ -374,6 +374,9 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
             self.last = {}
             self.latest = {}
             self.feedback = []
+            self.feedback_path = Path(directory) / "action_feedback.jsonl"
+            self.feedback_path.touch()
+            self.first_feedback_seen = False
             self.events = {"evidence": [], "correction": []}
             self.barrier = FreshCloudBarrier(fresh_action_max_age_s)
             self.goal_handle = None
@@ -460,6 +463,21 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
         stage("MAPPING_GATE", "PASS", rates=rates)
         node.barrier.mapping_gate_last_cloud_stamp = node.barrier.latest_stamp
         try:
+            node.tf.lookup_transform("imu_link", "lidar_link", rclpy.time.Time())
+        except Exception as error:
+            return failure("tf", "IMU_LIDAR_TF_MISSING", str(error), {"target_frame": "imu_link", "source_frame": "lidar_link"})
+        stage("IMU_LIDAR_TF_GATE", "PASS", target_frame="imu_link", source_frame="lidar_link")
+        cloud_time = rclpy.time.Time(nanoseconds=int(node.barrier.mapping_gate_last_cloud_stamp * 1e9))
+        try:
+            node.tf.lookup_transform("odom", "lidar_link", cloud_time)
+        except Exception as error:
+            return failure("tf", "ODOM_LIDAR_CLOUD_STAMP_TF_MISSING", str(error), {
+                "target_frame": "odom", "source_frame": "lidar_link",
+                "cloud_stamp": node.barrier.mapping_gate_last_cloud_stamp})
+        stage("ODOM_LIDAR_CLOUD_STAMP_GATE", "PASS",
+              target_frame="odom", source_frame="lidar_link",
+              cloud_stamp=node.barrier.mapping_gate_last_cloud_stamp)
+        try:
             node.tf.lookup_transform("odom", "imu_link", rclpy.time.Time())
         except Exception as error:
             return failure("tf", "ODOM_BASE_TF_MISSING", str(error), {})
@@ -512,27 +530,49 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
         node.time_diagnostics.append("freshness_pass", fresh_cloud_stamp=node.fresh_cloud_stamp,
                                      goal_send_ros_time=node.goal_send_ros_time,
                                      cloud_age_at_goal_send_s=node.cloud_age_at_goal_send_s)
-        send = node.action.send_goal_async(goal, feedback_callback=lambda feedback: node.feedback.append({"state": int(feedback.feedback.state), "tested_candidates": int(feedback.feedback.tested_candidates), "best_fitness_score": float(feedback.feedback.best_fitness_score), "elapsed_s": float(feedback.feedback.elapsed_s)}))
+        stage("ACTION_DISPATCHED", "PASS", cloud_stamp=node.fresh_cloud_stamp,
+              cloud_age_at_goal_send_s=node.cloud_age_at_goal_send_s)
+
+        def on_feedback(feedback_message):
+            item = {"wall_time": time.time(), "ros_time": node.get_clock().now().nanoseconds * 1e-9,
+                    "state": int(feedback_message.feedback.state),
+                    "tested_candidates": int(feedback_message.feedback.tested_candidates),
+                    "best_fitness_score": float(feedback_message.feedback.best_fitness_score),
+                    "elapsed_s": float(feedback_message.feedback.elapsed_s)}
+            node.feedback.append(item)
+            with open(node.feedback_path, "a", encoding="utf-8") as stream:
+                stream.write(json.dumps(item, sort_keys=True) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            if not node.first_feedback_seen:
+                node.first_feedback_seen = True
+                stage("FIRST_FEEDBACK", "PASS", elapsed_s=item["elapsed_s"],
+                      tested_candidates=item["tested_candidates"])
+
+        send = node.action.send_goal_async(goal, feedback_callback=on_feedback)
         stage("FRESH_CLOUD", "PASS", fresh_cloud_stamp=node.fresh_cloud_stamp,
               cloud_age_at_goal_send_s=node.cloud_age_at_goal_send_s)
         while not send.done() and time.monotonic() < gate_deadline:
             spin(0.1)
         handle = send.result()
         if handle is None or not handle.accepted:
+            stage("ACCEPTED", "FAIL")
             return failure("relocalization", "RELOCALIZE_REJECTED", "Relocalize goal was rejected", {})
         node.goal_handle = handle
+        stage("ACCEPTED", "PASS")
         result_future = handle.get_result_async()
         while not result_future.done() and time.monotonic() < gate_deadline:
             spin(0.1)
         if not result_future.done():
             return failure("relocalization", "RELOCALIZE_REJECTED", "Relocalize result timed out", {})
         action_result = result_future.result().result
+        stage("RESULT", "PASS" if action_result.success else "FAIL",
+              success=bool(action_result.success), error_code=int(action_result.error_code))
         classification = classify_action_result(action_result.error_code, action_result.success)
         action_payload = {"success": action_result.success, "error_code": int(action_result.error_code), "failure_reason": action_result.failure_reason, **classification,
                           "fresh_cloud_stamp": node.fresh_cloud_stamp, "goal_send_ros_time": node.goal_send_ros_time,
                           "goal_send_wall_time": node.goal_send_wall_time, "cloud_age_at_goal_send_s": node.cloud_age_at_goal_send_s}
         (directory / "action_result.json").write_text(json.dumps(action_payload, indent=2), encoding="utf-8")
-        (directory / "action_feedback.jsonl").write_text("\n".join(json.dumps(item) for item in node.feedback) + "\n", encoding="utf-8")
         if not action_result.success:
             playback_process.send_signal(signal.SIGCONT)
             node.playback_paused = False
@@ -702,7 +742,7 @@ def main(argv=None):
             write_report(directory, result, error, {"validation_mode": args.validation_mode, "playback": playback_gate(args.playback_rate)})
             return 1
         report.stage("ACTION_SERVER_READY", "PASS")
-        recorder = subprocess.Popen(["ros2", "bag", "record", "-o", str(directory / "result_bag"), "/clock", "/agt/mapping/odometry", "/agt/mapping/registered_points", "/agt/localization/evidence_status", "/agt/localization/status", "/agt/localization/candidate_pose", "/agt/localization/global_pose", "/agt/localization/aligned_points", "/agt/localization/global_correction_status", "/tf", "/tf_static"], stdout=open(directory / "record.log", "w"), stderr=subprocess.STDOUT)
+        recorder = subprocess.Popen(["ros2", "bag", "record", "-o", str(directory / "result_bag"), "/clock", "/agt/mapping/odometry", "/agt/mapping/registered_points", "/agt/localization/evidence_status", "/agt/localization/status", "/agt/localization/candidate_pose", "/agt/localization/global_pose", "/agt/localization/aligned_points", "/agt/localization/initial_guess", "/agt/localization/aligned_candidate", "/agt/localization/global_correction_status", "/tf", "/tf_static"], stdout=open(directory / "record.log", "w"), stderr=subprocess.STDOUT)
         report.stage("RECORDER_STARTED", "PASS", pid=recorder.pid)
         if args.start_rviz and not args.no_rviz:
             from ament_index_python.packages import get_package_share_directory

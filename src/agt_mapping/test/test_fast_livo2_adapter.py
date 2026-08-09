@@ -47,3 +47,9 @@ def test_twist_accounts_for_sensor_lever_arm():
     )
     assert linear == pytest.approx((0.0, 0.0, 0.0))
     assert angular == pytest.approx((0.0, 0.0, 1.0))
+
+
+def test_equal_frames_use_identity_without_tf_lookup():
+    translation, orientation = MODULE.identity_transform()
+    assert translation == (0.0, 0.0, 0.0)
+    assert orientation == (0.0, 0.0, 0.0, 1.0)

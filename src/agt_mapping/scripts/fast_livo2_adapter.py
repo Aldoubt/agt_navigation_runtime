@@ -60,6 +60,16 @@ def sensor_twist_to_base_twist(linear, angular, base_to_sensor):
     return linear_base, angular_base
 
 
+def identity_transform():
+    """Return the in-process identity base->backend transform.
+
+    Equal frames are a valid configuration (not a missing TF).  This is used
+    by the handheld software-validation adapter and does not publish a static
+    transform.
+    """
+    return ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+
+
 class FastLivo2Adapter(Node):
     def __init__(self):
         super().__init__("agt_mapping_fast_livo2_adapter")
@@ -112,23 +122,26 @@ class FastLivo2Adapter(Node):
         self.points_publisher.publish(message)
 
     def convert(self, message):
-        try:
-            static_tf = self.tf_buffer.lookup_transform(
-                self.base_frame, self.sensor_frame, rclpy.time.Time()
-            ).transform
-        except Exception as error:
-            if not self.warned_missing_tf:
-                self.get_logger().warning(
-                    f"Waiting for {self.base_frame} -> {self.sensor_frame}: {error}"
-                )
-                self.warned_missing_tf = True
-            return
-        self.warned_missing_tf = False
+        if self.base_frame == self.sensor_frame:
+            base_to_sensor = identity_transform()
+        else:
+            try:
+                static_tf = self.tf_buffer.lookup_transform(
+                    self.base_frame, self.sensor_frame, rclpy.time.Time()
+                ).transform
+            except Exception as error:
+                if not self.warned_missing_tf:
+                    self.get_logger().warning(
+                        f"Waiting for {self.base_frame} -> {self.sensor_frame}: {error}"
+                    )
+                    self.warned_missing_tf = True
+                return
+            self.warned_missing_tf = False
+            base_to_sensor = (
+                (static_tf.translation.x, static_tf.translation.y, static_tf.translation.z),
+                (static_tf.rotation.x, static_tf.rotation.y, static_tf.rotation.z, static_tf.rotation.w),
+            )
         pose = message.pose.pose
-        base_to_sensor = (
-            (static_tf.translation.x, static_tf.translation.y, static_tf.translation.z),
-            (static_tf.rotation.x, static_tf.rotation.y, static_tf.rotation.z, static_tf.rotation.w),
-        )
         position, orientation = sensor_pose_to_base_pose(
             (pose.position.x, pose.position.y, pose.position.z),
             (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),

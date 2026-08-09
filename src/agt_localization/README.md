@@ -1,20 +1,22 @@
 # agt_localization
 
 使用全局 PCD 与当前 `lidar_link` 点云执行 ICP/NDT 重定位。候选、配准和质量验证都在本节点
-编排，只有通过质量门禁的结果才更新唯一的 `map -> odom`。
+编排，Relocalization 只发布 `evidence_status`；GlobalCorrectionManager 发布 canonical
+status 并拥有唯一的 `map -> odom`。
 
 ## 接口
 
 - 输入点云：`/agt/mapping/registered_points` (`sensor_msgs/PointCloud2`)
 - 手动对比入口：`/initialpose` (`geometry_msgs/PoseWithCovarianceStamped`，语义为 `map -> base_link`，默认启用)
-- 结构化状态：`/agt/localization/status` (`agt_interfaces/LocalizationStatus`)
+- 证据状态：`/agt/localization/evidence_status` (`agt_interfaces/LocalizationStatus`)
+- canonical 状态：`/agt/localization/status` (`agt_interfaces/LocalizationStatus`)，由 GlobalCorrectionManager 发布
 - 兼容文本状态：`/agt/localization/status_text` (`std_msgs/String`)
 - 重定位 Action：`/agt/localization/relocalize` (`agt_interfaces/action/Relocalize`)
 - 外部粗位姿输入：`/agt/localization/coarse_pose`
 - 当前候选调试位姿：`/agt/localization/candidate_pose`
 - 最终全局位姿：`/agt/localization/global_pose`
 - 对齐点云：`/agt/localization/aligned_points`
-- TF：成功后持续发布 `map -> odom`
+- TF：成功后由 GlobalCorrectionManager 持续发布 `map -> odom`；Relocalization 不发布 TF
 
 `LocalizationStatus.map_hash` 是当前定位 PCD 内容的 `sha256:<64位小写十六进制>` 身份。节点在
 加载候选和 last pose 前重新计算该摘要；processing record 如包含 `pcd_sha256`，必须与实际 PCD

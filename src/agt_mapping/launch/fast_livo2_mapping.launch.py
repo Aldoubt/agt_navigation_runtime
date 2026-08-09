@@ -45,6 +45,10 @@ def generate_launch_description():
             default_value=str(mapping_share / "config" / "camera_disabled_placeholder.yaml"),
         ),
         DeclareLaunchArgument("use_sim_time", default_value="false"),
+        DeclareLaunchArgument(
+            "adapter_params_file",
+            default_value=str(mapping_share / "config" / "fast_livo2_adapter.yaml"),
+        ),
         DeclareLaunchArgument("save_pcd", default_value="false"),
         DeclareLaunchArgument("pcd_save_interval", default_value="-1"),
         DeclareLaunchArgument("pcd_output_dir", default_value="runtime/maps/fast_livo2"),
@@ -106,7 +110,7 @@ def generate_launch_description():
             name="agt_mapping_fast_livo2_adapter", output="screen",
             sigterm_timeout="10",
             sigkill_timeout="5",
-            parameters=[str(mapping_share / "config" / "fast_livo2_adapter.yaml"), {
+            parameters=[LaunchConfiguration("adapter_params_file"), {
                 "use_sim_time": LaunchConfiguration("use_sim_time")
             }],
         ),

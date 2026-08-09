@@ -165,3 +165,29 @@ def test_manual_action_freezes_single_player_during_expensive_action_preparation
     assert "playback_process.send_signal(signal.SIGCONT)" in source
     assert source.index("node.barrier.accept(now_s)") < source.index("signal.SIGSTOP")
     assert source.index("signal.SIGSTOP") < source.index("node.action.send_goal_async")
+
+
+def test_action_lifecycle_and_feedback_are_durable():
+    source = SCRIPT.read_text(encoding="utf-8")
+    for stage in ("ACTION_DISPATCHED", "ACCEPTED", "FIRST_FEEDBACK", "RESULT"):
+        assert 'stage("%s"' % stage in source
+    assert 'os.fsync(stream.fileno())' in source
+    assert 'action_feedback.jsonl' in source
+
+
+def test_cloud_stamp_tf_gates_precede_action_dispatch():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert '"imu_link", "lidar_link"' in source
+    assert '"odom", "lidar_link", cloud_time' in source
+    assert source.index("ODOM_LIDAR_CLOUD_STAMP_GATE") < source.index("ACTION_DISPATCHED")
+
+
+def test_optional_debug_cloud_contract():
+    source = (ROOT / "src/relocalization_node.cpp").read_text(encoding="utf-8")
+    rviz = (ROOT / "rviz/v25_10_realbag_validation.rviz").read_text(encoding="utf-8")
+    assert 'publish_initial_guess_cloud", false' in source
+    assert 'publish_aligned_candidate_cloud", false' in source
+    assert "/agt/localization/initial_guess" in source
+    assert "/agt/localization/aligned_candidate" in source
+    assert "Value: /agt/localization/initial_guess" in rviz
+    assert "Value: /agt/localization/aligned_candidate" in rviz

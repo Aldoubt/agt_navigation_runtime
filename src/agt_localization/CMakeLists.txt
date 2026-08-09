@@ -98,6 +98,9 @@ install(TARGETS
   RUNTIME DESTINATION lib
 )
 
+install(PROGRAMS scripts/reference_map_publisher.py scripts/v25_10_realbag_validation.py
+  DESTINATION lib/${PROJECT_NAME})
+
 install(DIRECTORY include/
   DESTINATION include
 )
@@ -109,7 +112,7 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY launch config
+install(DIRECTORY launch config rviz
   DESTINATION share/${PROJECT_NAME}
 )
 
@@ -146,6 +149,10 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_global_correction_config
     test/test_global_correction_config.py
+  )
+  ament_add_pytest_test(
+    test_v25_10_validation_contract
+    test/test_v25_10_validation_contract.py
   )
 endif()
 
