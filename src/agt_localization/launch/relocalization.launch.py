@@ -35,6 +35,7 @@ def generate_launch_description():
             DeclareLaunchArgument("map_id", default_value=""),
             DeclareLaunchArgument("map_hash", default_value=""),
             DeclareLaunchArgument("backend", default_value="ndt"),
+            DeclareLaunchArgument("enable_recovery_trigger", default_value="true"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             Node(
                 package="agt_localization",
@@ -99,6 +100,9 @@ def generate_launch_description():
                 parameters=[
                     LaunchConfiguration("recovery_params_file"),
                     {
+                        "enabled": ParameterValue(
+                            LaunchConfiguration("enable_recovery_trigger"), value_type=bool
+                        ),
                         "relocalize_action_name": "/agt/localization/relocalize",
                         "use_sim_time": ParameterValue(
                             LaunchConfiguration("use_sim_time"), value_type=bool

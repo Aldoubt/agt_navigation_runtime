@@ -1,0 +1,58 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Fixed Frame: map
+  Displays:
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Reference Localization Map
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /agt/localization/reference_map
+      Enabled: true
+      Style: Points
+      Color Transformer: Intensity
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Current Registered Cloud
+      Topic:
+        Depth: 10
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /agt/mapping/registered_points
+      Enabled: true
+      Style: Points
+      Color Transformer: FlatColor
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Aligned Cloud
+      Topic:
+        Depth: 10
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /agt/localization/aligned_points
+      Enabled: true
+      Style: Points
+      Color Transformer: FlatColor
+    - Class: rviz_default_plugins/PoseWithCovariance
+      Name: Candidate Pose
+      Topic: /agt/localization/candidate_pose
+      Enabled: true
+    - Class: rviz_default_plugins/PoseWithCovariance
+      Name: Accepted Global Pose
+      Topic: /agt/localization/global_pose
+      Enabled: true
+    - Class: rviz_default_plugins/Odometry
+      Name: Odometry
+      Topic: /agt/mapping/odometry
+      Enabled: true
+  Tools:
+    - Class: rviz_default_plugins/Interact
+  Name: root
