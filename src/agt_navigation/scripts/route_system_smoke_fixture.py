@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-"""Prepare and publish a synthetic READY map/task/route fixture for V25-09B.
+"""Prepare and publish a synthetic READY map/task/route fixture for V25-10.
 
 The fixture writes only below a caller-provided temporary maps root and publishes
-matching active-map metadata. It is intentionally software-only and must never be
-used as field acceptance evidence.
+matching active-map metadata plus a synthetic canonical localization status. It
+is intentionally SOFTWARE_ONLY and must never be used as field acceptance
+evidence.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from agt_interfaces.msg import MapVersionSummary
+from agt_interfaces.msg import LocalizationStatus, MapVersionSummary
 from agt_navigation.route_task_binding import sha256_file
 from agt_navigation.task_group import MapBinding, TaskGroup, Waypoint
 from nav_msgs.msg import OccupancyGrid
@@ -65,6 +66,9 @@ class RouteSystemSmokeFixture(Node):
         self._active_pub = self.create_publisher(
             MapVersionSummary, "/agt/maps/active", qos
         )
+        self._localization_pub = self.create_publisher(
+            LocalizationStatus, "/agt/localization/status", qos
+        )
 
         self.map_yaml_sha = _digest("route-smoke-map-yaml")
         self.map_image_sha = _digest("route-smoke-map-image")
@@ -75,7 +79,8 @@ class RouteSystemSmokeFixture(Node):
         self._publish()
         self.get_logger().info(
             "Synthetic READY route fixture prepared at "
-            f"{self._version_root()} task_hash={self._task.content_sha256}"
+            f"{self._version_root()} task_hash={self._task.content_sha256} "
+            "localization=SOFTWARE_ONLY correction_generation=1"
         )
 
     def _version_root(self) -> Path:
@@ -217,6 +222,29 @@ class RouteSystemSmokeFixture(Node):
         active.navigation_image_sha256 = self.map_image_sha
         active.localization_pcd_sha256 = self.localization_pcd_sha
         self._active_pub.publish(active)
+
+        localization = LocalizationStatus()
+        localization.header.stamp = stamp
+        localization.state = LocalizationStatus.STATE_TRACKING
+        localization.pose_valid = True
+        localization.localization_accepted = True
+        localization.has_converged = True
+        localization.ambiguous_result = False
+        localization.status_stale = False
+        localization.error_code = LocalizationStatus.ERROR_NONE
+        localization.backend = "SOFTWARE_ONLY"
+        localization.candidate_source = "route_system_smoke_fixture"
+        localization.candidate_id = "synthetic_canonical"
+        localization.map_id = self.map_id
+        localization.map_hash = self.localization_pcd_sha
+        localization.correction_generation = 1
+        localization.global_pose.header.stamp = stamp
+        localization.global_pose.header.frame_id = "map"
+        localization.global_pose.pose.pose.orientation.w = 1.0
+        localization.message = (
+            "SOFTWARE_ONLY synthetic canonical localization for Route system smoke"
+        )
+        self._localization_pub.publish(localization)
 
 
 def main(args=None) -> None:
