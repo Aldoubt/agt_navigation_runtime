@@ -58,7 +58,7 @@ def generate_launch_description():
                         "require_map": True,
                         "require_map_content_hashes": True,
                         "require_safety_ready": True,
-                        "require_localization_valid": False,
+                        "require_localization_valid": True,
                         "require_task_readiness": False,
                         "execution_vehicle_profile": vehicle_profile,
                         "route_controller_id_forward": "FollowPath",
