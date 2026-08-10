@@ -2,8 +2,8 @@
 
 #include <chrono>
 #include <limits>
-#include <utility>
 #include <stdexcept>
+#include <utility>
 
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
 #include <rclcpp/qos.hpp>
@@ -37,12 +37,10 @@ SensorMonitorNode::SensorMonitorNode()
     return nullptr;
   };
   auto qos = rclcpp::SensorDataQoS();
-  if (auto * m = find("lidar"); m && m->config().enabled) subscriptions_.push_back(
-    create_subscription<livox_ros_driver2::msg::CustomMsg>(m->config().topic, qos,
-      [m](livox_ros_driver2::msg::CustomMsg::ConstSharedPtr msg) { m->observe(stamp_of(msg->header.stamp), rclcpp::Clock(RCL_STEADY_TIME).now().seconds()); }));
-  if (auto * m = find("filtered_lidar"); m && m->config().enabled) subscriptions_.push_back(
-    create_subscription<livox_ros_driver2::msg::CustomMsg>(m->config().topic, qos,
-      [m](livox_ros_driver2::msg::CustomMsg::ConstSharedPtr msg) { m->observe(stamp_of(msg->header.stamp), rclcpp::Clock(RCL_STEADY_TIME).now().seconds()); }));
+
+  add_lidar_subscription("lidar");
+  add_lidar_subscription("filtered_lidar");
+
   if (auto * m = find("imu"); m && m->config().enabled) subscriptions_.push_back(
     create_subscription<sensor_msgs::msg::Imu>(m->config().topic, qos,
       [m](sensor_msgs::msg::Imu::ConstSharedPtr msg) { m->observe(stamp_of(msg->header.stamp), rclcpp::Clock(RCL_STEADY_TIME).now().seconds()); }));
@@ -75,6 +73,62 @@ void SensorMonitorNode::add_stream(const std::string & key, const std::string & 
   config.duplicate_fatal = declare_parameter(prefix + "duplicate_fatal", false);
   config.rollback_fatal = declare_parameter(prefix + "rollback_fatal", true);
   streams_.emplace_back(key, std::make_unique<StreamMonitor>(config, window_size_, rollback_tolerance_sec_));
+}
+
+void SensorMonitorNode::add_lidar_subscription(const std::string & key)
+{
+  StreamMonitor * monitor = nullptr;
+  for (auto & item : streams_) {
+    if (item.first == key) {
+      monitor = item.second.get();
+      break;
+    }
+  }
+  if (monitor == nullptr || !monitor->config().enabled) {
+    return;
+  }
+
+  const std::string message_type = declare_parameter<std::string>(
+    key + ".message_type", "livox_custom");
+  auto qos = rclcpp::SensorDataQoS();
+  if (message_type == "laser_scan") {
+    subscriptions_.push_back(
+      create_subscription<sensor_msgs::msg::LaserScan>(
+        monitor->config().topic, qos,
+        [monitor](sensor_msgs::msg::LaserScan::ConstSharedPtr msg) {
+          monitor->observe(
+            stamp_of(msg->header.stamp),
+            rclcpp::Clock(RCL_STEADY_TIME).now().seconds());
+        }));
+    RCLCPP_INFO(
+      get_logger(), "Monitoring %s as sensor_msgs/LaserScan on %s",
+      key.c_str(), monitor->config().topic.c_str());
+    return;
+  }
+
+  if (message_type == "livox_custom") {
+#ifdef AGT_SENSOR_MONITOR_HAS_LIVOX
+    subscriptions_.push_back(
+      create_subscription<livox_ros_driver2::msg::CustomMsg>(
+        monitor->config().topic, qos,
+        [monitor](livox_ros_driver2::msg::CustomMsg::ConstSharedPtr msg) {
+          monitor->observe(
+            stamp_of(msg->header.stamp),
+            rclcpp::Clock(RCL_STEADY_TIME).now().seconds());
+        }));
+    RCLCPP_INFO(
+      get_logger(), "Monitoring %s as livox_ros_driver2/CustomMsg on %s",
+      key.c_str(), monitor->config().topic.c_str());
+    return;
+#else
+    throw std::runtime_error(
+      key + ".message_type=livox_custom requested but agt_sensor_monitor was built "
+      "without livox_ros_driver2; install/source the Livox driver or select laser_scan");
+#endif
+  }
+
+  throw std::invalid_argument(
+    key + ".message_type must be one of: livox_custom, laser_scan");
 }
 
 double SensorMonitorNode::steady_now() const { return rclcpp::Clock(RCL_STEADY_TIME).now().seconds(); }
