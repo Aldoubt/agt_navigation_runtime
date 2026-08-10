@@ -5,6 +5,10 @@ agt_tracked_safety_controller:
     # Tracking validation publishes every 5 s and may spend up to 3 s in NDT.
     # Keep the runtime freshness window above that worst-case interval.
     localization_status_timeout: 10.0
+    require_sensor_input_ready: true
+    sensor_status_timeout: 1.5
+    sensor_diagnostics_topic: /diagnostics
+    sensor_summary_name: agt_sensor_monitor/summary
     navigation_timeout: 0.50
     manual_timeout: 0.35
     publish_rate: 20.0
