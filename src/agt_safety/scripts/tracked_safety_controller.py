@@ -15,6 +15,9 @@ from std_msgs.msg import Bool
 from std_srvs.srv import SetBool, Trigger
 
 
+SENSOR_SUMMARY_NAME = "agt_sensor_monitor/summary"
+
+
 def clamp(value: float, lower: float, upper: float) -> float:
     return min(max(value, lower), upper)
 
@@ -47,6 +50,23 @@ def localization_status_is_valid(message: LocalizationStatus) -> bool:
     )
 
 
+def sensor_summary_is_ready(
+    message: DiagnosticArray, summary_name: str = SENSOR_SUMMARY_NAME
+) -> bool | None:
+    """Return required sensor readiness when the configured summary is present.
+
+    ``None`` means this DiagnosticArray did not contain sensor-monitor summary
+    evidence and therefore must not refresh the safety freshness timer.
+    """
+    for status in message.status:
+        if status.name != summary_name:
+            continue
+        values = {item.key: item.value.strip().lower() for item in status.values}
+        declared_ready = values.get("required_streams_healthy") == "true"
+        return declared_ready and status.level < DiagnosticStatus.ERROR
+    return None
+
+
 class TrackedSafetyController(Node):
     def __init__(self) -> None:
         super().__init__("agt_tracked_safety_controller")
@@ -69,8 +89,22 @@ class TrackedSafetyController(Node):
         self._localization_status_timeout = self.declare_parameter(
             "localization_status_timeout", 10.0
         ).value
+        self._require_sensor_input_ready = self.declare_parameter(
+            "require_sensor_input_ready", False
+        ).value
+        self._sensor_status_timeout = self.declare_parameter(
+            "sensor_status_timeout", 1.5
+        ).value
+        self._sensor_diagnostics_topic = self.declare_parameter(
+            "sensor_diagnostics_topic", "/diagnostics"
+        ).value
+        self._sensor_summary_name = self.declare_parameter(
+            "sensor_summary_name", SENSOR_SUMMARY_NAME
+        ).value
         if self._localization_status_timeout <= 0.0:
             raise ValueError("localization_status_timeout must be positive")
+        if self._sensor_status_timeout <= 0.0:
+            raise ValueError("sensor_status_timeout must be positive")
 
         self._nav_cmd = Twist()
         self._manual_cmd = Twist()
@@ -80,6 +114,8 @@ class TrackedSafetyController(Node):
         self._estop_latched = False
         self._localization_valid = False
         self._localization_stamp = float("-inf")
+        self._sensor_input_ready = False
+        self._sensor_status_stamp = float("-inf")
         self._linear_out = 0.0
         self._angular_out = 0.0
         self._last_tick = time.monotonic()
@@ -108,6 +144,13 @@ class TrackedSafetyController(Node):
             LocalizationStatus,
             "/agt/localization/status",
             self._localization_callback,
+            10,
+            callback_group=runtime_group,
+        )
+        self.create_subscription(
+            DiagnosticArray,
+            self._sensor_diagnostics_topic,
+            self._sensor_diagnostics_callback,
             10,
             callback_group=runtime_group,
         )
@@ -165,9 +208,24 @@ class TrackedSafetyController(Node):
             self._localization_valid = localization_status_is_valid(msg)
             self._localization_stamp = time.monotonic()
 
+    def _sensor_diagnostics_callback(self, msg: DiagnosticArray) -> None:
+        ready = sensor_summary_is_ready(msg, self._sensor_summary_name)
+        if ready is None:
+            return
+        with self._state_lock:
+            self._sensor_input_ready = ready
+            self._sensor_status_stamp = time.monotonic()
+
     def _localization_is_valid(self, now: float) -> bool:
         return self._localization_valid and (
             now - self._localization_stamp <= self._localization_status_timeout
+        )
+
+    def _sensor_input_is_ready(self, now: float) -> bool:
+        if not self._require_sensor_input_ready:
+            return True
+        return self._sensor_input_ready and (
+            now - self._sensor_status_stamp <= self._sensor_status_timeout
         )
 
     def _set_motion_enabled(self, request: SetBool.Request, response: SetBool.Response):
@@ -203,6 +261,8 @@ class TrackedSafetyController(Node):
         elif now - self._nav_stamp <= self._nav_timeout:
             if self._require_localization_valid and not self._localization_is_valid(now):
                 return 0.0, 0.0, "localization_invalid", True
+            if not self._sensor_input_is_ready(now):
+                return 0.0, 0.0, "sensor_input_unhealthy", True
             cmd = self._nav_cmd
             source = "navigation"
         else:
@@ -247,6 +307,7 @@ class TrackedSafetyController(Node):
             self._publish_status()
 
     def _publish_status(self) -> None:
+        now = time.monotonic()
         status = DiagnosticStatus()
         status.name = "agt_safety/tracked_controller"
         status.hardware_id = "bunker"
@@ -255,9 +316,12 @@ class TrackedSafetyController(Node):
             "motion_disabled",
             "input_timeout",
             "localization_invalid",
+            "sensor_input_unhealthy",
         )
         status.level = DiagnosticStatus.WARN if stopped else DiagnosticStatus.OK
         status.message = self._reason
+        localization_valid = self._localization_is_valid(now)
+        sensor_input_ready = self._sensor_input_is_ready(now)
         status.values = [
             KeyValue(key="motion_enabled", value=str(self._motion_enabled).lower()),
             KeyValue(key="estop_latched", value=str(self._estop_latched).lower()),
@@ -271,12 +335,15 @@ class TrackedSafetyController(Node):
                     self._motion_enabled
                     and not self._physical_estop
                     and not self._estop_latched
-                    and self._localization_is_valid(time.monotonic())
+                    and localization_valid
+                    and sensor_input_ready
                 ).lower(),
             ),
+            KeyValue(key="localization_valid", value=str(localization_valid).lower()),
+            KeyValue(key="sensor_input_ready", value=str(sensor_input_ready).lower()),
             KeyValue(
-                key="localization_valid",
-                value=str(self._localization_is_valid(time.monotonic())).lower(),
+                key="sensor_input_required",
+                value=str(self._require_sensor_input_ready).lower(),
             ),
             KeyValue(key="linear_output", value=f"{self._linear_out:.4f}"),
             KeyValue(key="angular_output", value=f"{self._angular_out:.4f}"),
