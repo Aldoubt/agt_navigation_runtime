@@ -13,7 +13,7 @@ def test_contract_has_required_raw_streams_and_optional_defaults():
     assert "gnss: {enabled: false, required: false" in text
 
 
-def test_node_only_publishes_diagnostics_and_supports_laserscan_backend():
+def test_node_only_publishes_diagnostics_supports_laserscan_and_has_strict_required_summary():
     text = (ROOT / "src" / "sensor_monitor_node.cpp").read_text()
     header = (ROOT / "include" / "agt_sensor_monitor" / "sensor_monitor_node.hpp").read_text()
     cmake = (ROOT / "CMakeLists.txt").read_text()
@@ -25,6 +25,9 @@ def test_node_only_publishes_diagnostics_and_supports_laserscan_backend():
     )
     assert 'message_type == "laser_scan"' in text
     assert "sensor_msgs::msg::LaserScan" in text
+    assert "bool required_streams_healthy = true" in text
+    assert "result.enabled && result.required && !result.healthy" in text
+    assert 'kv.key = "required_streams_healthy"' in text
     assert "AGT_SENSOR_MONITOR_HAS_LIVOX" in header
     assert "find_package(livox_ros_driver2 QUIET)" in cmake
     assert "<depend>livox_ros_driver2</depend>" not in package
