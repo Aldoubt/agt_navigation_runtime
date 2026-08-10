@@ -1,5 +1,6 @@
 #include "agt_sensor_monitor/sensor_monitor_node.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <limits>
 #include <stdexcept>
