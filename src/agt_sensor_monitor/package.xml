@@ -7,9 +7,10 @@
   <license>Apache-2.0</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
   <depend>diagnostic_msgs</depend>
-  <depend>livox_ros_driver2</depend>
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
+  <!-- livox_ros_driver2 is intentionally optional at CMake time because it is
+       not a rosdep-resolvable system dependency in the baseline workspace. -->
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>
   <export><build_type>ament_cmake</build_type></export>
