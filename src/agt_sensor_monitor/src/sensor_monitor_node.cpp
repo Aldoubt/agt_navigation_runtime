@@ -142,12 +142,16 @@ void SensorMonitorNode::publish_diagnostics()
   diagnostic_msgs::msg::DiagnosticArray array;
   array.header.stamp = ros_now;
   int worst = Status::OK;
+  bool required_streams_healthy = true;
   for (const auto & item : streams_) {
     const auto result = item.second->status(ros_now.seconds(), steady_now(), elapsed, startup_grace_sec_);
     Status status;
     status.name = "agt_sensor_monitor/" + item.first;
     status.level = !result.enabled ? Status::OK : (result.healthy ? Status::OK :
       (elapsed < startup_grace_sec_ ? Status::WARN : (result.required ? Status::ERROR : Status::WARN)));
+    if (result.enabled && result.required && !result.healthy) {
+      required_streams_healthy = false;
+    }
     worst = std::max(worst, static_cast<int>(status.level));
     auto add = [&status](const std::string & key, const std::string & value) { diagnostic_msgs::msg::KeyValue kv; kv.key = key; kv.value = value; status.values.push_back(kv); };
     auto number = [&add](const std::string & key, double value) { add(key, std::to_string(value)); };
@@ -164,7 +168,10 @@ void SensorMonitorNode::publish_diagnostics()
   }
   Status summary; summary.name = "agt_sensor_monitor/summary"; summary.level = static_cast<std::uint8_t>(worst);
   summary.message = worst == Status::OK ? "OK" : worst == Status::WARN ? "WARN" : "ERROR";
-  diagnostic_msgs::msg::KeyValue kv; kv.key = "required_streams_healthy"; kv.value = worst < Status::ERROR ? "true" : "false"; summary.values.push_back(kv);
+  diagnostic_msgs::msg::KeyValue kv;
+  kv.key = "required_streams_healthy";
+  kv.value = required_streams_healthy ? "true" : "false";
+  summary.values.push_back(kv);
   array.status.push_back(summary);
   publisher_->publish(array);
 }
