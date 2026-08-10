@@ -1,17 +1,21 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
-#include <chrono>
 
 #include <diagnostic_msgs/msg/diagnostic_array.hpp>
-#include <livox_ros_driver2/msg/custom_msg.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/laser_scan.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
+
+#ifdef AGT_SENSOR_MONITOR_HAS_LIVOX
+#include <livox_ros_driver2/msg/custom_msg.hpp>
+#endif
 
 #include "agt_sensor_monitor/stream_monitor.hpp"
 
@@ -31,6 +35,7 @@ private:
   double steady_now() const;
   double startup_elapsed() const;
   void add_stream(const std::string & key, const std::string & parameter);
+  void add_lidar_subscription(const std::string & key);
 
   std::vector<std::pair<std::string, std::unique_ptr<StreamMonitor>>> streams_;
   std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
