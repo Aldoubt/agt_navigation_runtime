@@ -3,6 +3,17 @@ platform:
   kinematics: tracked_differential
   footprint_frame: base_footprint
   base_frame: base_link
+
+  deployment:
+    primary_scene: gaas_open_field
+    greenhouse_route_production: false
+    benchmark_role: gnss_rtk_truth_and_outdoor_global_navigation
+    notes: >-
+      BUNKER is the canonical chassis for the open GAAS field workflow. Future
+      GNSS/RTK truth, FAST-LIVO2 odometry accuracy, global-correction and outdoor
+      navigation experiments bind to this platform. Greenhouse aisle-route
+      production binds profiles/platforms/mk_mini.yaml instead.
+
   geometry:
     # Overall dimensions taken from the supplied BUNKER product drawing.
     outer_dimensions_verified: true
