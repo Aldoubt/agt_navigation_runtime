@@ -3,57 +3,113 @@ platform:
   kinematics: ackermann
   footprint_frame: base_footprint
   base_frame: base_link
-  geometry:
-    # Outer envelope remains provisional until a physical chassis measurement is
-    # recorded. Do not infer vehicle acceptance from these dimensions alone.
-    verified: false
-    length: 0.70
-    width: 0.55
-    height: 0.20
-    base_link_z: 0.10
 
-    # Project baseline geometry used by the existing MK-mini integration.
+  deployment:
+    primary_scene: greenhouse
+    notes: >-
+      MK-mini is the canonical execution platform for greenhouse navigation and
+      agricultural aisle-route production. BUNKER is reserved for the open
+      GAAS field / GNSS benchmark workflow.
+
+  specification:
+    manufacturer: Shenzhen Yuhesen Technology Co., Ltd.
+    product: MK-mini Ackermann drive-by-wire chassis
+    document: MK-mini User Manual V1.1.0
+    manufacturer_spec_frozen: true
+    physical_reference_verified_on_vehicle: false
+
+  geometry:
+    # Manufacturer dimensions from MK-mini User Manual V1.1.0.
+    # They describe the overall chassis envelope; the exact base_footprint
+    # reference inside that envelope still needs an on-vehicle measurement.
+    manufacturer_dimensions_verified: true
+    reference_point_verified: false
+    reference_point_assumption: geometric_center_for_offline_preview
+    length: 0.840
+    width: 0.600
+    height: 0.310
+
     wheel_base_verified: true
-    wheel_base: 0.60
+    wheel_base: 0.600
     track_width_verified: true
     track_width: 0.517
     wheel_diameter_verified: true
-    wheel_diameter: 0.24
+    wheel_diameter: 0.240
     ground_clearance_verified: true
     ground_clearance: 0.111
 
-    # Ackermann route acceptance must remain fail-closed until the steering
-    # limit / minimum turning radius is physically verified. The numeric zero is
-    # only a schema-compatible placeholder for legacy readers and MUST NOT be
-    # interpreted as in-place-rotation capability.
-    min_turning_radius_verified: false
-    min_turning_radius: 0.0
-    steering_limit_verified: false
-    max_steering_angle_rad: null
+    # Manufacturer vehicle-performance constraint. This is the canonical
+    # kinematic lower bound for route connector generation.
+    min_turning_radius_verified: true
+    min_turning_radius: 1.500
+    min_turning_radius_source: manufacturer_manual
 
+    # VCU target-steering soft limit from the development section of the manual.
+    # Do not derive min_turning_radius from this value: the manual does not state
+    # that the VCU steering angle is the equivalent bicycle-model road-wheel angle.
+    steering_limit_verified: true
+    max_steering_angle_deg: 34.0
+    max_steering_angle_rad: 0.593411945678
+    steering_angle_semantics: vcu_target_steering_soft_limit
+
+    # Conservative offline-preview envelope based on the manufacturer overall
+    # dimensions. No hidden safety inflation is baked in; route policy supplies
+    # additional clearance explicitly.
     footprint:
-      - [0.35, 0.275]
-      - [0.35, -0.275]
-      - [-0.35, -0.275]
-      - [-0.35, 0.275]
+      - [0.420, 0.300]
+      - [0.420, -0.300]
+      - [-0.420, -0.300]
+      - [-0.420, 0.300]
+    navigation_footprint:
+      - [0.420, 0.300]
+      - [0.420, -0.300]
+      - [-0.420, -0.300]
+      - [-0.420, 0.300]
 
-  max_linear_velocity: 1.0
-  max_reverse_velocity: 0.5
-  max_angular_velocity: 1.0
+  manufacturer_performance:
+    mass_kg: 50.0
+    maximum_speed_kmh: 9.7
+    maximum_speed_mps: 2.694444444444
+    maximum_grade_deg: 10.0
+    obstacle_height_m: 0.050
+    trench_width_m: 0.140
+    steering_accuracy_deg: 0.5
+
+  # Project navigation limits are deliberately lower than the manufacturer
+  # maximum vehicle speed and remain tunable without changing geometry truth.
+  limits:
+    limits_verified_on_vehicle: false
+    max_forward_velocity: 1.0
+    max_reverse_velocity: 0.5
+    max_angular_velocity: 1.0
+
+  chassis_interface:
+    can_version: CAN_2.0B_extended
+    byte_order: Intel
+    bitrate_bps: 500000
+    control_period_s: 0.010
+    control_frame_id: 0x18C4D2D0
+    feedback_frame_id: 0x18C4D2EF
+    speed_resolution_mps: 0.001
+    steering_resolution_deg: 0.01
+    wheel_encoder_pulses_per_revolution: 4096
 
   route_acceptance:
+    # Kinematic route production may now proceed because the manufacturer
+    # minimum turning radius is known. Promotion to a vehicle-READY Route Asset
+    # remains fail-closed until the base_footprint reference / final mounted
+    # envelope is measured on the actual greenhouse vehicle.
     enabled: false
+    preview_planning_enabled: true
     blocked_reason: >-
-      Ackermann kinematics are canonical, but minimum turning radius and the
-      final navigation footprint still require vehicle measurement before a
-      MK-mini Route Asset may be promoted as vehicle-feasible.
+      Manufacturer geometry and 1.5 m minimum turning radius are frozen, but the
+      exact base_footprint reference inside the 840 x 600 mm outer envelope and
+      the final mounted navigation envelope still require on-vehicle measurement
+      before a Route Asset may be promoted as vehicle-feasible READY.
 
   coverage_repair:
-    enabled: false
+    enabled: true
     planner_id: CoverageRepairHybrid
     planner_family: hybrid_a_star
     allow_in_place_rotation: false
-    disabled_reason: >-
-      Ackermann geometry is now canonical, but the positive minimum turning
-      radius / steering limit is not yet verified. Keep repair and formal route
-      feasibility disabled until that measurement is frozen in this profile.
+    mode: preview_until_vehicle_reference_verified
