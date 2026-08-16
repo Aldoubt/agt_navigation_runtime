@@ -263,7 +263,9 @@ def main(argv=None) -> int:
     if args.timeout <= 0.0:
         raise SystemExit("--timeout must be positive")
 
-    rclpy.init(args=None)
+    # The acceptance runner owns its CLI. Do not forward --scenario/--timeout
+    # into rclpy, otherwise ROS argument parsing can reject these tool options.
+    rclpy.init(args=[])
     node = HilObserver(args.can_interface)
     try:
         scenarios = {
