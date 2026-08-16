@@ -31,9 +31,13 @@ class ProtocolError(ValueError):
 class Gear(IntEnum):
     DISABLE = 0
     PARK = 1
+    P = 1
     REVERSE = 2
+    R = 2
     NEUTRAL = 3
+    N = 3
     DRIVE = 4
+    D = 4
 
 
 @dataclass(frozen=True)
