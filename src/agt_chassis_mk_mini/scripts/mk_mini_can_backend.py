@@ -3,7 +3,10 @@
 import math
 import time
 
-from agt_chassis_mk_mini.mk_mini_command_state import CommandStateMachine
+from agt_chassis_mk_mini.mk_mini_command_state import (
+    CommandStateMachine,
+    gear_feedback_allows_motion,
+)
 from agt_chassis_mk_mini.mk_mini_protocol import (
     BMS_INFO_FB_ID,
     CTRL_CMD_ID,
@@ -119,6 +122,7 @@ class MkMiniCanBackend(Node):
         self._alive_counter = 0
         self._last_ctrl_feedback_time = float("-inf")
         self._last_ctrl_mode = None
+        self._last_ctrl_gear = None
         self._last_ctrl_counter = None
         self._last_feedback_steering_rad = 0.0
         self._last_left_wheel = None
@@ -132,6 +136,7 @@ class MkMiniCanBackend(Node):
         self._counter_gaps = 0
         self._transport_errors = 0
         self._calibration_blocks = 0
+        self._gear_feedback_blocks = 0
 
         self._feedback_pub = self.create_publisher(
             AckermannCommand,
@@ -240,6 +245,7 @@ class MkMiniCanBackend(Node):
         self._last_ctrl_counter = feedback.alive_counter
         self._last_ctrl_feedback_time = now
         self._last_ctrl_mode = feedback.mode
+        self._last_ctrl_gear = feedback.gear
 
         signed_speed = self._signed_speed(feedback.gear, feedback.speed_mps)
         self._state.update_feedback(speed_mps=signed_speed, stamp=now)
@@ -337,12 +343,23 @@ class MkMiniCanBackend(Node):
         self._last_state_reason = output.reason
         speed = output.speed_mps
         steering = output.steering_deg
+
         if not self._calibration_allows_motion() and speed > self._speed_deadband:
             speed = 0.0
             steering = 0.0
             self._calibration_blocks += 1
+            self._last_state_reason = f"{output.reason}+calibration_block"
+
         if self._last_ctrl_mode is not None and self._last_ctrl_mode != 0:
             speed = 0.0
+            self._last_state_reason = f"{output.reason}+vcu_not_auto"
+
+        if speed > self._speed_deadband and not gear_feedback_allows_motion(
+            output.gear, self._last_ctrl_gear
+        ):
+            speed = 0.0
+            self._gear_feedback_blocks += 1
+            self._last_state_reason = f"{output.reason}+gear_feedback_mismatch"
 
         steering = min(
             max(steering, -self._vcu_steering_soft_limit_deg),
@@ -398,6 +415,7 @@ class MkMiniCanBackend(Node):
             "can_interface": self._can_interface,
             "connected": str(connected).lower(),
             "vcu_mode": str(self._last_ctrl_mode),
+            "vcu_gear": str(self._last_ctrl_gear),
             "state_reason": self._last_state_reason,
             "rx_frames": str(self._rx_frames),
             "tx_frames": str(self._tx_frames),
@@ -405,6 +423,7 @@ class MkMiniCanBackend(Node):
             "counter_gaps": str(self._counter_gaps),
             "transport_errors": str(self._transport_errors),
             "calibration_blocks": str(self._calibration_blocks),
+            "gear_feedback_blocks": str(self._gear_feedback_blocks),
             "steering_calibration_confirmed": str(
                 self._steering_calibration_confirmed
             ).lower(),
@@ -433,7 +452,7 @@ class MkMiniCanBackend(Node):
                 alive_counter=self._alive_counter,
             )
             self._transport.send(CTRL_CMD_ID, payload)
-        except Exception as exc:  # shutdown is best-effort only
+        except Exception as exc:
             self.get_logger().warning(f"best-effort MK-mini stop frame failed: {exc}")
 
     def close_transport(self) -> None:
