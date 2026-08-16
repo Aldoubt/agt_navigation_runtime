@@ -1,6 +1,6 @@
 agt_local_obstacle_filter:
   ros__parameters:
-    input_topic: /agt/mapping/registered_points
+    input_topic: /agt/odometry/registered_points
     output_topic: /agt/perception/obstacle_cloud
     target_frame: base_footprint
     min_height: 0.08
