@@ -27,6 +27,7 @@ on:
       - 'src/agt_chassis/**'
       - 'src/agt_chassis_bunker/**'
       - 'src/agt_chassis_mk_mini/**'
+      - 'src/agt_chassis_mk_mini_sim/**'
       - 'src/agt_experiment_manager/**'
       - 'requirements-contracts.txt'
       - '.github/workflows/runtime-contracts.yml'
@@ -47,3 +48,5 @@ jobs:
         run: python -m pytest -q tests/odometry
       - name: Run V3-03/V3-04 execution source contracts
         run: python -m pytest -q tests/execution
+      - name: Run V3-04 virtual-CAN simulator pure tests
+        run: python -m pytest -q src/agt_chassis_mk_mini_sim/test
