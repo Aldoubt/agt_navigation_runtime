@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agt-navigation-runtime.local/schemas/vehicle_profile.schema.json",
+  "title": "AGT Vehicle Profile 1.0",
+  "type": "object",
+  "required": ["schema_version", "platform"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "platform": {
+      "type": "object",
+      "required": ["name", "kinematics", "footprint_frame", "base_frame", "geometry", "limits"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "kinematics": {"type": "string", "minLength": 1},
+        "footprint_frame": {"type": "string", "minLength": 1},
+        "base_frame": {"type": "string", "minLength": 1},
+        "geometry": {
+          "type": "object",
+          "required": ["length", "width", "footprint"],
+          "properties": {
+            "length": {"type": "number", "exclusiveMinimum": 0},
+            "width": {"type": "number", "exclusiveMinimum": 0},
+            "wheel_base": {"type": "number", "exclusiveMinimum": 0},
+            "wheelbase": {"type": "number", "exclusiveMinimum": 0},
+            "min_turning_radius": {"type": "number", "exclusiveMinimum": 0},
+            "footprint": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {"type": "number"},
+                  {"type": "number"}
+                ],
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "limits": {
+          "type": "object",
+          "required": ["max_forward_velocity", "max_reverse_velocity"],
+          "properties": {
+            "max_forward_velocity": {"type": "number", "minimum": 0},
+            "max_reverse_velocity": {"type": "number", "minimum": 0}
+          },
+          "additionalProperties": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kinematics": {"const": "ackermann"}
+            },
+            "required": ["kinematics"]
+          },
+          "then": {
+            "properties": {
+              "geometry": {
+                "required": ["min_turning_radius", "footprint"],
+                "anyOf": [
+                  {"required": ["wheel_base"]},
+                  {"required": ["wheelbase"]}
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
