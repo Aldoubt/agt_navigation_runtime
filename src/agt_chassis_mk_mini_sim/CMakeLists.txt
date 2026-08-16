@@ -8,6 +8,7 @@ ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
   scripts/mk_mini_vcu_sim.py
+  scripts/vcan_hil_acceptance.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -21,6 +22,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_vcu_model test/test_vcu_model.py)
   ament_add_pytest_test(test_vcu_sim_source test/test_vcu_sim_source.py)
   ament_add_pytest_test(test_vcan_hil_launch test/test_vcan_hil_launch.py)
+  ament_add_pytest_test(test_vcan_hil_acceptance_source test/test_vcan_hil_acceptance_source.py)
 endif()
 
 ament_package()
