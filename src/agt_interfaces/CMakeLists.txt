@@ -10,6 +10,7 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/AckermannCommand.msg"
   "msg/ComponentHealth.msg"
   "msg/LocalizationStatus.msg"
   "msg/MissionStatus.msg"
