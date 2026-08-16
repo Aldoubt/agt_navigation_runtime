@@ -12,7 +12,7 @@ SET(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -Wno-unused-variable -Wno-unuse
 # ELSE()
 #   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse -msse2 -msse3 -mssse3")
 # ENDIF()
-message("Current CPU archtecture: ${CMAKE_SYSTEM_PROCESSOR}")
+message(STATUS "Current CPU architecture: ${CMAKE_SYSTEM_PROCESSOR}")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)" )
   # Keep Eigen's alignment ABI compatible with distribution PCL and the
   # vendored FAST-LIVO build. Tune scheduling locally without enabling AVX
