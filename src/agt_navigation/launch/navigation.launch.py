@@ -188,7 +188,7 @@ def generate_launch_description():
                 condition=IfCondition(LaunchConfiguration("use_keepout_filter")),
             ),
             Node(
-                package="agt_bringup",
+                package="agt_navigation",
                 executable="localization_navigation_gate.py",
                 name="agt_localization_navigation_gate",
                 output="screen",
