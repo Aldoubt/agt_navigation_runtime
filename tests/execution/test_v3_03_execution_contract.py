@@ -14,6 +14,14 @@ def test_navigation_launch_is_self_contained_and_has_single_raw_command_owner():
     assert launch.count('(\"cmd_vel\", \"/agt/navigation/cmd_vel_raw\")') == 2
 
 
+def test_navigation_launch_requires_explicit_vehicle_navigation_policy():
+    launch = read("src/agt_navigation/launch/navigation.launch.py")
+    assert 'default_value=str(share / "config" / "nav2_bunker.yaml")' not in launch
+    assert 'DeclareLaunchArgument("params_file")' in launch or (
+        'DeclareLaunchArgument(\n                "params_file",\n                description=' in launch
+    )
+
+
 def test_localization_lifecycle_gate_is_owned_and_installed_by_navigation():
     gate = read("src/agt_navigation/scripts/localization_navigation_gate.py")
     cmake = read("src/agt_navigation/CMakeLists.txt")
