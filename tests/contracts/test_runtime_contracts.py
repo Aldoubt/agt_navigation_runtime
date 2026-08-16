@@ -86,6 +86,26 @@ def test_site_absolute_asset_path_fails_closed():
     assert any(issue.code == "ABSOLUTE_PATH" for issue in report.issues)
 
 
+def test_site_path_escape_fails_closed():
+    validator = load_validator_module()
+    report = validator.validate_site_package(
+        REPO_ROOT / "tests/contracts/fixtures/site_path_escape",
+        REPO_ROOT / "schemas/site_package.schema.json",
+    )
+    assert not report.ok
+    assert any(issue.code == "PATH_ESCAPE" for issue in report.issues)
+
+
+def test_unsupported_site_schema_fails_closed():
+    validator = load_validator_module()
+    report = validator.validate_site_package(
+        REPO_ROOT / "tests/contracts/fixtures/site_unsupported_schema",
+        REPO_ROOT / "schemas/site_package.schema.json",
+    )
+    assert not report.ok
+    assert any(issue.code == "SITE_SCHEMA" for issue in report.issues)
+
+
 def test_valid_runtime_contracts_are_ready():
     report = runtime_report("site_valid")
     assert report.ok, report.issues
