@@ -70,7 +70,7 @@ if(ROS_EDITION STREQUAL "ROS1")
   ## INCLUDE_DIRS: uncomment this if your package contains header files
   ## LIBRARIES: libraries you create in this project that dependent projects als    o need
   ## CATKIN_DEPENDS: catkin_packages dependent projects also need
-  ## DEPENDS: system dependencies of this project dependent projects also n    eed
+  ## DEPENDS: system dependencies of this project that dependent projects also n    eed
   catkin_package(CATKIN_DEPENDS
     roscpp rospy std_msgs message_runtime
     pcl_ros
