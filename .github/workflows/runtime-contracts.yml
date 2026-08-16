@@ -29,6 +29,7 @@ on:
       - 'src/agt_chassis_mk_mini/**'
       - 'src/agt_chassis_mk_mini_sim/**'
       - 'src/agt_experiment_manager/**'
+      - 'third_party/**'
       - 'requirements-contracts.txt'
       - '.github/workflows/runtime-contracts.yml'
 
