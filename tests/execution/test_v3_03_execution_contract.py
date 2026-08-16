@@ -14,6 +14,16 @@ def test_navigation_launch_is_self_contained_and_has_single_raw_command_owner():
     assert launch.count('(\"cmd_vel\", \"/agt/navigation/cmd_vel_raw\")') == 2
 
 
+def test_localization_lifecycle_gate_is_owned_and_installed_by_navigation():
+    gate = read("src/agt_navigation/scripts/localization_navigation_gate.py")
+    cmake = read("src/agt_navigation/CMakeLists.txt")
+    launch = read("src/agt_navigation/launch/navigation.launch.py")
+    assert "class LocalizationNavigationGate" in gate
+    assert "localization_navigation_gate.py" in cmake
+    assert 'package="agt_navigation"' in launch
+    assert 'executable="localization_navigation_gate.py"' in launch
+
+
 def test_collision_monitor_is_the_only_raw_to_filtered_boundary():
     params = read("src/agt_navigation/config/nav2_bunker.yaml")
     assert "cmd_vel_in_topic: /agt/navigation/cmd_vel_raw" in params
