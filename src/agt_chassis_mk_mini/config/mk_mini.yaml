@@ -1,0 +1,11 @@
+agt_mk_mini_adapter:
+  ros__parameters:
+    input_topic: /agt/chassis/cmd_vel
+    output_topic: /agt/chassis/backend/ackermann_command
+    wheelbase: 0.600
+    min_turning_radius: 1.500
+    speed_deadband: 0.01
+    command_timeout: 0.20
+    publish_rate: 30.0
+    max_forward_speed: 1.0
+    max_reverse_speed: 0.5
