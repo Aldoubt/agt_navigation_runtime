@@ -1,0 +1,4 @@
+agt_bunker_status_bridge:
+  ros__parameters:
+    raw_status_topic: /agt/chassis/status/raw
+    status_timeout: 0.50
