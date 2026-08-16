@@ -17,6 +17,18 @@ class Gear(IntEnum):
     D = 4
 
 
+def gear_feedback_allows_motion(commanded_gear, feedback_gear) -> bool:
+    """Allow nonzero motion only after VCU feedback confirms D or R."""
+    if feedback_gear is None:
+        return False
+    try:
+        commanded = Gear(int(commanded_gear))
+        feedback = Gear(int(feedback_gear))
+    except (TypeError, ValueError):
+        return False
+    return commanded in (Gear.DRIVE, Gear.REVERSE) and commanded == feedback
+
+
 @dataclass(frozen=True)
 class CommandOutput:
     gear: Gear
