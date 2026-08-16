@@ -10,7 +10,7 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     localization = Path(get_package_share_directory("agt_localization"))
-    mapping = Path(get_package_share_directory("agt_mapping"))
+    odometry = Path(get_package_share_directory("agt_odometry"))
     return LaunchDescription([
         DeclareLaunchArgument("global_map_pcd"),
         DeclareLaunchArgument("processing_record"),
@@ -19,11 +19,11 @@ def generate_launch_description():
         DeclareLaunchArgument("map_hash"),
         DeclareLaunchArgument("backend", default_value="ndt"),
         DeclareLaunchArgument("enable_recovery_trigger", default_value="false"),
-        DeclareLaunchArgument("adapter_params_file", default_value=str(mapping / "config" / "fast_livo2_adapter_handheld.yaml")),
-        DeclareLaunchArgument("params_file", default_value=str(mapping / "config" / "mid360_lio_only.yaml")),
+        DeclareLaunchArgument("adapter_params_file", default_value=str(odometry / "config" / "fast_livo2_adapter_handheld.yaml")),
+        DeclareLaunchArgument("params_file", default_value=str(odometry / "config" / "mid360_lio_only.yaml")),
         DeclareLaunchArgument("use_sim_time", default_value="true"),
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(str(mapping / "launch" / "fast_livo2_mapping.launch.py")),
+            PythonLaunchDescriptionSource(str(odometry / "launch" / "fast_livo2_odometry.launch.py")),
             launch_arguments={
                 "params_file": LaunchConfiguration("params_file"),
                 "adapter_params_file": LaunchConfiguration("adapter_params_file"),
