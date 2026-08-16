@@ -1,1 +1,0 @@
-ament_cmake_symlink_install_targets("TARGET_FILES" "/home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters/livox_custom_self_filter" "TARGETS" "livox_custom_self_filter" "DESTINATION" "lib/agt_sensor_adapters")

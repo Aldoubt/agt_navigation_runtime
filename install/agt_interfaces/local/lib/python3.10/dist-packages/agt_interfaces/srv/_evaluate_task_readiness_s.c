@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_generator_py/agt_interfaces/srv/_evaluate_task_readiness_s.c

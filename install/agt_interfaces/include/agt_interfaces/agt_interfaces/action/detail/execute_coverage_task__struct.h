@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_generator_c/agt_interfaces/action/detail/execute_coverage_task__struct.h

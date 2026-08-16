@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/bunker_base/ament_cmake_environment_hooks/local_setup.sh

@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/bunker_msgs/rosidl_generator_c/bunker_msgs/msg/bunker_rc_state.h

@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_generator_cpp/agt_interfaces/action/detail/execute_mission__type_support.hpp

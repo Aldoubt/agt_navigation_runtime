@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/relocalization_core/ament_cmake_environment_hooks/local_setup.bash

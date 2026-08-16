@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_generator_cpp/agt_interfaces/srv/detail/manage_bag_session__type_support.hpp

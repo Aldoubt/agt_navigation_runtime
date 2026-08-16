@@ -1,5 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/install/ugv_sdk/lib/libugv_sdk.a
-/home/yangxuan/agt_navigation_runtime/install/ugv_sdk/lib/cmake/ugv_sdk/ugv_sdkTargets.cmake
-/home/yangxuan/agt_navigation_runtime/install/ugv_sdk/lib/cmake/ugv_sdk/ugv_sdkTargets-release.cmake
-/home/yangxuan/agt_navigation_runtime/install/ugv_sdk/share/ugv_sdk/cmake/ugv_sdkTargetsExport.cmake
-/home/yangxuan/agt_navigation_runtime/install/ugv_sdk/share/ugv_sdk/cmake/ugv_sdkTargetsExport-release.cmake

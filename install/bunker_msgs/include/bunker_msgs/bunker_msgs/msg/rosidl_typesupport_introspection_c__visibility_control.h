@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/bunker_msgs/rosidl_typesupport_introspection_c/bunker_msgs/msg/rosidl_typesupport_introspection_c__visibility_control.h

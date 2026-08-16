@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/bunker_msgs/rosidl_generator_rs/bunker_msgs/rust/build.rs

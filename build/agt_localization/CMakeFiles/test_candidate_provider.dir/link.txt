@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/test_candidate_provider.dir/test/test_candidate_provider.cpp.o -o test_candidate_provider  gtest/libgtest_main.a gtest/libgtest.a libagt_localization_candidates.a -pthread /usr/lib/x86_64-linux-gnu/libyaml-cpp.so.0.7.0 

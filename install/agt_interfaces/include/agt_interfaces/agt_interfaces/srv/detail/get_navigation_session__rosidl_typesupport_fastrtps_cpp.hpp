@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_typesupport_fastrtps_cpp/agt_interfaces/srv/detail/get_navigation_session__rosidl_typesupport_fastrtps_cpp.hpp

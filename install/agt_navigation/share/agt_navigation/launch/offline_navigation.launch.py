@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/src/agt_navigation/launch/offline_navigation.launch.py

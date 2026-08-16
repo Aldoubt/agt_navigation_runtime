@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_localization_fusion/ament_cmake_environment_hooks/local_setup.zsh

@@ -1,2 +1,0 @@
-/usr/bin/ar qc libincremental_voxel_map.a CMakeFiles/incremental_voxel_map.dir/src/incremental_voxel_map.cpp.o
-/usr/bin/ranlib libincremental_voxel_map.a

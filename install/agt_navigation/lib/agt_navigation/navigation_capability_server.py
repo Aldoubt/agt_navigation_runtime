@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_navigation/generated_scripts/navigation_capability_server.py

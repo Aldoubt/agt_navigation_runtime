@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_generator_py/agt_interfaces/srv/_get_robot_state_s.c

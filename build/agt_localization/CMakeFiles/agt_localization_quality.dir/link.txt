@@ -1,2 +1,0 @@
-/usr/bin/ar qc libagt_localization_quality.a CMakeFiles/agt_localization_quality.dir/src/quality_validator.cpp.o
-/usr/bin/ranlib libagt_localization_quality.a

@@ -1,8 +1,0 @@
-# CMake generated Testfile for 
-# Source directory: /home/yangxuan/agt_navigation_runtime/src/agt_mapping
-# Build directory: /home/yangxuan/agt_navigation_runtime/build/agt_mapping
-# 
-# This file includes the relevant testing commands required for 
-# testing this directory and lists subdirectories to be tested as well.
-add_test(test_fast_livo2_adapter "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/home/yangxuan/agt_navigation_runtime/build/agt_mapping/test_results/agt_mapping/test_fast_livo2_adapter.xunit.xml" "--package-name" "agt_mapping" "--output-file" "/home/yangxuan/agt_navigation_runtime/build/agt_mapping/ament_cmake_pytest/test_fast_livo2_adapter.txt" "--command" "/usr/bin/python3" "-u" "-m" "pytest" "/home/yangxuan/agt_navigation_runtime/src/agt_mapping/test/test_fast_livo2_adapter.py" "-o" "cache_dir=/home/yangxuan/agt_navigation_runtime/build/agt_mapping/ament_cmake_pytest/test_fast_livo2_adapter/.cache" "--junit-xml=/home/yangxuan/agt_navigation_runtime/build/agt_mapping/test_results/agt_mapping/test_fast_livo2_adapter.xunit.xml" "--junit-prefix=agt_mapping")
-set_tests_properties(test_fast_livo2_adapter PROPERTIES  LABELS "pytest" TIMEOUT "60" WORKING_DIRECTORY "/home/yangxuan/agt_navigation_runtime/build/agt_mapping" _BACKTRACE_TRIPLES "/opt/ros/humble/share/ament_cmake_test/cmake/ament_add_test.cmake;125;add_test;/opt/ros/humble/share/ament_cmake_pytest/cmake/ament_add_pytest_test.cmake;169;ament_add_test;/home/yangxuan/agt_navigation_runtime/src/agt_mapping/CMakeLists.txt;14;ament_add_pytest_test;/home/yangxuan/agt_navigation_runtime/src/agt_mapping/CMakeLists.txt;0;")

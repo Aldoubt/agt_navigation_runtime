@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/livox_ros_driver2/ament_cmake_environment_hooks/pythonpath.sh

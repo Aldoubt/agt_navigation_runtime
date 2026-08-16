@@ -1,2 +1,0 @@
-/usr/bin/ar qc libagt_sensor_filter_geometry.a CMakeFiles/agt_sensor_filter_geometry.dir/src/self_filter_geometry.cpp.o CMakeFiles/agt_sensor_filter_geometry.dir/src/urdf_self_filter_geometry.cpp.o
-/usr/bin/ranlib libagt_sensor_filter_geometry.a

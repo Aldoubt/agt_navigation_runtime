@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_generator_cpp/agt_interfaces/msg/detail/navigation_session_status__struct.hpp

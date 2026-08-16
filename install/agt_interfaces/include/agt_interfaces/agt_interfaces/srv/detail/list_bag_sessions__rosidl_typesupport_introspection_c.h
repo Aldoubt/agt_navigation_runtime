@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_typesupport_introspection_c/agt_interfaces/srv/detail/list_bag_sessions__rosidl_typesupport_introspection_c.h

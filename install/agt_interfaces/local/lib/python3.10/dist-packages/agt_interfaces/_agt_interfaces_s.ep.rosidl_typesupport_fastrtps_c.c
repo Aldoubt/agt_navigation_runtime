@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_generator_py/agt_interfaces/_agt_interfaces_s.ep.rosidl_typesupport_fastrtps_c.c

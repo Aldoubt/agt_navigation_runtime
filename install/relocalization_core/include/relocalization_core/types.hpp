@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/third_party/relocalization_core/include/relocalization_core/types.hpp

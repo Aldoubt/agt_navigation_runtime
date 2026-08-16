@@ -1,6 +1,0 @@
-# Re-evaluate the common task gate in the service server.
-bool validate_task
-string task_id
-uint8 PROFILE_TASK_EXECUTION=0
-uint8 PROFILE_RELOCALIZATION=1
-uint8 gate_profile

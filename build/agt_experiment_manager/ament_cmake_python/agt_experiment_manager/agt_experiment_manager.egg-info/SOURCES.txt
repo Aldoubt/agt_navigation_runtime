@@ -1,8 +1,0 @@
-setup.py
-agt_experiment_manager/__init__.py
-agt_experiment_manager/facade.py
-agt_experiment_manager/manager.py
-agt_experiment_manager.egg-info/PKG-INFO
-agt_experiment_manager.egg-info/SOURCES.txt
-agt_experiment_manager.egg-info/dependency_links.txt
-agt_experiment_manager.egg-info/top_level.txt

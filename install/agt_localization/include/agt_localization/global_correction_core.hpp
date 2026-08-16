@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/src/agt_localization/include/agt_localization/global_correction_core.hpp

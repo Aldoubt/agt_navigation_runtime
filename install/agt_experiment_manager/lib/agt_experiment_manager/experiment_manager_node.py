@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/src/agt_experiment_manager/scripts/experiment_manager_node.py

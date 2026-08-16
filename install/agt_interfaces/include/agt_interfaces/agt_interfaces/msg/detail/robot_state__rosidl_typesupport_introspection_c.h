@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_typesupport_introspection_c/agt_interfaces/msg/detail/robot_state__rosidl_typesupport_introspection_c.h

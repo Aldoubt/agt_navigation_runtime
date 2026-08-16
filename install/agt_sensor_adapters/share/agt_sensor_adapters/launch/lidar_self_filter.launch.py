@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/src/agt_sensor_adapters/launch/lidar_self_filter.launch.py

@@ -1,5 +1,0 @@
-string map_id
-string map_version_id
-string task_group_id
-uint32 expected_revision
-string client_request_id

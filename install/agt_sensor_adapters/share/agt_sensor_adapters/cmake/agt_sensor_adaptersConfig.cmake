@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters/ament_cmake_core/agt_sensor_adaptersConfig.cmake

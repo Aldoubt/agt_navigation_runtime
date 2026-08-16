@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_generator_c/agt_interfaces/srv/detail/manage_map_version__type_support.h

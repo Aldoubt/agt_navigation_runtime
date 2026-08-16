@@ -1,2 +1,0 @@
-/usr/bin/ar qc libagt_localization_candidates.a CMakeFiles/agt_localization_candidates.dir/src/candidate_provider.cpp.o
-/usr/bin/ranlib libagt_localization_candidates.a

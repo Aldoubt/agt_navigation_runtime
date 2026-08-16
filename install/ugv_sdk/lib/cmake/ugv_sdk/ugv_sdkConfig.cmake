@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/ugv_sdk/ugv_sdkConfig.cmake

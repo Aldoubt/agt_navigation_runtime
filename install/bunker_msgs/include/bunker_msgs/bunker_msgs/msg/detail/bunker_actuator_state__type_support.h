@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/bunker_msgs/rosidl_generator_c/bunker_msgs/msg/detail/bunker_actuator_state__type_support.h

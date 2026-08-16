@@ -1,2 +1,0 @@
-/usr/bin/ar qc libagt_localization_map_readiness.a CMakeFiles/agt_localization_map_readiness.dir/src/map_readiness.cpp.o
-/usr/bin/ranlib libagt_localization_map_readiness.a

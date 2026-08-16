@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/src/agt_navigation/launch/route_controller_smoke.launch.py

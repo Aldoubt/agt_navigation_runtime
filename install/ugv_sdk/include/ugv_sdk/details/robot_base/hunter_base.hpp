@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/third_party/ugv_sdk/include/ugv_sdk/details/robot_base/hunter_base.hpp

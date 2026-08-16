@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/bunker_msgs/rosidl_typesupport_fastrtps_cpp/bunker_msgs/msg/rosidl_typesupport_fastrtps_cpp__visibility_control.h

@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/bunker_msgs/rosidl_generator_cpp/bunker_msgs/msg/detail/bunker_status__type_support.hpp

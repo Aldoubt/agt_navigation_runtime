@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_typesupport_introspection_cpp/agt_interfaces/srv/detail/get_system_health__rosidl_typesupport_introspection_cpp.hpp

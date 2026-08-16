@@ -1,1 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/third_party/bunker_ros2/bunker_base/launch/bunker_base.launch.py

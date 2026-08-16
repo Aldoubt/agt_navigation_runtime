@@ -1,3 +1,0 @@
-/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib/libndt_omp.a
-/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/share/ndt_omp_ros2/cmake/export_ndt_omp_ros2Export.cmake
-/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/share/ndt_omp_ros2/cmake/export_ndt_omp_ros2Export-release.cmake

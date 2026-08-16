@@ -1,4 +1,0 @@
-source;share/agt_localization_fusion/local_setup.bash
-source;share/agt_localization_fusion/local_setup.dsv
-source;share/agt_localization_fusion/local_setup.sh
-source;share/agt_localization_fusion/local_setup.zsh

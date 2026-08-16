@@ -1,1 +1,0 @@
-ament_cmake_symlink_install_targets("TARGET_FILES" "/home/yangxuan/agt_navigation_runtime/build/agt_perception/local_obstacle_filter" "TARGETS" "local_obstacle_filter" "DESTINATION" "lib/agt_perception")
