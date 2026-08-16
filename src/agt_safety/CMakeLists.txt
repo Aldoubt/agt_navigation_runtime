@@ -4,7 +4,7 @@ project(agt_safety)
 find_package(ament_cmake REQUIRED)
 
 install(PROGRAMS
-  scripts/tracked_safety_controller.py
+  scripts/safety_controller.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
