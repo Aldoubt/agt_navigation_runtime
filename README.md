@@ -55,11 +55,15 @@ Versioned READY deployment artifact
 agt_navigation_runtime
 ```
 
+See [`docs/architecture/runtime_boundary.md`](docs/architecture/runtime_boundary.md) for the frozen repository and package ownership boundary
+
 ## Current Status
 
-Current milestone: **V3-00 Runtime Extraction Baseline**
+Current milestone: **V3-01 Runtime Contracts & Boundary Freeze**
 
-The extracted ROS 2 Humble workspace has completed an independent local build with 23 packages finished successfully
+The V3-00 extracted ROS 2 Humble workspace completed an independent local build with 23 packages finished successfully
+
+V3-01 adds versioned Vehicle Profile and deployable Site Package contracts plus a ROS-independent fail-closed validator. Algorithm, localization, Nav2, safety, BT, and chassis behavior remain unchanged in this milestone
 
 Current migrated runtime capabilities include
 
@@ -74,6 +78,48 @@ Current migrated runtime capabilities include
 - BehaviorTree capability layer
 - Mission manager
 - Experiment manager
+
+## Runtime Contract Validation
+
+Install the lightweight validation dependencies
+
+```bash
+python3 -m pip install -r requirements-contracts.txt
+```
+
+Validate the real MK-mini Vehicle Profile against a Site Package
+
+```bash
+python3 tools/validate_runtime_contracts.py \
+  --vehicle profiles/platforms/mk_mini.yaml \
+  --site tests/contracts/fixtures/site_valid
+```
+
+A READY package reports
+
+```text
+[PASS] vehicle schema
+[PASS] site schema
+[PASS] relative paths
+[PASS] required assets
+[PASS] SHA256 integrity
+[PASS] vehicle compatibility
+[PASS] Ackermann geometry
+Runtime contract validation: READY
+```
+
+Contract validation is fail-closed. Unsupported schema versions, unsafe paths, missing assets, hash failures, incompatible vehicles, or invalid Ackermann geometry return a non-zero exit code
+
+Run the pure-Python regression suite with
+
+```bash
+python3 -m pytest -q tests/contracts
+```
+
+Contract definitions are documented in
+
+- [`docs/architecture/vehicle_profile_contract.md`](docs/architecture/vehicle_profile_contract.md)
+- [`docs/architecture/site_package_contract.md`](docs/architecture/site_package_contract.md)
 
 ## Current Runtime Packages
 
@@ -95,7 +141,7 @@ src/
 └── agt_sensor_monitor
 ```
 
-`agt_mapping` is retained temporarily during extraction compatibility work and will be narrowed toward continuous odometry/runtime estimator ownership in a later V3 milestone
+`agt_mapping` is retained temporarily during extraction compatibility work and is frozen in V3-01 to continuous runtime estimator / LIO ownership. Map production and offline asset generation remain outside the V3 runtime boundary
 
 ## Third-party Runtime Dependencies
 
@@ -118,10 +164,10 @@ Qt map tooling and offline coverage-planning dependencies are intentionally excl
 
 ```text
 V3-00  Runtime extraction baseline
-V3-01  Runtime contracts and package cleanup
+V3-01  Runtime contracts and boundary freeze
 V3-02  Odometry / localization separation
 V3-03  Navigation / safety / chassis execution
-V3-04  Site + Vehicle + Task contracts
+V3-04  Site runtime loading + Vehicle + Task binding
 V3-05  BehaviorTree / Mission integration
 V3-06  Unified runtime bringup
 V3-07  Ackermann greenhouse validation
