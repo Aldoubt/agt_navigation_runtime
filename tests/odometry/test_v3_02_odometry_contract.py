@@ -30,12 +30,24 @@ def test_odometry_package_declares_runtime_name():
     assert "<name>agt_odometry</name>" in text("src/agt_odometry/package.xml")
 
 
+def test_odometry_package_declares_launch_and_backend_runtime_dependencies():
+    package_xml = text("src/agt_odometry/package.xml")
+    for dependency in ("ament_index_python", "fast_livo", "launch", "launch_ros"):
+        assert f"<exec_depend>{dependency}</exec_depend>" in package_xml
+
+
 def test_runtime_launch_has_no_pcd_save_arguments():
     launch = text("src/agt_odometry/launch/fast_livo2_odometry.launch.py")
     assert 'DeclareLaunchArgument("save_pcd"' not in launch
     assert 'DeclareLaunchArgument("pcd_save_interval"' not in launch
     assert 'DeclareLaunchArgument("pcd_output_dir"' not in launch
     assert '"pcd_save.pcd_save_en": False' in launch
+
+
+def test_runtime_backend_config_has_no_pcd_output_directory():
+    config = text("src/agt_odometry/config/mid360_lio_only.yaml")
+    assert "pcd_save_en: false" in config
+    assert "output_directory:" not in config
 
 
 def test_canonical_topics_are_odometry_scoped():
