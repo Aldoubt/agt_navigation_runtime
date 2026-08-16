@@ -1,18 +1,27 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>agt_chassis_mk_mini</name>
-  <version>0.1.0</version>
-  <description>Protocol-independent Ackermann adapter for the MK-mini chassis.</description>
+  <version>0.2.0</version>
+  <description>MK-mini Ackermann adapter and fail-safe SocketCAN backend.</description>
   <maintainer email="xuanyang.robotics@gmail.com">Xuan Yang</maintainer>
   <license>Apache-2.0</license>
+
   <buildtool_depend>ament_cmake</buildtool_depend>
   <build_depend>ament_cmake_python</build_depend>
+
   <exec_depend>agt_interfaces</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
   <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
+
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>python3-pytest</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
