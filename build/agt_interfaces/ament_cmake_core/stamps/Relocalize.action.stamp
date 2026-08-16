@@ -1,0 +1,29 @@
+# The project-owned automatic relocalization request. Internal candidate data
+# remains a C++ structure and is intentionally not exposed as a ROS message.
+uint8 MODE_AUTO_SEARCH=0
+uint8 MODE_SINGLE_INITIAL_POSE=1
+uint8 MODE_LOCAL_CANDIDATES=2
+uint8 MODE_EXTERNAL_COARSE_POSE=3
+
+uint8 mode
+bool use_initial_pose
+geometry_msgs/PoseWithCovarianceStamped initial_pose
+bool use_last_valid_pose
+bool use_configured_candidates
+bool use_external_coarse_pose
+uint32 max_candidates
+bool publish_debug
+float64 timeout_s
+---
+bool success
+uint16 error_code
+geometry_msgs/PoseWithCovarianceStamped final_pose
+agt_interfaces/LocalizationStatus final_status
+string failure_reason
+---
+uint8 state
+uint32 total_candidates
+uint32 tested_candidates
+float64 best_fitness_score
+string best_candidate_source
+float64 elapsed_s

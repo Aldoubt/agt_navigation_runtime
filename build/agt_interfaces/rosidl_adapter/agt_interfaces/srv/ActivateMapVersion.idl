@@ -1,0 +1,47 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from agt_interfaces/srv/ActivateMapVersion.srv
+// generated code does not contain a copyright notice
+
+#include "agt_interfaces/msg/MapVersionSummary.idl"
+
+module agt_interfaces {
+  module srv {
+    @verbatim (language="comment", text=
+      "ID-driven convenience wrapper around the map manager activation operation.")
+    struct ActivateMapVersion_Request {
+      string map_id;
+
+      string map_version_id;
+
+      string client_request_id;
+    };
+    module ActivateMapVersion_Response_Constants {
+      const uint16 ERROR_NONE = 0;
+      const uint16 ERROR_INVALID_REQUEST = 1;
+      const uint16 ERROR_NOT_FOUND = 2;
+      const uint16 ERROR_VALIDATION_FAILED = 3;
+      const uint16 ERROR_INTERNAL = 255;
+    };
+    struct ActivateMapVersion_Response {
+      boolean success;
+
+      uint16 error_code;
+
+      string map_id;
+
+      string map_version_id;
+
+      string state;
+
+      sequence<string> blocker_codes;
+
+      sequence<string> blocker_messages;
+
+      sequence<string> operator_messages;
+
+      sequence<string> technical_messages;
+
+      agt_interfaces::msg::MapVersionSummary version;
+    };
+  };
+};

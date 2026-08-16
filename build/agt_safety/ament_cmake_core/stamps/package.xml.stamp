@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>agt_safety</name>
+  <version>0.1.0</version>
+  <description>Safety arbitration and emergency stop interfaces.</description>
+  <maintainer email="yangxuan@example.com">yangxuan</maintainer>
+  <license>Apache-2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>agt_interfaces</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

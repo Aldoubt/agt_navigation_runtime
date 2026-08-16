@@ -1,0 +1,42 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Override CMake install command with custom implementation using symlinks instead of copying resources
+-- Found ament_cmake_pytest: 1.3.14 (/opt/ros/humble/share/ament_cmake_pytest/cmake)
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/agt_description
+-- Install configuration: ""
+-- Execute custom install script
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/urdf/agt_base.urdf.xacro
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/launch/bunker_description.launch.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/launch/description.launch.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/config/README.md
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/config/bunker_mid360.yaml
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/config/mk_mini_mid360.yaml
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/ament_index/resource_index/package_run_dependencies/agt_description
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/ament_index/resource_index/parent_prefix_path/agt_description
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/environment/ament_prefix_path.sh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/environment/ament_prefix_path.dsv
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/environment/path.sh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/environment/path.dsv
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/local_setup.bash
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/local_setup.sh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/local_setup.zsh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/local_setup.dsv
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/package.dsv
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/ament_index/resource_index/packages/agt_description
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/cmake/agt_descriptionConfig.cmake
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/cmake/agt_descriptionConfig-version.cmake
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_description/share/agt_description/package.xml

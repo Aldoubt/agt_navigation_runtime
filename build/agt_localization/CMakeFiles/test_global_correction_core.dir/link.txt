@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/test_global_correction_core.dir/test/test_global_correction_core.cpp.o -o test_global_correction_core  gtest/libgtest_main.a gtest/libgtest.a libagt_localization_global_correction.a -pthread 

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libagt_localization_global_correction.a CMakeFiles/agt_localization_global_correction.dir/src/global_correction_core.cpp.o
+/usr/bin/ranlib libagt_localization_global_correction.a

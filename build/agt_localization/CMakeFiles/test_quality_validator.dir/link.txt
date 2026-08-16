@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/test_quality_validator.dir/test/test_quality_validator.cpp.o -o test_quality_validator  gtest/libgtest_main.a gtest/libgtest.a libagt_localization_quality.a -pthread 

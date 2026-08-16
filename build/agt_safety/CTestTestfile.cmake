@@ -1,0 +1,8 @@
+# CMake generated Testfile for 
+# Source directory: /home/yangxuan/agt_navigation_runtime/src/agt_safety
+# Build directory: /home/yangxuan/agt_navigation_runtime/build/agt_safety
+# 
+# This file includes the relevant testing commands required for 
+# testing this directory and lists subdirectories to be tested as well.
+add_test(test_safety_controller "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/home/yangxuan/agt_navigation_runtime/build/agt_safety/test_results/agt_safety/test_safety_controller.xunit.xml" "--package-name" "agt_safety" "--output-file" "/home/yangxuan/agt_navigation_runtime/build/agt_safety/ament_cmake_pytest/test_safety_controller.txt" "--command" "/usr/bin/python3" "-u" "-m" "pytest" "/home/yangxuan/agt_navigation_runtime/src/agt_safety/test/test_safety_controller.py" "-o" "cache_dir=/home/yangxuan/agt_navigation_runtime/build/agt_safety/ament_cmake_pytest/test_safety_controller/.cache" "--junit-xml=/home/yangxuan/agt_navigation_runtime/build/agt_safety/test_results/agt_safety/test_safety_controller.xunit.xml" "--junit-prefix=agt_safety")
+set_tests_properties(test_safety_controller PROPERTIES  LABELS "pytest" TIMEOUT "60" WORKING_DIRECTORY "/home/yangxuan/agt_navigation_runtime/build/agt_safety" _BACKTRACE_TRIPLES "/opt/ros/humble/share/ament_cmake_test/cmake/ament_add_test.cmake;125;add_test;/opt/ros/humble/share/ament_cmake_pytest/cmake/ament_add_pytest_test.cmake;169;ament_add_test;/home/yangxuan/agt_navigation_runtime/src/agt_safety/CMakeLists.txt;17;ament_add_pytest_test;/home/yangxuan/agt_navigation_runtime/src/agt_safety/CMakeLists.txt;0;")

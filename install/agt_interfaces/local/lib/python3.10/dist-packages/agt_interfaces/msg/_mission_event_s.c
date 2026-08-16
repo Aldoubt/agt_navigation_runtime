@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_generator_py/agt_interfaces/msg/_mission_event_s.c

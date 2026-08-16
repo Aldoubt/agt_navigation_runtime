@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_targets("TARGET_FILES" "/home/yangxuan/agt_navigation_runtime/build/agt_sensor_monitor/libstream_monitor.a" "/home/yangxuan/agt_navigation_runtime/build/agt_sensor_monitor/agt_sensor_monitor_node" "TARGETS" "stream_monitor" "agt_sensor_monitor_node" "ARCHIVE_DESTINATION" "lib" "LIBRARY_DESTINATION" "lib" "RUNTIME_DESTINATION" "lib/agt_sensor_monitor")

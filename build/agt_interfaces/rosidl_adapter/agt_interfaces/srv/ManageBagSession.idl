@@ -1,0 +1,91 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from agt_interfaces/srv/ManageBagSession.srv
+// generated code does not contain a copyright notice
+
+#include "agt_interfaces/msg/BagSessionSummary.idl"
+
+module agt_interfaces {
+  module srv {
+    module ManageBagSession_Request_Constants {
+      const uint8 OP_STATUS = 0;
+      const uint8 OP_START_RECORDING = 1;
+      const uint8 OP_STOP_RECORDING = 2;
+      const uint8 OP_START_PLAYBACK = 3;
+      const uint8 OP_STOP_PLAYBACK = 4;
+      const uint8 OP_CREATE_EXPERIMENT = 5;
+      const uint8 OP_COMPLETE_EXPERIMENT = 6;
+      const uint8 OP_INTERRUPT_EXPERIMENT = 7;
+      const uint8 OP_START_EXPERIMENT = 8;
+      const uint8 OP_MARK_EXPERIMENT_INVALID = 9;
+      const uint8 OP_ADD_EXPERIMENT_EVENT = 10;
+    };
+    struct ManageBagSession_Request {
+      uint8 operation;
+
+      string bag_id;
+
+      string experiment_id;
+
+      string experiment_title;
+
+      string objective;
+
+      string hypothesis;
+
+      string tags_json;
+
+      string operator_note;
+
+      string profile_id;
+
+      double playback_rate;
+
+      string mission_id;
+
+      string mission_version;
+
+      string mission_sha256;
+
+      string map_id;
+
+      string map_version_id;
+
+      string map_sha256;
+
+      string platform_profile;
+
+      string calibration_profile;
+
+      string nav2_profile;
+
+      string launch_profile;
+
+      boolean start_experiment;
+
+      string event_type;
+
+      string metadata_json;
+
+      string result_status;
+
+      string reason;
+    };
+    module ManageBagSession_Response_Constants {
+      const uint16 ERROR_NONE = 0;
+      const uint16 ERROR_NOT_FOUND = 1;
+      const uint16 ERROR_INVALID_REQUEST = 2;
+      const uint16 ERROR_CONFLICT = 3;
+      const uint16 ERROR_PROFILE_INVALID = 4;
+      const uint16 ERROR_INTERNAL = 255;
+    };
+    struct ManageBagSession_Response {
+      boolean success;
+
+      uint16 error_code;
+
+      agt_interfaces::msg::BagSessionSummary session;
+
+      string message;
+    };
+  };
+};

@@ -1,0 +1,103 @@
+[0.019s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_navigation': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_navigation -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_navigation
+[0.097s] -- The C compiler identification is GNU 11.4.0
+[0.183s] -- The CXX compiler identification is GNU 11.4.0
+[0.196s] -- Detecting C compiler ABI info
+[0.304s] -- Detecting C compiler ABI info - done
+[0.316s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.316s] -- Detecting C compile features
+[0.317s] -- Detecting C compile features - done
+[0.320s] -- Detecting CXX compiler ABI info
+[0.431s] -- Detecting CXX compiler ABI info - done
+[0.445s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.446s] -- Detecting CXX compile features
+[0.447s] -- Detecting CXX compile features - done
+[0.452s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.669s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.745s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.918s] -- Found ament_cmake_pytest: 1.3.14 (/opt/ros/humble/share/ament_cmake_pytest/cmake)
+[18.006s] -- Configuring done
+[18.011s] -- Generating done
+[18.013s] -- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/agt_navigation
+[18.018s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_navigation' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_navigation -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_navigation
+[18.020s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_navigation': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_navigation -- -j32 -l32
+[18.095s] Built target ament_cmake_python_symlink_agt_navigation
+[18.553s] running egg_info
+[18.554s] creating agt_navigation.egg-info
+[18.555s] writing agt_navigation.egg-info/PKG-INFO
+[18.555s] writing dependency_links to agt_navigation.egg-info/dependency_links.txt
+[18.555s] writing top-level names to agt_navigation.egg-info/top_level.txt
+[18.555s] writing manifest file 'agt_navigation.egg-info/SOURCES.txt'
+[18.559s] reading manifest file 'agt_navigation.egg-info/SOURCES.txt'
+[18.560s] writing manifest file 'agt_navigation.egg-info/SOURCES.txt'
+[18.606s] Built target ament_cmake_python_build_agt_navigation_egg
+[18.624s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_navigation' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_navigation -- -j32 -l32
+[18.627s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_navigation': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_navigation
+[18.639s] -- Install configuration: ""
+[18.640s] -- Execute custom install script
+[18.641s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/pythonpath.sh
+[18.654s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/pythonpath.dsv
+[18.668s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation-0.1.0-py3.10.egg-info/PKG-INFO
+[18.682s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation-0.1.0-py3.10.egg-info/SOURCES.txt
+[18.696s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation-0.1.0-py3.10.egg-info/dependency_links.txt
+[18.710s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation-0.1.0-py3.10.egg-info/top_level.txt
+[18.725s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/__init__.py
+[18.739s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/nav2_follow_path_adapter.py
+[18.751s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/navigation_errors.py
+[18.765s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/qt_task_chain.py
+[18.778s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_backend.py
+[18.788s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_runtime.py
+[18.797s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_task_binding.py
+[18.812s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/session_manager.py
+[18.822s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/task_group.py
+[18.833s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/task_registry.py
+[18.848s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/differential_drive_simulator.py
+[18.861s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/execute_waypoint_task.py
+[18.874s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/goal_pose_bridge.py
+[18.889s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/navigation_capability_server.py
+[18.899s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/route_controller_smoke.py
+[18.914s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/route_system_smoke.py
+[18.928s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/route_system_smoke_fixture.py
+[18.943s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/start_waypoint_preview_rviz.sh
+[18.958s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/task_registry_node.py
+[18.972s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/waypoint_task_server.py
+[18.985s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/waypoint_preview_planner.py
+[18.999s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/navigation.launch.py
+[19.013s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/offline_navigation.launch.py
+[19.027s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/route_controller_smoke.launch.py
+[19.041s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/route_system_smoke.launch.py
+[19.054s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/waypoint_preview.launch.py
+[19.069s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/nav2_bunker.yaml
+[19.083s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/route_smoke_vehicle.yaml
+[19.096s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/task_group_schema.json
+[19.111s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/waypoint_preview.rviz
+[19.124s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/waypoint_preview_nav2.yaml
+[19.138s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/behavior_trees/navigate_to_pose.xml
+[19.152s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/maps/offline_test.pgm
+[19.166s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/maps/offline_test.yaml
+[19.180s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/ament_index/resource_index/package_run_dependencies/agt_navigation
+[19.191s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/ament_index/resource_index/parent_prefix_path/agt_navigation
+[19.203s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/ament_prefix_path.sh
+[19.217s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/ament_prefix_path.dsv
+[19.230s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/path.sh
+[19.244s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/path.dsv
+[19.257s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/local_setup.bash
+[19.269s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/local_setup.sh
+[19.282s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/local_setup.zsh
+[19.296s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/local_setup.dsv
+[19.311s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/package.dsv
+[19.325s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/ament_index/resource_index/packages/agt_navigation
+[19.337s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/cmake/agt_navigationConfig.cmake
+[19.351s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/cmake/agt_navigationConfig-version.cmake
+[19.364s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/package.xml
+[19.466s] Listing '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation'...
+[19.466s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/__init__.py'...
+[19.466s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/nav2_follow_path_adapter.py'...
+[19.466s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/navigation_errors.py'...
+[19.467s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/qt_task_chain.py'...
+[19.467s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_backend.py'...
+[19.467s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_runtime.py'...
+[19.467s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_task_binding.py'...
+[19.467s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/session_manager.py'...
+[19.467s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/task_group.py'...
+[19.467s] Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/task_registry.py'...
+[19.478s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_navigation' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_navigation

@@ -1,0 +1,53 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from agt_interfaces/msg/ComponentHealth.msg
+// generated code does not contain a copyright notice
+
+#include "std_msgs/msg/Header.idl"
+
+module agt_interfaces {
+  module msg {
+    module ComponentHealth_Constants {
+      const uint8 STATE_UNKNOWN = 0;
+      const uint8 STATE_OK = 1;
+      const uint8 STATE_WARN = 2;
+      const uint8 STATE_ERROR = 3;
+    };
+    @verbatim (language="comment", text=
+      "Machine-readable health result for one configured component.")
+    struct ComponentHealth {
+      std_msgs::msg::Header header;
+
+      string component_id;
+
+      string display_name;
+
+      uint8 state;
+
+      boolean required;
+
+      boolean present;
+
+      double observed_rate_hz;
+
+      double message_age_sec;
+
+      uint64 message_count;
+
+      sequence<string> missing_topics;
+
+      sequence<string> missing_frames;
+
+      sequence<string> missing_nodes;
+
+      sequence<string> lifecycle_failures;
+
+      sequence<string> condition_failures;
+
+      sequence<string> warnings;
+
+      sequence<string> errors;
+
+      string detail;
+    };
+  };
+};

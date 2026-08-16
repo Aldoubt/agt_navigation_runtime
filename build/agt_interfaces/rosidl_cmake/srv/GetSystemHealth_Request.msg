@@ -1,0 +1,2 @@
+# Return the latest health snapshot. Optional components are omitted when false.
+bool include_optional

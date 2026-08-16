@@ -1,0 +1,60 @@
+// generated from rosidl_adapter/resource/action.idl.em
+// with input from agt_interfaces/action/ExecuteBehaviorTree.action
+// generated code does not contain a copyright notice
+
+
+module agt_interfaces {
+  module action {
+    module ExecuteBehaviorTree_Goal_Constants {
+      const uint16 ERROR_NONE = 0;
+      const uint16 ERROR_INVALID_REQUEST = 1;
+      const uint16 ERROR_TREE_NOT_ALLOWED = 2;
+      const uint16 ERROR_TREE_FAILED = 3;
+      const uint16 ERROR_CANCELED = 4;
+      const uint16 ERROR_INTERNAL = 255;
+    };
+    @verbatim (language="comment", text=
+      "Internal execution-engine boundary. Mission ownership remains in agt_mission_manager.")
+    struct ExecuteBehaviorTree_Goal {
+      string tree_id;
+
+      string execution_id;
+
+      string map_id;
+
+      string map_version_id;
+
+      string task_group_id;
+
+      uint32 task_revision;
+
+      string expected_content_sha256;
+
+      uint32 loop_count;
+
+      string client_request_id;
+    };
+    struct ExecuteBehaviorTree_Result {
+      boolean success;
+
+      uint16 error_code;
+
+      string message;
+
+      string blocker_code;
+
+      string blocker_message;
+    };
+    struct ExecuteBehaviorTree_Feedback {
+      string tree_state;
+
+      string active_node;
+
+      uint32 loop_index;
+
+      uint32 current_waypoint;
+
+      uint32 total_waypoints;
+    };
+  };
+};

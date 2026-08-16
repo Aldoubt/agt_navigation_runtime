@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_typesupport_introspection_cpp/agt_interfaces/srv/detail/set_localization_mode__rosidl_typesupport_introspection_cpp.hpp

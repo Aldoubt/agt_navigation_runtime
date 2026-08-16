@@ -1,0 +1,8 @@
+# CMake generated Testfile for 
+# Source directory: /home/yangxuan/agt_navigation_runtime/src/agt_description
+# Build directory: /home/yangxuan/agt_navigation_runtime/build/agt_description
+# 
+# This file includes the relevant testing commands required for 
+# testing this directory and lists subdirectories to be tested as well.
+add_test(test_tf_contract "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/home/yangxuan/agt_navigation_runtime/build/agt_description/test_results/agt_description/test_tf_contract.xunit.xml" "--package-name" "agt_description" "--output-file" "/home/yangxuan/agt_navigation_runtime/build/agt_description/ament_cmake_pytest/test_tf_contract.txt" "--command" "/usr/bin/python3" "-u" "-m" "pytest" "/home/yangxuan/agt_navigation_runtime/src/agt_description/test/test_tf_contract.py" "-o" "cache_dir=/home/yangxuan/agt_navigation_runtime/build/agt_description/ament_cmake_pytest/test_tf_contract/.cache" "--junit-xml=/home/yangxuan/agt_navigation_runtime/build/agt_description/test_results/agt_description/test_tf_contract.xunit.xml" "--junit-prefix=agt_description")
+set_tests_properties(test_tf_contract PROPERTIES  LABELS "pytest" TIMEOUT "60" WORKING_DIRECTORY "/home/yangxuan/agt_navigation_runtime/build/agt_description" _BACKTRACE_TRIPLES "/opt/ros/humble/share/ament_cmake_test/cmake/ament_add_test.cmake;125;add_test;/opt/ros/humble/share/ament_cmake_pytest/cmake/ament_add_pytest_test.cmake;169;ament_add_test;/home/yangxuan/agt_navigation_runtime/src/agt_description/CMakeLists.txt;14;ament_add_pytest_test;/home/yangxuan/agt_navigation_runtime/src/agt_description/CMakeLists.txt;0;")

@@ -1,0 +1,161 @@
+[0.021s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_localization': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core/lib:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_localization -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_localization
+[0.108s] -- The C compiler identification is GNU 11.4.0
+[0.186s] -- The CXX compiler identification is GNU 11.4.0
+[0.198s] -- Detecting C compiler ABI info
+[0.332s] -- Detecting C compiler ABI info - done
+[0.344s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.345s] -- Detecting C compile features
+[0.345s] -- Detecting C compile features - done
+[0.350s] -- Detecting CXX compiler ABI info
+[0.465s] -- Detecting CXX compiler ABI info - done
+[0.478s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.478s] -- Detecting CXX compile features
+[0.479s] -- Detecting CXX compile features - done
+[0.484s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.742s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.825s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.882s] -- Found agt_interfaces: 0.1.0 (/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/share/agt_interfaces/cmake)
+[0.936s] -- Found rosidl_generator_c: 3.1.8 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[0.944s] -- Found rosidl_adapter: 3.1.8 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[0.956s] -- Found rosidl_generator_cpp: 3.1.8 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[0.976s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.016s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.327s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[1.352s] -- Checking for module 'eigen3'
+[1.371s] --   Found eigen3, version 3.4.0
+[1.419s] -- Found Eigen: /usr/include/eigen3 (Required is at least version "3.1") 
+[1.419s] -- Eigen found (include: /usr/include/eigen3, version: 3.4.0)
+[1.460s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found suitable version "1.74.0", minimum required is "1.65.0") found components: system filesystem date_time iostreams serialization 
+[1.461s] -- looking for PCL_COMMON
+[1.462s] -- Found PCL_COMMON: /usr/lib/x86_64-linux-gnu/libpcl_common.so  
+[1.462s] -- Found PCL: pcl_common;Boost::system;Boost::filesystem;Boost::date_time;Boost::iostreams;Boost::serialization  
+[1.465s] -- Found pcl_conversions: 2.4.5 (/opt/ros/humble/share/pcl_conversions/cmake)
+[1.524s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[1.528s] -- Found rmw_fastrtps_cpp: 6.2.10 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[1.633s] -- Found FastRTPS: /opt/ros/humble/include  
+[1.704s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[1.715s] -- Looking for pthread.h
+[1.819s] -- Looking for pthread.h - found
+[1.819s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[1.920s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[1.922s] -- Found Threads: TRUE  
+[2.023s] -- Found rclcpp_action: 16.0.19 (/opt/ros/humble/share/rclcpp_action/cmake)
+[2.034s] -- Found relocalization_core: 0.1.0 (/home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake)
+[2.039s] -- Found tf2: 0.25.20 (/opt/ros/humble/share/tf2/cmake)
+[2.053s] -- Found tf2_ros: 0.25.20 (/opt/ros/humble/share/tf2_ros/cmake)
+[2.133s] -- Found ament_cmake_gtest: 1.3.14 (/opt/ros/humble/share/ament_cmake_gtest/cmake)
+[2.135s] -- Found ament_cmake_pytest: 1.3.14 (/opt/ros/humble/share/ament_cmake_pytest/cmake)
+[2.139s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[5.887s] -- Configuring done
+[5.951s] -- Generating done
+[5.966s] -- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/agt_localization
+[5.980s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_localization' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core/lib:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_localization -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_localization
+[5.982s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_localization': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core/lib:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_localization -- -j32 -l32
+[6.065s] [  2%] [32mBuilding CXX object gtest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o[0m
+[6.065s] [  5%] [32mBuilding CXX object CMakeFiles/agt_localization_supervisor.dir/src/localization_supervisor.cpp.o[0m
+[6.065s] [ 10%] [32mBuilding CXX object CMakeFiles/agt_localization_global_correction.dir/src/global_correction_core.cpp.o[0m
+[6.065s] [ 10%] [32mBuilding CXX object CMakeFiles/agt_localization_map_readiness.dir/src/map_readiness.cpp.o[0m
+[6.065s] [ 15%] [32mBuilding CXX object CMakeFiles/agt_localization_recovery_trigger.dir/src/recovery_trigger_policy.cpp.o[0m
+[6.065s] [ 15%] [32mBuilding CXX object gtest/CMakeFiles/gtest.dir/src/gtest-all.cc.o[0m
+[6.068s] [ 18%] [32mBuilding CXX object CMakeFiles/agt_localization_candidates.dir/src/candidate_provider.cpp.o[0m
+[6.068s] [ 21%] [32mBuilding CXX object CMakeFiles/agt_localization_quality.dir/src/quality_validator.cpp.o[0m
+[6.464s] [ 23%] [32m[1mLinking CXX static library libagt_localization_supervisor.a[0m
+[6.516s] [ 23%] Built target agt_localization_supervisor
+[6.580s] [ 26%] [32m[1mLinking CXX static library libagt_localization_recovery_trigger.a[0m
+[6.635s] [ 26%] Built target agt_localization_recovery_trigger
+[6.665s] [ 28%] [32mBuilding CXX object CMakeFiles/recovery_trigger_manager.dir/src/recovery_trigger_manager.cpp.o[0m
+[6.815s] [ 31%] [32m[1mLinking CXX static library libagt_localization_quality.a[0m
+[6.851s] [ 31%] Built target agt_localization_quality
+[7.054s] [ 34%] [32m[1mLinking CXX static library libgtest_main.a[0m
+[7.095s] [ 34%] Built target gtest_main
+[7.867s] [ 36%] [32m[1mLinking CXX static library libagt_localization_map_readiness.a[0m
+[7.978s] [ 36%] Built target agt_localization_map_readiness
+[8.200s] [ 39%] [32m[1mLinking CXX static library libagt_localization_candidates.a[0m
+[8.241s] [ 42%] [32m[1mLinking CXX static library libagt_localization_global_correction.a[0m
+[8.257s] [ 42%] Built target agt_localization_candidates
+[8.282s] [ 44%] [32mBuilding CXX object CMakeFiles/relocalization_node.dir/src/relocalization_node.cpp.o[0m
+[8.286s] [ 44%] Built target agt_localization_global_correction
+[8.311s] [ 47%] [32mBuilding CXX object CMakeFiles/global_correction_manager.dir/src/global_correction_manager.cpp.o[0m
+[9.932s] [ 50%] [32m[1mLinking CXX static library libgtest.a[0m
+[10.019s] [ 50%] Built target gtest
+[10.042s] [ 52%] [32mBuilding CXX object CMakeFiles/test_tracking_validation.dir/test/test_tracking_validation.cpp.o[0m
+[10.043s] [ 57%] [32mBuilding CXX object CMakeFiles/test_localization_timing.dir/test/test_localization_timing.cpp.o[0m
+[10.043s] [ 57%] [32mBuilding CXX object CMakeFiles/test_candidate_provider.dir/test/test_candidate_provider.cpp.o[0m
+[10.044s] [ 60%] [32mBuilding CXX object CMakeFiles/test_map_readiness.dir/test/test_map_readiness.cpp.o[0m
+[10.051s] [ 71%] [32mBuilding CXX object CMakeFiles/test_localization_supervisor.dir/test/test_localization_supervisor.cpp.o[0m
+[10.052s] [ 71%] [32mBuilding CXX object CMakeFiles/test_recovery_trigger_policy.dir/test/test_recovery_trigger_policy.cpp.o[0m
+[10.052s] [ 71%] [32mBuilding CXX object CMakeFiles/test_quality_validator.dir/test/test_quality_validator.cpp.o[0m
+[10.052s] [ 71%] [32mBuilding CXX object CMakeFiles/test_global_correction_core.dir/test/test_global_correction_core.cpp.o[0m
+[12.104s] [ 73%] [32m[1mLinking CXX executable test_recovery_trigger_policy[0m
+[12.118s] [ 76%] [32m[1mLinking CXX executable test_quality_validator[0m
+[12.287s] [ 78%] [32m[1mLinking CXX executable test_localization_supervisor[0m
+[12.375s] [ 78%] Built target test_quality_validator
+[12.419s] [ 78%] Built target test_recovery_trigger_policy
+[12.575s] [ 78%] Built target test_localization_supervisor
+[12.729s] [ 81%] [32m[1mLinking CXX executable test_map_readiness[0m
+[12.839s] [ 84%] [32m[1mLinking CXX executable test_candidate_provider[0m
+[13.105s] [ 84%] Built target test_candidate_provider
+[13.158s] [ 84%] Built target test_map_readiness
+[14.302s] [ 86%] [32m[1mLinking CXX executable test_global_correction_core[0m
+[14.398s] [ 89%] [32m[1mLinking CXX executable test_tracking_validation[0m
+[14.419s] [ 92%] [32m[1mLinking CXX executable test_localization_timing[0m
+[14.512s] [ 92%] Built target test_global_correction_core
+[14.667s] [ 92%] Built target test_tracking_validation
+[14.669s] [ 92%] Built target test_localization_timing
+[19.673s] [ 94%] [32m[1mLinking CXX executable recovery_trigger_manager[0m
+[20.488s] [ 94%] Built target recovery_trigger_manager
+[22.801s] [ 97%] [32m[1mLinking CXX executable global_correction_manager[0m
+[23.360s] [ 97%] Built target global_correction_manager
+[31.887s] [100%] [32m[1mLinking CXX executable relocalization_node[0m
+[33.021s] [100%] Built target relocalization_node
+[33.034s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_localization' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core/lib:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_localization -- -j32 -l32
+[33.036s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_localization': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core/lib:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_localization
+[33.043s] -- Install configuration: ""
+[33.044s] -- Execute custom install script
+[33.044s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/libagt_localization_candidates.a
+[33.053s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/libagt_localization_quality.a
+[33.062s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/libagt_localization_supervisor.a
+[33.070s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/libagt_localization_map_readiness.a
+[33.078s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/libagt_localization_global_correction.a
+[33.085s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/libagt_localization_recovery_trigger.a
+[33.094s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/agt_localization/reference_map_publisher.py
+[33.105s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/agt_localization/v25_10_realbag_validation.py
+[33.117s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/include/agt_localization/candidate_provider.hpp
+[33.125s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/include/agt_localization/global_correction_core.hpp
+[33.134s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/include/agt_localization/localization_supervisor.hpp
+[33.146s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/include/agt_localization/localization_timing.hpp
+[33.155s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/include/agt_localization/map_readiness.hpp
+[33.165s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/include/agt_localization/quality_validator.hpp
+[33.174s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/include/agt_localization/recovery_trigger_policy.hpp
+[33.182s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/include/agt_localization/ros_conversions.hpp
+[33.192s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/include/agt_localization/tracking_validation.hpp
+[33.202s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/agt_localization/relocalization_node
+[33.209s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/agt_localization/global_correction_manager
+[33.220s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/lib/agt_localization/recovery_trigger_manager
+[33.231s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/launch/README.md
+[33.241s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/launch/relocalization.launch.py
+[33.248s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/launch/v25_10_realbag_validation.launch.py
+[33.255s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/config/README.md
+[33.265s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/config/candidates.example.yaml
+[33.275s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/config/global_correction.yaml
+[33.285s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/config/global_correction_handheld_validation.yaml
+[33.296s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/config/recovery_trigger.yaml
+[33.304s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/config/relocalization.yaml
+[33.314s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/config/relocalization_handheld_validation.yaml
+[33.324s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/rviz/v25_10_realbag_validation.rviz
+[33.332s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/ament_index/resource_index/package_run_dependencies/agt_localization
+[33.341s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/ament_index/resource_index/parent_prefix_path/agt_localization
+[33.349s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/environment/ament_prefix_path.sh
+[33.359s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/environment/ament_prefix_path.dsv
+[33.369s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/environment/path.sh
+[33.380s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/environment/path.dsv
+[33.391s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/local_setup.bash
+[33.398s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/local_setup.sh
+[33.408s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/local_setup.zsh
+[33.415s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/local_setup.dsv
+[33.424s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/package.dsv
+[33.434s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/ament_index/resource_index/packages/agt_localization
+[33.444s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/cmake/agt_localizationConfig.cmake
+[33.451s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/cmake/agt_localizationConfig-version.cmake
+[33.459s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_localization/share/agt_localization/package.xml
+[33.471s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_localization' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/relocalization_core/lib:/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_localization

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libagt_localization_recovery_trigger.a CMakeFiles/agt_localization_recovery_trigger.dir/src/recovery_trigger_policy.cpp.o
+/usr/bin/ranlib libagt_localization_recovery_trigger.a

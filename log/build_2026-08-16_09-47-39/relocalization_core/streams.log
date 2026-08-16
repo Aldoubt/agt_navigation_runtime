@@ -1,0 +1,172 @@
+[0.010s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/relocalization_core': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:${LD_LIBRARY_PATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/third_party/relocalization_core -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/relocalization_core
+[0.067s] -- The C compiler identification is GNU 11.4.0
+[0.124s] -- The CXX compiler identification is GNU 11.4.0
+[0.132s] -- Detecting C compiler ABI info
+[0.199s] -- Detecting C compiler ABI info - done
+[0.207s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.207s] -- Detecting C compile features
+[0.208s] -- Detecting C compile features - done
+[0.211s] -- Detecting CXX compiler ABI info
+[0.313s] -- Detecting CXX compiler ABI info - done
+[0.325s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.326s] -- Detecting CXX compile features
+[0.326s] -- Detecting CXX compile features - done
+[0.331s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.541s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.607s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.927s] -- Found OpenMP_C: -fopenmp (found version "4.5") 
+[1.042s] -- Found OpenMP_CXX: -fopenmp (found version "4.5") 
+[1.042s] -- Found OpenMP: TRUE (found version "4.5")  
+[1.061s] -- Checking for module 'eigen3'
+[1.077s] --   Found eigen3, version 3.4.0
+[1.121s] -- Found Eigen: /usr/include/eigen3 (Required is at least version "3.1") 
+[1.121s] -- Eigen found (include: /usr/include/eigen3, version: 3.4.0)
+[1.148s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found suitable version "1.74.0", minimum required is "1.65.0") found components: system filesystem date_time iostreams serialization 
+[1.168s] -- Checking for module 'flann'
+[1.186s] --   Found flann, version 1.9.1
+[1.261s] -- Found FLANN: /usr/lib/x86_64-linux-gnu/libflann_cpp.so  
+[1.261s] -- FLANN found (include: /usr/include, lib: /usr/lib/x86_64-linux-gnu/libflann_cpp.so)
+[1.349s] -- Checking for module 'libusb-1.0'
+[1.371s] --   Found libusb-1.0, version 1.0.25
+[1.427s] -- Found libusb: /usr/lib/x86_64-linux-gnu/libusb-1.0.so  
+[1.429s] -- Found OpenNI: /usr/lib/libOpenNI.so;libusb::libusb (found version "1.5.4.0") 
+[1.429s] -- OpenNI found (version: 1.5.4.0, include: /usr/include/ni, lib: /usr/lib/libOpenNI.so;libusb::libusb)
+[1.515s] -- Found OpenNI2: /usr/lib/x86_64-linux-gnu/libOpenNI2.so;libusb::libusb (found version "2.2.0.33") 
+[1.516s] -- OpenNI2 found (version: 2.2.0.33, include: /usr/include/openni2, lib: /usr/lib/x86_64-linux-gnu/libOpenNI2.so;libusb::libusb)
+[1.516s] [0m** WARNING ** io features related to pcap will be disabled[0m
+[1.516s] [0m** WARNING ** io features related to png will be disabled[0m
+[1.578s] -- Looking for pthread.h
+[1.716s] -- Looking for pthread.h - found
+[1.716s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[1.834s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[1.836s] -- Found Threads: TRUE  
+[1.839s] -- Found GLEW: /usr/lib/x86_64-linux-gnu/libGLEW.so  
+[1.850s] -- Found OpenGL: /usr/lib/x86_64-linux-gnu/libOpenGL.so  found components: OpenGL GLX 
+[2.054s] -- Found MPI_C: /usr/lib/x86_64-linux-gnu/libmpi.so (found version "3.1") 
+[2.054s] -- Found MPI: TRUE (found version "3.1") found components: C 
+[2.059s] -- Found JsonCpp: /usr/lib/x86_64-linux-gnu/libjsoncpp.so (found suitable version "1.9.5", minimum required is "0.7.0") 
+[2.072s] -- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.2.11") 
+[2.095s] -- Found PNG: /usr/lib/x86_64-linux-gnu/libpng.so (found version "1.6.37") 
+[2.110s] -- Found Eigen3: /usr/include/eigen3 (found version "3.4.0") 
+[2.242s] -- Found X11: /usr/include   
+[2.243s] -- Looking for XOpenDisplay in /usr/lib/x86_64-linux-gnu/libX11.so;/usr/lib/x86_64-linux-gnu/libXext.so
+[2.367s] -- Looking for XOpenDisplay in /usr/lib/x86_64-linux-gnu/libX11.so;/usr/lib/x86_64-linux-gnu/libXext.so - found
+[2.367s] -- Looking for gethostbyname
+[2.484s] -- Looking for gethostbyname - found
+[2.484s] -- Looking for connect
+[2.614s] -- Looking for connect - found
+[2.614s] -- Looking for remove
+[2.721s] -- Looking for remove - found
+[2.721s] -- Looking for shmat
+[2.820s] -- Looking for shmat - found
+[2.820s] -- Looking for IceConnectionNumber in ICE
+[2.945s] -- Looking for IceConnectionNumber in ICE - found
+[3.062s] -- Found EXPAT: /usr/lib/x86_64-linux-gnu/libexpat.so (found version "2.4.7") 
+[3.064s] -- Found double-conversion: /usr/lib/x86_64-linux-gnu/libdouble-conversion.so  
+[3.067s] -- Found LZ4: /usr/lib/x86_64-linux-gnu/liblz4.so (found version "1.9.3") 
+[3.069s] -- Found LZMA: /usr/lib/x86_64-linux-gnu/liblzma.so (found version "5.2.5") 
+[3.090s] -- Found JPEG: /usr/lib/x86_64-linux-gnu/libjpeg.so (found version "80") 
+[3.097s] -- Found TIFF: /usr/lib/x86_64-linux-gnu/libtiff.so (found version "4.3.0")  
+[3.102s] -- Found Freetype: /usr/lib/x86_64-linux-gnu/libfreetype.so (found version "2.11.1") 
+[3.109s] -- Found utf8cpp: /usr/include/utf8cpp  
+[3.152s] -- Eigen found (include: /usr/include/eigen3, version: 3.4.0)
+[3.582s] -- looking for PCL_COMMON
+[3.584s] -- Found PCL_COMMON: /usr/lib/x86_64-linux-gnu/libpcl_common.so  
+[3.584s] -- looking for PCL_KDTREE
+[3.585s] -- Found PCL_KDTREE: /usr/lib/x86_64-linux-gnu/libpcl_kdtree.so  
+[3.585s] -- looking for PCL_OCTREE
+[3.586s] -- Found PCL_OCTREE: /usr/lib/x86_64-linux-gnu/libpcl_octree.so  
+[3.586s] -- looking for PCL_SEARCH
+[3.587s] -- Found PCL_SEARCH: /usr/lib/x86_64-linux-gnu/libpcl_search.so  
+[3.587s] -- looking for PCL_SAMPLE_CONSENSUS
+[3.588s] -- Found PCL_SAMPLE_CONSENSUS: /usr/lib/x86_64-linux-gnu/libpcl_sample_consensus.so  
+[3.589s] -- looking for PCL_FILTERS
+[3.590s] -- Found PCL_FILTERS: /usr/lib/x86_64-linux-gnu/libpcl_filters.so  
+[3.590s] -- looking for PCL_IO
+[3.592s] -- Found PCL_IO: /usr/lib/x86_64-linux-gnu/libpcl_io.so  
+[3.592s] -- looking for PCL_2D
+[3.593s] -- Found PCL_2D: /usr/include/pcl-1.12  
+[3.593s] -- looking for PCL_FEATURES
+[3.595s] -- Found PCL_FEATURES: /usr/lib/x86_64-linux-gnu/libpcl_features.so  
+[3.595s] -- looking for PCL_REGISTRATION
+[3.597s] -- Found PCL_REGISTRATION: /usr/lib/x86_64-linux-gnu/libpcl_registration.so  
+[3.598s] -- Found PCL: pcl_common;pcl_kdtree;pcl_octree;pcl_search;pcl_sample_consensus;pcl_filters;pcl_io;pcl_features;pcl_registration;Boost::system;Boost::filesystem;Boost::date_time;Boost::iostreams;Boost::serialization;/usr/lib/libOpenNI.so;libusb::libusb;/usr/lib/x86_64-linux-gnu/libOpenNI2.so;libusb::libusb;VTK::ChartsCore;VTK::CommonColor;VTK::CommonComputationalGeometry;VTK::CommonCore;VTK::CommonDataModel;VTK::CommonExecutionModel;VTK::CommonMath;VTK::CommonMisc;VTK::CommonTransforms;VTK::FiltersCore;VTK::FiltersExtraction;VTK::FiltersGeneral;VTK::FiltersGeometry;VTK::FiltersModeling;VTK::FiltersSources;VTK::ImagingCore;VTK::ImagingSources;VTK::InteractionImage;VTK::InteractionStyle;VTK::InteractionWidgets;VTK::IOCore;VTK::IOGeometry;VTK::IOImage;VTK::IOLegacy;VTK::IOPLY;VTK::RenderingAnnotation;VTK::RenderingCore;VTK::RenderingContext2D;VTK::RenderingLOD;VTK::RenderingFreeType;VTK::ViewsCore;VTK::ViewsContext2D;VTK::RenderingOpenGL2;VTK::GUISupportQt;FLANN::FLANN  
+[3.599s] -- Found ndt_omp_ros2: 0.0.0 (/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/share/ndt_omp_ros2/cmake)
+[3.679s] -- Found rosidl_generator_c: 3.1.8 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[3.690s] -- Found rosidl_adapter: 3.1.8 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[3.708s] -- Found rosidl_generator_cpp: 3.1.8 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[3.733s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[3.766s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[3.842s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[3.846s] -- Found rmw_fastrtps_cpp: 6.2.10 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[3.982s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[4.029s] -- Found FastRTPS: /opt/ros/humble/include  
+[4.108s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[4.226s] -- Found ament_cmake_gtest: 1.3.14 (/opt/ros/humble/share/ament_cmake_gtest/cmake)
+[4.230s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[4.238s] -- Found ament_lint_auto: 0.12.15 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[4.356s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[4.356s] -- Configured cppcheck include dirs: $<BUILD_INTERFACE:/home/yangxuan/agt_navigation_runtime/third_party/relocalization_core/include>
+[4.356s] -- Configured cppcheck exclude dirs and/or files: 
+[4.357s] -- Added test 'lint_cmake' to check CMake code style
+[4.358s] -- Added test 'uncrustify' to check C / C++ code style
+[4.359s] -- Configured uncrustify additional arguments: 
+[4.359s] -- Added test 'xmllint' to check XML markup files
+[4.361s] -- Configuring done
+[4.397s] -- Generating done
+[4.407s] -- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/relocalization_core
+[4.428s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/relocalization_core' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:${LD_LIBRARY_PATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/third_party/relocalization_core -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/relocalization_core
+[4.431s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/relocalization_core': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:${LD_LIBRARY_PATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/relocalization_core -- -j32 -l32
+[4.522s] [  8%] [32mBuilding CXX object CMakeFiles/relocalization_core.dir/src/map_store.cpp.o[0m
+[4.522s] [ 16%] [32mBuilding CXX object gtest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o[0m
+[4.590s] [ 58%] [32mBuilding CXX object CMakeFiles/relocalization_core.dir/src/relocalizer.cpp.o[0m
+[4.590s] [ 58%] [32mBuilding CXX object CMakeFiles/relocalization_core.dir/src/scan_preprocessor.cpp.o[0m
+[4.590s] [ 58%] [32mBuilding CXX object CMakeFiles/relocalization_core.dir/src/backends/ndt_backend.cpp.o[0m
+[4.590s] [ 58%] [32mBuilding CXX object gtest/CMakeFiles/gtest.dir/src/gtest-all.cc.o[0m
+[4.591s] [ 58%] [32mBuilding CXX object CMakeFiles/relocalization_core.dir/src/backends/icp_backend.cpp.o[0m
+[6.095s] [ 66%] [32m[1mLinking CXX static library libgtest_main.a[0m
+[6.160s] [ 66%] Built target gtest_main
+[10.417s] [ 75%] [32m[1mLinking CXX static library libgtest.a[0m
+[10.515s] [ 75%] Built target gtest
+[20.240s] [ 83%] [32m[1mLinking CXX shared library librelocalization_core.so[0m
+[21.198s] [ 83%] Built target relocalization_core
+[21.231s] [ 91%] [32mBuilding CXX object CMakeFiles/test_relocalizer.dir/test/test_relocalizer.cpp.o[0m
+[26.309s] [100%] [32m[1mLinking CXX executable test_relocalizer[0m
+[27.100s] [100%] Built target test_relocalizer
+[27.120s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/relocalization_core' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:${LD_LIBRARY_PATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/relocalization_core -- -j32 -l32
+[27.123s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/relocalization_core': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:${LD_LIBRARY_PATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/relocalization_core
+[27.136s] -- Install configuration: ""
+[27.137s] -- Execute custom install script
+[27.138s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/include/relocalization_core/backends/icp_backend.hpp
+[27.153s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/include/relocalization_core/backends/ndt_backend.hpp
+[27.168s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/include/relocalization_core/config.hpp
+[27.184s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/include/relocalization_core/map_store.hpp
+[27.200s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/include/relocalization_core/registration_backend.hpp
+[27.215s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/include/relocalization_core/relocalizer.hpp
+[27.230s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/include/relocalization_core/scan_preprocessor.hpp
+[27.245s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/include/relocalization_core/types.hpp
+[27.262s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/environment/library_path.sh
+[27.279s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/environment/library_path.dsv
+[27.290s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/ament_index/resource_index/package_run_dependencies/relocalization_core
+[27.301s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/ament_index/resource_index/parent_prefix_path/relocalization_core
+[27.311s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/environment/ament_prefix_path.sh
+[27.322s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/environment/ament_prefix_path.dsv
+[27.332s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/environment/path.sh
+[27.342s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/environment/path.dsv
+[27.358s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/local_setup.bash
+[27.374s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/local_setup.sh
+[27.389s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/local_setup.zsh
+[27.404s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/local_setup.dsv
+[27.419s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/package.dsv
+[27.434s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/ament_index/resource_index/packages/relocalization_core
+[27.448s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake/ament_cmake_export_include_directories-extras.cmake
+[27.463s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake/ament_cmake_export_libraries-extras.cmake
+[27.478s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake/ament_cmake_export_targets-extras.cmake
+[27.493s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake/relocalization_coreConfig.cmake
+[27.507s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake/relocalization_coreConfig-version.cmake
+[27.522s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/package.xml
+[27.536s] -- Installing: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/lib/librelocalization_core.so
+[27.540s] -- Set runtime path of "/home/yangxuan/agt_navigation_runtime/install/relocalization_core/lib/librelocalization_core.so" to ""
+[27.541s] -- Installing: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake/export_relocalization_coreExport.cmake
+[27.541s] -- Installing: /home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake/export_relocalization_coreExport-noconfig.cmake
+[27.544s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/relocalization_core' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/ndt_omp_ros2/lib:${LD_LIBRARY_PATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/relocalization_core

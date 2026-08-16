@@ -1,0 +1,8 @@
+source;share/agt_mapping/hook/cmake_prefix_path.ps1
+source;share/agt_mapping/hook/cmake_prefix_path.dsv
+source;share/agt_mapping/hook/cmake_prefix_path.sh
+source;share/agt_mapping/local_setup.bash
+source;share/agt_mapping/local_setup.dsv
+source;share/agt_mapping/local_setup.ps1
+source;share/agt_mapping/local_setup.sh
+source;share/agt_mapping/local_setup.zsh

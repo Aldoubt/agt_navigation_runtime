@@ -1,0 +1,6 @@
+setup.py
+agt_interfaces/__init__.py
+agt_interfaces.egg-info/PKG-INFO
+agt_interfaces.egg-info/SOURCES.txt
+agt_interfaces.egg-info/dependency_links.txt
+agt_interfaces.egg-info/top_level.txt

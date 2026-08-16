@@ -1,0 +1,7 @@
+{
+  "package_name": "livox_ros_driver2",
+  "non_idl_tuples": [
+    "/home/yangxuan/agt_navigation_runtime/third_party/livox_ros_driver2:msg/CustomPoint.msg",
+    "/home/yangxuan/agt_navigation_runtime/third_party/livox_ros_driver2:msg/CustomMsg.msg"
+  ]
+}

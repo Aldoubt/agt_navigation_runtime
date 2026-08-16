@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/agt_navigation/generated_scripts/task_registry_node.py

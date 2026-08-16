@@ -1,0 +1,8 @@
+{
+  "package_name": "bunker_msgs",
+  "non_idl_tuples": [
+    "/home/yangxuan/agt_navigation_runtime/third_party/bunker_ros2/bunker_msgs:msg/BunkerActuatorState.msg",
+    "/home/yangxuan/agt_navigation_runtime/third_party/bunker_ros2/bunker_msgs:msg/BunkerRCState.msg",
+    "/home/yangxuan/agt_navigation_runtime/third_party/bunker_ros2/bunker_msgs:msg/BunkerStatus.msg"
+  ]
+}

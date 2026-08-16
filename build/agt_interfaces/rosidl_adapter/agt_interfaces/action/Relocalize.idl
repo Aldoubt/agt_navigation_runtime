@@ -1,0 +1,63 @@
+// generated from rosidl_adapter/resource/action.idl.em
+// with input from agt_interfaces/action/Relocalize.action
+// generated code does not contain a copyright notice
+
+#include "agt_interfaces/msg/LocalizationStatus.idl"
+#include "geometry_msgs/msg/PoseWithCovarianceStamped.idl"
+
+module agt_interfaces {
+  module action {
+    module Relocalize_Goal_Constants {
+      const uint8 MODE_AUTO_SEARCH = 0;
+      const uint8 MODE_SINGLE_INITIAL_POSE = 1;
+      const uint8 MODE_LOCAL_CANDIDATES = 2;
+      const uint8 MODE_EXTERNAL_COARSE_POSE = 3;
+    };
+    @verbatim (language="comment", text=
+      "The project-owned automatic relocalization request. Internal candidate data" "\n"
+      "remains a C++ structure and is intentionally not exposed as a ROS message.")
+    struct Relocalize_Goal {
+      uint8 mode;
+
+      boolean use_initial_pose;
+
+      geometry_msgs::msg::PoseWithCovarianceStamped initial_pose;
+
+      boolean use_last_valid_pose;
+
+      boolean use_configured_candidates;
+
+      boolean use_external_coarse_pose;
+
+      uint32 max_candidates;
+
+      boolean publish_debug;
+
+      double timeout_s;
+    };
+    struct Relocalize_Result {
+      boolean success;
+
+      uint16 error_code;
+
+      geometry_msgs::msg::PoseWithCovarianceStamped final_pose;
+
+      agt_interfaces::msg::LocalizationStatus final_status;
+
+      string failure_reason;
+    };
+    struct Relocalize_Feedback {
+      uint8 state;
+
+      uint32 total_candidates;
+
+      uint32 tested_candidates;
+
+      double best_fitness_score;
+
+      string best_candidate_source;
+
+      double elapsed_s;
+    };
+  };
+};

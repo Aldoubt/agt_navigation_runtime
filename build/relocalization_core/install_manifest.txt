@@ -1,0 +1,3 @@
+/home/yangxuan/agt_navigation_runtime/install/relocalization_core/lib/librelocalization_core.so
+/home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake/export_relocalization_coreExport.cmake
+/home/yangxuan/agt_navigation_runtime/install/relocalization_core/share/relocalization_core/cmake/export_relocalization_coreExport-noconfig.cmake

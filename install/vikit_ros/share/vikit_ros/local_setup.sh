@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/vikit_ros/ament_cmake_environment_hooks/local_setup.sh

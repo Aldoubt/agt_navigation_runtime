@@ -1,0 +1,67 @@
+[0.045s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_perception': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_perception -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_perception
+[0.319s] -- The C compiler identification is GNU 11.4.0
+[0.420s] -- The CXX compiler identification is GNU 11.4.0
+[0.431s] -- Detecting C compiler ABI info
+[0.545s] -- Detecting C compiler ABI info - done
+[0.561s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.561s] -- Detecting C compile features
+[0.562s] -- Detecting C compile features - done
+[0.568s] -- Detecting CXX compiler ABI info
+[0.725s] -- Detecting CXX compiler ABI info - done
+[0.743s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.743s] -- Detecting CXX compile features
+[0.744s] -- Detecting CXX compile features - done
+[0.750s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[1.044s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[1.254s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[1.334s] -- Found geometry_msgs: 4.9.1 (/opt/ros/humble/share/geometry_msgs/cmake)
+[1.504s] -- Found rosidl_generator_c: 3.1.8 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[1.517s] -- Found rosidl_adapter: 3.1.8 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[1.538s] -- Found rosidl_generator_cpp: 3.1.8 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[1.567s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.604s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.706s] -- Found rclcpp: 16.0.19 (/opt/ros/humble/share/rclcpp/cmake)
+[1.820s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[1.828s] -- Found rmw_fastrtps_cpp: 6.2.10 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[2.485s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[2.562s] -- Found FastRTPS: /opt/ros/humble/include  
+[2.712s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[2.737s] -- Looking for pthread.h
+[2.950s] -- Looking for pthread.h - found
+[2.953s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[3.250s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[3.258s] -- Found Threads: TRUE  
+[3.486s] -- Found sensor_msgs: 4.9.1 (/opt/ros/humble/share/sensor_msgs/cmake)
+[3.564s] -- Found tf2: 0.25.20 (/opt/ros/humble/share/tf2/cmake)
+[3.652s] -- Found tf2_ros: 0.25.20 (/opt/ros/humble/share/tf2_ros/cmake)
+[4.660s] -- Configuring done
+[4.679s] -- Generating done
+[4.690s] -- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/agt_perception
+[4.713s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_perception' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_perception -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_perception
+[4.717s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_perception': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_perception -- -j32 -l32
+[6.281s] [ 50%] [32mBuilding CXX object CMakeFiles/local_obstacle_filter.dir/src/local_obstacle_filter.cpp.o[0m
+[26.584s] [100%] [32m[1mLinking CXX executable local_obstacle_filter[0m
+[27.218s] [100%] Built target local_obstacle_filter
+[27.240s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_perception' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_perception -- -j32 -l32
+[27.244s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_perception': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_perception
+[27.260s] -- Install configuration: ""
+[27.261s] -- Execute custom install script
+[27.261s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/lib/agt_perception/local_obstacle_filter
+[27.275s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/launch/local_obstacles.launch.py
+[27.290s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/config/local_obstacle_filter.yaml
+[27.309s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/ament_index/resource_index/package_run_dependencies/agt_perception
+[27.326s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/ament_index/resource_index/parent_prefix_path/agt_perception
+[27.342s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/environment/ament_prefix_path.sh
+[27.356s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/environment/ament_prefix_path.dsv
+[27.369s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/environment/path.sh
+[27.388s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/environment/path.dsv
+[27.400s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/local_setup.bash
+[27.414s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/local_setup.sh
+[27.431s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/local_setup.zsh
+[27.450s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/local_setup.dsv
+[27.468s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/package.dsv
+[27.485s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/ament_index/resource_index/packages/agt_perception
+[27.503s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/cmake/agt_perceptionConfig.cmake
+[27.520s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/cmake/agt_perceptionConfig-version.cmake
+[27.538s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_perception/share/agt_perception/package.xml
+[27.557s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_perception' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_perception

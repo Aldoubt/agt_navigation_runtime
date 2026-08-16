@@ -1,0 +1,101 @@
+[0.047s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/vikit_common': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/third_party/rpg_vikit_ros2_fisheye/vikit_common -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/vikit_common
+[0.331s] -- The C compiler identification is GNU 11.4.0
+[0.425s] -- The CXX compiler identification is GNU 11.4.0
+[0.437s] -- Detecting C compiler ABI info
+[0.540s] -- Detecting C compiler ABI info - done
+[0.551s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.552s] -- Detecting C compile features
+[0.553s] -- Detecting C compile features - done
+[0.558s] -- Detecting CXX compiler ABI info
+[0.695s] -- Detecting CXX compiler ABI info - done
+[0.708s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.709s] -- Detecting CXX compile features
+[0.710s] -- Detecting CXX compile features - done
+[0.711s] [0mCurrent CPU archtecture: x86_64[0m
+[0.716s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.999s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[1.257s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[1.377s] -- Found OpenCV: /usr (found version "4.5.4") found components: core calib3d features2d highgui imgproc 
+[1.584s] -- Configuring done
+[1.599s] -- Generating done
+[1.603s] -- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/vikit_common
+[1.610s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/vikit_common' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/third_party/rpg_vikit_ros2_fisheye/vikit_common -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/vikit_common
+[1.613s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/vikit_common': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/vikit_common -- -j32 -l32
+[1.705s] [  5%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/robust_cost.cpp.o[0m
+[1.705s] [ 10%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/atan_camera.cpp.o[0m
+[1.705s] [ 15%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/user_input_thread.cpp.o[0m
+[1.705s] [ 21%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/math_utils.cpp.o[0m
+[1.706s] [ 26%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/omni_camera.cpp.o[0m
+[1.706s] [ 36%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/performance_monitor.cpp.o[0m
+[1.706s] [ 36%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/vision.cpp.o[0m
+[1.706s] [ 42%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/polynomial_camera.cpp.o[0m
+[1.708s] [ 47%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/equidistant_camera.cpp.o[0m
+[1.708s] [ 52%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/homography.cpp.o[0m
+[1.708s] [ 57%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/pinhole_camera.cpp.o[0m
+[1.709s] [ 63%] [32mBuilding CXX object CMakeFiles/vikit_common.dir/src/img_align.cpp.o[0m
+[29.076s] [ 68%] [32m[1mLinking CXX shared library libvikit_common.so[0m
+[29.238s] [ 68%] Built target vikit_common
+[29.267s] [ 73%] [32mBuilding CXX object CMakeFiles/test_vk_common_triangulation.dir/test/test_triangulation.cpp.o[0m
+[29.273s] [ 78%] [32mBuilding CXX object CMakeFiles/test_vk_common_patch_score.dir/test/test_patch_score.cpp.o[0m
+[29.276s] [ 84%] [32mBuilding CXX object CMakeFiles/test_vk_common_camera.dir/test/test_camera.cpp.o[0m
+[32.512s] [ 89%] [32m[1mLinking CXX executable test_vk_common_patch_score[0m
+[33.089s] [ 89%] Built target test_vk_common_patch_score
+[33.118s] [ 94%] [32m[1mLinking CXX executable test_vk_common_camera[0m
+[33.808s] [ 94%] Built target test_vk_common_camera
+[34.083s] [100%] [32m[1mLinking CXX executable test_vk_common_triangulation[0m
+[34.557s] [100%] Built target test_vk_common_triangulation
+[34.573s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/vikit_common' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/vikit_common -- -j32 -l32
+[34.576s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/vikit_common': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/vikit_common
+[34.588s] -- Install configuration: "Release"
+[34.589s] -- Execute custom install script
+[34.589s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/lib/vikit_common/test_vk_common_camera
+[34.601s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/lib/vikit_common/test_vk_common_triangulation
+[34.612s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/lib/vikit_common/test_vk_common_patch_score
+[34.630s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/abstract_camera.h
+[34.648s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/aligned_mem.h
+[34.665s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/atan_camera.h
+[34.682s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/blender_utils.h
+[34.694s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/equidistant_camera.h
+[34.709s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/file_reader.h
+[34.720s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/file_reader_types.h
+[34.732s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/homography.h
+[34.742s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/img_align.h
+[34.759s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/math_utils.h
+[34.771s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/nlls_solver.h
+[34.782s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/nlls_solver_impl.hpp
+[34.798s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/omni_camera.h
+[34.814s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/patch_score.h
+[34.826s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/performance_monitor.h
+[34.840s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/pinhole_camera.h
+[34.852s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/polynomial_camera.h
+[34.868s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/ringbuffer.h
+[34.883s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/robust_cost.h
+[34.899s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/sample.h
+[34.914s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/timer.h
+[34.925s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/user_input_thread.h
+[34.936s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/include/vikit_common/vikit/vision.h
+[34.947s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/environment/library_path.sh
+[34.961s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/environment/library_path.dsv
+[34.972s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/ament_index/resource_index/package_run_dependencies/vikit_common
+[34.987s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/ament_index/resource_index/parent_prefix_path/vikit_common
+[34.999s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/environment/ament_prefix_path.sh
+[35.012s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/environment/ament_prefix_path.dsv
+[35.024s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/environment/path.sh
+[35.035s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/environment/path.dsv
+[35.047s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/local_setup.bash
+[35.064s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/local_setup.sh
+[35.080s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/local_setup.zsh
+[35.092s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/local_setup.dsv
+[35.104s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/package.dsv
+[35.120s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/ament_index/resource_index/packages/vikit_common
+[35.131s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/cmake/ament_cmake_export_include_directories-extras.cmake
+[35.147s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/cmake/ament_cmake_export_libraries-extras.cmake
+[35.158s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/cmake/ament_cmake_export_dependencies-extras.cmake
+[35.170s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/cmake/ament_cmake_export_targets-extras.cmake
+[35.181s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/cmake/vikit_commonConfig.cmake
+[35.198s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/cmake/vikit_commonConfig-version.cmake
+[35.213s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/package.xml
+[35.228s] -- Installing: /home/yangxuan/agt_navigation_runtime/install/vikit_common/lib/libvikit_common.so
+[35.229s] -- Installing: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/cmake/vikit_commonExport.cmake
+[35.229s] -- Installing: /home/yangxuan/agt_navigation_runtime/install/vikit_common/share/vikit_common/cmake/vikit_commonExport-release.cmake
+[35.234s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/vikit_common' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/vikit_common

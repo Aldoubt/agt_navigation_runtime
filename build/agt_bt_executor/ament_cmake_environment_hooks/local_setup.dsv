@@ -1,0 +1,2 @@
+source;share/agt_bt_executor/environment/ament_prefix_path.sh
+source;share/agt_bt_executor/environment/path.sh

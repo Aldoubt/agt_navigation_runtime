@@ -1,0 +1,58 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from agt_interfaces/srv/PutTaskGroup.srv
+// generated code does not contain a copyright notice
+
+
+module agt_interfaces {
+  module srv {
+    struct PutTaskGroup_Request {
+      string map_id;
+
+      string map_version_id;
+
+      string task_group_id;
+
+      @verbatim (language="comment", text=
+        "Current robot-side revision expected by the client. 0 means create-only.")
+      uint32 expected_revision;
+
+      string client_request_id;
+
+      string task_json;
+    };
+    module PutTaskGroup_Response_Constants {
+      const uint16 ERROR_NONE = 0;
+      const uint16 ERROR_INVALID_REQUEST = 1;
+      const uint16 ERROR_REVISION_CONFLICT = 2;
+      const uint16 ERROR_CONTENT_HASH_MISMATCH = 3;
+      const uint16 ERROR_SCHEMA_INVALID = 4;
+      const uint16 ERROR_MAP_NOT_READY = 5;
+      const uint16 ERROR_INTERNAL = 255;
+    };
+    struct PutTaskGroup_Response {
+      boolean success;
+
+      uint16 error_code;
+
+      string blocker_code;
+
+      string operator_message;
+
+      string technical_message;
+
+      boolean duplicate_request;
+
+      string map_id;
+
+      string map_version_id;
+
+      string task_group_id;
+
+      uint32 revision;
+
+      string content_sha256;
+
+      string task_json;
+    };
+  };
+};

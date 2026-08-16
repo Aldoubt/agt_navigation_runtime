@@ -1,0 +1,31 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from agt_interfaces/srv/GetNavigationSession.srv
+// generated code does not contain a copyright notice
+
+#include "agt_interfaces/msg/NavigationSessionStatus.idl"
+
+module agt_interfaces {
+  module srv {
+    @verbatim (language="comment", text=
+      "Empty request fields return the latest known session.")
+    struct GetNavigationSession_Request {
+      string session_id;
+
+      string client_request_id;
+    };
+    module GetNavigationSession_Response_Constants {
+      const uint16 ERROR_NONE = 0;
+      const uint16 ERROR_NOT_FOUND = 1;
+      const uint16 ERROR_INTERNAL = 255;
+    };
+    struct GetNavigationSession_Response {
+      boolean success;
+
+      uint16 error_code;
+
+      agt_interfaces::msg::NavigationSessionStatus status;
+
+      string message;
+    };
+  };
+};

@@ -1,0 +1,97 @@
+// generated from rosidl_adapter/resource/action.idl.em
+// with input from agt_interfaces/action/ManageMappingSession.action
+// generated code does not contain a copyright notice
+
+
+module agt_interfaces {
+  module action {
+    module ManageMappingSession_Goal_Constants {
+      const uint8 OP_STATUS = 0;
+      const uint8 OP_START = 1;
+      const uint8 OP_FINALIZE_CAPTURE = 2;
+      const uint8 OP_COMMIT = 3;
+      const uint8 OP_DISCARD = 4;
+    };
+    @verbatim (language="comment", text=
+      "Project-owned mapping-session workflow. Frontends must not reproduce the" "\n"
+      "save-grid -> stop-mapping -> wait-PCD -> commit-version sequence.")
+    struct ManageMappingSession_Goal {
+      uint8 operation;
+
+      @verbatim (language="comment", text=
+        "Required for START. A safe portable identifier, not a filesystem path.")
+      string map_id;
+
+      @verbatim (language="comment", text=
+        "Required for operations on an existing session. STATUS may leave it empty to" "\n"
+        "query the newest managed session.")
+      string session_id;
+
+      @verbatim (language="comment", text=
+        "START-only mapping profile arguments. The server injects and owns runtime_dir," "\n"
+        "map_name, mapping_output_dir, record_bag, and bag_profile.")
+      sequence<string> argument_keys;
+
+      sequence<string> argument_values;
+
+      @verbatim (language="comment", text=
+        "COMMIT-only. Activation still performs the full map-registry validation.")
+      boolean activate_after_commit;
+
+      @verbatim (language="comment", text=
+        "Bounded wait for map save, normal shutdown, PCD readiness, and offline candidate build.")
+      double timeout_s;
+    };
+    module ManageMappingSession_Result_Constants {
+      const uint16 ERROR_NONE = 0;
+      const uint16 ERROR_INVALID_REQUEST = 1;
+      const uint16 ERROR_SERVER_UNAVAILABLE = 2;
+      const uint16 ERROR_START_FAILED = 3;
+      const uint16 ERROR_GRID_SAVE_FAILED = 4;
+      const uint16 ERROR_STOP_FAILED = 5;
+      const uint16 ERROR_ASSET_TIMEOUT = 6;
+      const uint16 ERROR_COMMIT_FAILED = 7;
+      const uint16 ERROR_INVALID_STATE = 8;
+      const uint16 ERROR_NOT_FOUND = 9;
+      const uint16 ERROR_INTERNAL = 255;
+    };
+    struct ManageMappingSession_Result {
+      boolean success;
+
+      uint16 error_code;
+
+      string state;
+
+      string session_id;
+
+      string map_id;
+
+      string map_version_id;
+
+      string session_file;
+
+      string candidate_map_yaml;
+
+      string candidate_map_image;
+
+      string localization_pcd;
+
+      string processing_record;
+
+      string bag_directory;
+
+      string registered_map_yaml;
+
+      string tasks_directory;
+
+      string message;
+    };
+    struct ManageMappingSession_Feedback {
+      string state;
+
+      float progress;
+
+      string message;
+    };
+  };
+};

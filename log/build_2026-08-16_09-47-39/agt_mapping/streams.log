@@ -1,0 +1,53 @@
+[0.014s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_mapping': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_mapping -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_mapping
+[0.093s] -- The C compiler identification is GNU 11.4.0
+[0.175s] -- The CXX compiler identification is GNU 11.4.0
+[0.188s] -- Detecting C compiler ABI info
+[0.295s] -- Detecting C compiler ABI info - done
+[0.310s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.310s] -- Detecting C compile features
+[0.311s] -- Detecting C compile features - done
+[0.315s] -- Detecting CXX compiler ABI info
+[0.442s] -- Detecting CXX compiler ABI info - done
+[0.454s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.454s] -- Detecting CXX compile features
+[0.455s] -- Detecting CXX compile features - done
+[0.458s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.745s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.855s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.912s] -- Found ament_cmake_pytest: 1.3.14 (/opt/ros/humble/share/ament_cmake_pytest/cmake)
+[3.266s] -- Configuring done
+[3.271s] -- Generating done
+[3.273s] -- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/agt_mapping
+[3.281s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_mapping' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_mapping -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_mapping
+[3.283s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_mapping': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_mapping -- -j32 -l32
+[3.331s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_mapping' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_mapping -- -j32 -l32
+[3.334s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_mapping': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_mapping
+[3.343s] -- Install configuration: ""
+[3.344s] -- Execute custom install script
+[3.344s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/lib/agt_mapping/fast_livo2_adapter.py
+[3.356s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/launch/README.md
+[3.366s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/launch/fast_livo2_mapping.launch.py
+[3.379s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/config/README.md
+[3.389s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/config/camera_disabled_placeholder.yaml
+[3.404s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/config/fast_livo2_adapter.yaml
+[3.419s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/config/fast_livo2_adapter_handheld.yaml
+[3.434s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/config/mid360_lio_only.yaml
+[3.448s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/patches/fast_livo2_cmake_portability.patch
+[3.461s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/patches/fast_livo2_lidar_frame_cloud.patch
+[3.472s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/patches/fast_livo2_publish_tf.patch
+[3.482s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/ament_index/resource_index/package_run_dependencies/agt_mapping
+[3.492s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/ament_index/resource_index/parent_prefix_path/agt_mapping
+[3.504s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/environment/ament_prefix_path.sh
+[3.518s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/environment/ament_prefix_path.dsv
+[3.532s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/environment/path.sh
+[3.542s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/environment/path.dsv
+[3.554s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/local_setup.bash
+[3.563s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/local_setup.sh
+[3.574s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/local_setup.zsh
+[3.588s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/local_setup.dsv
+[3.604s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/package.dsv
+[3.619s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/ament_index/resource_index/packages/agt_mapping
+[3.630s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/cmake/agt_mappingConfig.cmake
+[3.640s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/cmake/agt_mappingConfig-version.cmake
+[3.651s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_mapping/share/agt_mapping/package.xml
+[3.666s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_mapping' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters:/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_mapping

@@ -1,0 +1,97 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Override CMake install command with custom implementation using symlinks instead of copying resources
+-- Found ament_cmake_pytest: 1.3.14 (/opt/ros/humble/share/ament_cmake_pytest/cmake)
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/agt_navigation
+Built target ament_cmake_python_symlink_agt_navigation
+running egg_info
+creating agt_navigation.egg-info
+writing agt_navigation.egg-info/PKG-INFO
+writing dependency_links to agt_navigation.egg-info/dependency_links.txt
+writing top-level names to agt_navigation.egg-info/top_level.txt
+writing manifest file 'agt_navigation.egg-info/SOURCES.txt'
+reading manifest file 'agt_navigation.egg-info/SOURCES.txt'
+writing manifest file 'agt_navigation.egg-info/SOURCES.txt'
+Built target ament_cmake_python_build_agt_navigation_egg
+-- Install configuration: ""
+-- Execute custom install script
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/pythonpath.sh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/pythonpath.dsv
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation-0.1.0-py3.10.egg-info/PKG-INFO
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation-0.1.0-py3.10.egg-info/SOURCES.txt
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation-0.1.0-py3.10.egg-info/dependency_links.txt
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation-0.1.0-py3.10.egg-info/top_level.txt
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/__init__.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/nav2_follow_path_adapter.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/navigation_errors.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/qt_task_chain.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_backend.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_runtime.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_task_binding.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/session_manager.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/task_group.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/task_registry.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/differential_drive_simulator.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/execute_waypoint_task.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/goal_pose_bridge.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/navigation_capability_server.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/route_controller_smoke.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/route_system_smoke.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/route_system_smoke_fixture.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/start_waypoint_preview_rviz.sh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/task_registry_node.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/waypoint_task_server.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/lib/agt_navigation/waypoint_preview_planner.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/navigation.launch.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/offline_navigation.launch.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/route_controller_smoke.launch.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/route_system_smoke.launch.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/launch/waypoint_preview.launch.py
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/nav2_bunker.yaml
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/route_smoke_vehicle.yaml
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/task_group_schema.json
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/waypoint_preview.rviz
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/config/waypoint_preview_nav2.yaml
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/behavior_trees/navigate_to_pose.xml
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/maps/offline_test.pgm
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/maps/offline_test.yaml
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/ament_index/resource_index/package_run_dependencies/agt_navigation
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/ament_index/resource_index/parent_prefix_path/agt_navigation
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/ament_prefix_path.sh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/ament_prefix_path.dsv
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/path.sh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/environment/path.dsv
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/local_setup.bash
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/local_setup.sh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/local_setup.zsh
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/local_setup.dsv
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/package.dsv
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/ament_index/resource_index/packages/agt_navigation
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/cmake/agt_navigationConfig.cmake
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/cmake/agt_navigationConfig-version.cmake
+-- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_navigation/share/agt_navigation/package.xml
+Listing '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/__init__.py'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/nav2_follow_path_adapter.py'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/navigation_errors.py'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/qt_task_chain.py'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_backend.py'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_runtime.py'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/route_task_binding.py'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/session_manager.py'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/task_group.py'...
+Compiling '/home/yangxuan/agt_navigation_runtime/install/agt_navigation/local/lib/python3.10/dist-packages/agt_navigation/task_registry.py'...

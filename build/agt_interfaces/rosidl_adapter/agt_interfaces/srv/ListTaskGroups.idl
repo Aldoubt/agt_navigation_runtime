@@ -1,0 +1,49 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from agt_interfaces/srv/ListTaskGroups.srv
+// generated code does not contain a copyright notice
+
+
+module agt_interfaces {
+  module srv {
+    struct ListTaskGroups_Request {
+      string map_id;
+
+      string map_version_id;
+    };
+    module ListTaskGroups_Response_Constants {
+      const uint16 ERROR_NONE = 0;
+      const uint16 ERROR_INVALID_REQUEST = 1;
+      const uint16 ERROR_MAP_NOT_READY = 2;
+      const uint16 ERROR_INTERNAL = 255;
+    };
+    struct ListTaskGroups_Response {
+      boolean success;
+
+      uint16 error_code;
+
+      string blocker_code;
+
+      string operator_message;
+
+      string technical_message;
+
+      string map_id;
+
+      string map_version_id;
+
+      sequence<string> task_group_ids;
+
+      sequence<string> names;
+
+      sequence<uint32> revisions;
+
+      sequence<string> content_sha256;
+
+      sequence<uint32> enabled_point_counts;
+
+      sequence<string> updated_at;
+
+      sequence<string> validation_states;
+    };
+  };
+};

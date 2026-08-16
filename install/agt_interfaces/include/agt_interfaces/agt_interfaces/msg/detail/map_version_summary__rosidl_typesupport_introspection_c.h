@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_typesupport_introspection_c/agt_interfaces/msg/detail/map_version_summary__rosidl_typesupport_introspection_c.h

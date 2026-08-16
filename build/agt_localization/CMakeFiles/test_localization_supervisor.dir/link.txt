@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/test_localization_supervisor.dir/test/test_localization_supervisor.cpp.o -o test_localization_supervisor  gtest/libgtest_main.a gtest/libgtest.a libagt_localization_supervisor.a -pthread 

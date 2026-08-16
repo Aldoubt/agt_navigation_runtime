@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_typesupport_introspection_cpp/agt_interfaces/msg/detail/semantic_waypoint_array__rosidl_typesupport_introspection_cpp.hpp

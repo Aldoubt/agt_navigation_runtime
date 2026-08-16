@@ -1,0 +1,35 @@
+// generated from rosidl_adapter/resource/action.idl.em
+// with input from agt_interfaces/action/ExecuteMission.action
+// generated code does not contain a copyright notice
+
+#include "agt_interfaces/msg/MissionStatus.idl"
+
+module agt_interfaces {
+  module action {
+    @verbatim (language="comment", text=
+      "Resolve a versioned mission below the configured runtime/missions root.")
+    struct ExecuteMission_Goal {
+      string mission_id;
+
+      string mission_version;
+
+      @verbatim (language="comment", text=
+        "Optional optimistic-lock check. Empty accepts the stored content hash.")
+      string expected_content_sha256;
+    };
+    struct ExecuteMission_Result {
+      boolean success;
+
+      uint16 error_code;
+
+      agt_interfaces::msg::MissionStatus final_status;
+
+      string audit_log_uri;
+
+      string message;
+    };
+    struct ExecuteMission_Feedback {
+      agt_interfaces::msg::MissionStatus status;
+    };
+  };
+};

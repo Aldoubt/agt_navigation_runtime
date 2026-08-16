@@ -1,0 +1,19 @@
+uint8 OP_GET_ACTIVE=0
+uint8 OP_VALIDATE=1
+uint8 OP_ACTIVATE=2
+uint8 OP_PIN=3
+uint8 OP_UNPIN=4
+uint8 OP_ARCHIVE=5
+uint8 OP_SOFT_DELETE=6
+uint8 OP_PURGE=7
+uint8 OP_IMPORT_CANDIDATE=8
+
+uint8 operation
+string map_version_id
+bool confirm_destructive
+string map_id
+string candidate_map_yaml
+string localization_pcd
+string processing_record
+string platform_profile
+string parent_map_version_id

@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/agt_safety/ament_cmake_environment_hooks/local_setup.sh

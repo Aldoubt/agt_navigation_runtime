@@ -1,0 +1,114 @@
+[0.018s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_bt_executor': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_bt_executor -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_bt_executor
+[0.089s] -- The C compiler identification is GNU 11.4.0
+[0.179s] -- The CXX compiler identification is GNU 11.4.0
+[0.191s] -- Detecting C compiler ABI info
+[0.286s] -- Detecting C compiler ABI info - done
+[0.297s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.297s] -- Detecting C compile features
+[0.297s] -- Detecting C compile features - done
+[0.301s] -- Detecting CXX compiler ABI info
+[0.402s] -- Detecting CXX compiler ABI info - done
+[0.410s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.410s] -- Detecting CXX compile features
+[0.411s] -- Detecting CXX compile features - done
+[0.414s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.616s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.721s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.779s] -- Found ament_index_cpp: 1.4.1 (/opt/ros/humble/share/ament_index_cpp/cmake)
+[0.780s] -- Found agt_interfaces: 0.1.0 (/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/share/agt_interfaces/cmake)
+[0.830s] -- Found rosidl_generator_c: 3.1.8 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[0.837s] -- Found rosidl_adapter: 3.1.8 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[0.847s] -- Found rosidl_generator_cpp: 3.1.8 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[0.862s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.882s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.027s] -- Found behaviortree_cpp: 4.9.0 (/opt/ros/humble/share/behaviortree_cpp/cmake)
+[1.037s] -- Found rclcpp: 16.0.19 (/opt/ros/humble/share/rclcpp/cmake)
+[1.086s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[1.090s] -- Found rmw_fastrtps_cpp: 6.2.10 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[1.221s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[1.259s] -- Found FastRTPS: /opt/ros/humble/include  
+[1.311s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[1.323s] -- Looking for pthread.h
+[1.430s] -- Looking for pthread.h - found
+[1.430s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[1.536s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[1.538s] -- Found Threads: TRUE  
+[1.586s] -- Found rclcpp_action: 16.0.19 (/opt/ros/humble/share/rclcpp_action/cmake)
+[1.601s] -- Found ament_cmake_gtest: 1.3.14 (/opt/ros/humble/share/ament_cmake_gtest/cmake)
+[1.604s] -- Found ament_cmake_pytest: 1.3.14 (/opt/ros/humble/share/ament_cmake_pytest/cmake)
+[1.606s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[6.420s] -- Configuring done
+[6.486s] -- Generating done
+[6.511s] -- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/agt_bt_executor
+[6.532s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_bt_executor' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_bt_executor -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_bt_executor
+[6.537s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_bt_executor': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_bt_executor -- -j32 -l32
+[6.611s] [  4%] [32mBuilding CXX object CMakeFiles/agt_bt_executor.dir/src/execute_waypoint_task_action.cpp.o[0m
+[6.612s] [  8%] [32mBuilding CXX object CMakeFiles/agt_bt_executor.dir/src/is_task_ready.cpp.o[0m
+[6.613s] [ 16%] [32mBuilding CXX object gtest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o[0m
+[6.613s] [ 16%] [32mBuilding CXX object CMakeFiles/agt_bt_executor.dir/src/bt_factory.cpp.o[0m
+[6.613s] [ 20%] [32mBuilding CXX object CMakeFiles/agt_bt_executor.dir/src/relocalize_action.cpp.o[0m
+[6.613s] [ 24%] [32mBuilding CXX object gtest/CMakeFiles/gtest.dir/src/gtest-all.cc.o[0m
+[8.124s] [ 28%] [32m[1mLinking CXX static library libgtest_main.a[0m
+[8.177s] [ 28%] Built target gtest_main
+[11.225s] [ 32%] [32m[1mLinking CXX static library libgtest.a[0m
+[11.310s] [ 32%] Built target gtest
+[19.359s] [ 36%] [32m[1mLinking CXX shared library libagt_bt_executor.so[0m
+[20.103s] [ 36%] Built target agt_bt_executor
+[20.140s] [ 40%] [32mBuilding CXX object CMakeFiles/test_v25_06_waypoint_mission.dir/test/test_v25_06_waypoint_mission.cpp.o[0m
+[20.141s] [ 44%] [32mBuilding CXX object CMakeFiles/bt_executor_node.dir/src/bt_executor_node.cpp.o[0m
+[20.142s] [ 48%] [32mBuilding CXX object CMakeFiles/test_is_task_ready_cpp.dir/test/test_is_task_ready.cpp.o[0m
+[20.143s] [ 52%] [32mBuilding CXX object CMakeFiles/bt_smoke_runner.dir/src/bt_smoke_runner.cpp.o[0m
+[20.144s] [ 56%] [32mBuilding CXX object CMakeFiles/test_execute_waypoint_action_cpp.dir/test/test_execute_waypoint_action.cpp.o[0m
+[20.144s] [ 60%] [32mBuilding CXX object CMakeFiles/test_bt_factory.dir/test/test_bt_factory.cpp.o[0m
+[20.146s] [ 64%] [32mBuilding CXX object CMakeFiles/test_bt_executor_node.dir/test/test_bt_executor_node.cpp.o[0m
+[20.150s] [ 68%] [32mBuilding CXX object CMakeFiles/test_relocalize_action_cpp.dir/test/test_relocalize_action.cpp.o[0m
+[22.730s] [ 72%] [32m[1mLinking CXX executable test_bt_executor_node[0m
+[23.091s] [ 72%] Built target test_bt_executor_node
+[29.263s] [ 76%] [32m[1mLinking CXX executable bt_smoke_runner[0m
+[29.633s] [ 76%] Built target bt_smoke_runner
+[29.893s] [ 80%] [32m[1mLinking CXX executable test_relocalize_action_cpp[0m
+[29.966s] [ 84%] [32m[1mLinking CXX executable test_v25_06_waypoint_mission[0m
+[30.353s] [ 84%] Built target test_v25_06_waypoint_mission
+[30.407s] [ 88%] [32m[1mLinking CXX executable test_bt_factory[0m
+[30.573s] [ 88%] Built target test_relocalize_action_cpp
+[30.820s] [ 88%] Built target test_bt_factory
+[30.899s] [ 92%] [32m[1mLinking CXX executable bt_executor_node[0m
+[31.370s] [ 96%] [32m[1mLinking CXX executable test_is_task_ready_cpp[0m
+[31.427s] [ 96%] Built target bt_executor_node
+[31.783s] [ 96%] Built target test_is_task_ready_cpp
+[32.126s] [100%] [32m[1mLinking CXX executable test_execute_waypoint_action_cpp[0m
+[32.548s] [100%] Built target test_execute_waypoint_action_cpp
+[32.561s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_bt_executor' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_bt_executor -- -j32 -l32
+[32.564s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_bt_executor': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_bt_executor
+[32.571s] -- Install configuration: ""
+[32.572s] -- Execute custom install script
+[32.572s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/lib/libagt_bt_executor.so
+[32.582s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/lib/agt_bt_executor/bt_smoke_runner
+[32.590s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/lib/agt_bt_executor/bt_executor_node
+[32.601s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/include/agt_bt_executor/bt_executor_node.hpp
+[32.611s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/include/agt_bt_executor/bt_factory.hpp
+[32.620s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/include/agt_bt_executor/execute_waypoint_task_action.hpp
+[32.630s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/include/agt_bt_executor/is_task_ready.hpp
+[32.638s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/include/agt_bt_executor/relocalize_action.hpp
+[32.647s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/include/agt_bt_executor/ros_action_node.hpp
+[32.661s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/behavior_trees/agt_bt_node_models.xml
+[32.674s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/behavior_trees/v25_05_smoke.xml
+[32.684s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/behavior_trees/v25_06_waypoint_mission.xml
+[32.697s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/config/bt_executor.yaml
+[32.710s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/launch/bt_smoke.launch.py
+[32.718s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/ament_index/resource_index/package_run_dependencies/agt_bt_executor
+[32.729s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/ament_index/resource_index/parent_prefix_path/agt_bt_executor
+[32.742s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/environment/ament_prefix_path.sh
+[32.756s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/environment/ament_prefix_path.dsv
+[32.769s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/environment/path.sh
+[32.780s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/environment/path.dsv
+[32.790s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/local_setup.bash
+[32.800s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/local_setup.sh
+[32.811s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/local_setup.zsh
+[32.820s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/local_setup.dsv
+[32.832s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/package.dsv
+[32.843s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/ament_index/resource_index/packages/agt_bt_executor
+[32.853s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/cmake/agt_bt_executorConfig.cmake
+[32.865s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/cmake/agt_bt_executorConfig-version.cmake
+[32.876s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_bt_executor/share/agt_bt_executor/package.xml
+[32.888s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_bt_executor' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_bt_executor

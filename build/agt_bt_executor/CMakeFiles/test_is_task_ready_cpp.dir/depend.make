@@ -1,0 +1,2 @@
+# Empty dependencies file for test_is_task_ready_cpp.
+# This may be replaced when dependencies are built.

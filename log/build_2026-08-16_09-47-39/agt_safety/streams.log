@@ -1,0 +1,45 @@
+[0.017s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_safety': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_safety -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_safety
+[0.098s] -- The C compiler identification is GNU 11.4.0
+[0.180s] -- The CXX compiler identification is GNU 11.4.0
+[0.191s] -- Detecting C compiler ABI info
+[0.286s] -- Detecting C compiler ABI info - done
+[0.296s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.296s] -- Detecting C compile features
+[0.296s] -- Detecting C compile features - done
+[0.300s] -- Detecting CXX compiler ABI info
+[0.408s] -- Detecting CXX compiler ABI info - done
+[0.418s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.419s] -- Detecting CXX compile features
+[0.419s] -- Detecting CXX compile features - done
+[0.422s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.645s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.757s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.815s] -- Found ament_cmake_pytest: 1.3.14 (/opt/ros/humble/share/ament_cmake_pytest/cmake)
+[2.539s] -- Configuring done
+[2.542s] -- Generating done
+[2.545s] -- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/agt_safety
+[2.552s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_safety' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_safety -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_safety
+[2.554s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_safety': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_safety -- -j32 -l32
+[2.616s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_safety' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_safety -- -j32 -l32
+[2.618s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_safety': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_safety
+[2.628s] -- Install configuration: ""
+[2.629s] -- Execute custom install script
+[2.629s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/lib/agt_safety/tracked_safety_controller.py
+[2.644s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/launch/bunker_safety.launch.py
+[2.658s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/config/bunker_safety.yaml
+[2.669s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/ament_index/resource_index/package_run_dependencies/agt_safety
+[2.682s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/ament_index/resource_index/parent_prefix_path/agt_safety
+[2.692s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/environment/ament_prefix_path.sh
+[2.701s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/environment/ament_prefix_path.dsv
+[2.711s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/environment/path.sh
+[2.725s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/environment/path.dsv
+[2.738s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/local_setup.bash
+[2.751s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/local_setup.sh
+[2.765s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/local_setup.zsh
+[2.779s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/local_setup.dsv
+[2.793s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/package.dsv
+[2.805s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/ament_index/resource_index/packages/agt_safety
+[2.818s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/cmake/agt_safetyConfig.cmake
+[2.832s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/cmake/agt_safetyConfig-version.cmake
+[2.845s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_safety/share/agt_safety/package.xml
+[2.862s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_safety' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/agt_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_safety

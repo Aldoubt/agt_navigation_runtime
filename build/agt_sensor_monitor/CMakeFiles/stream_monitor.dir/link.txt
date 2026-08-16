@@ -1,0 +1,2 @@
+/usr/bin/ar qc libstream_monitor.a CMakeFiles/stream_monitor.dir/src/stream_monitor.cpp.o
+/usr/bin/ranlib libstream_monitor.a

@@ -1,0 +1,27 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from agt_interfaces/msg/MissionEvent.msg
+// generated code does not contain a copyright notice
+
+#include "std_msgs/msg/Header.idl"
+
+module agt_interfaces {
+  module msg {
+    @verbatim (language="comment", text=
+      "Timestamped external event consumed by finite WAIT_EVENT mission steps.")
+    struct MissionEvent {
+      std_msgs::msg::Header header;
+
+      string event_type;
+
+      string source;
+
+      string correlation_id;
+
+      string mission_id;
+
+      @verbatim (language="comment", text=
+        "Extension data only. Core event identity is represented by typed fields above.")
+      string metadata_json;
+    };
+  };
+};

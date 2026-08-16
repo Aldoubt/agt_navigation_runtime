@@ -1,0 +1,7 @@
+# Return the latest aggregated read model without changing system state.
+bool include_details
+---
+bool success
+uint16 error_code
+RobotState state
+string message

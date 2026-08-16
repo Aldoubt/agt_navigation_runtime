@@ -1,0 +1,4 @@
+source;share/agt_bt_executor/local_setup.bash
+source;share/agt_bt_executor/local_setup.dsv
+source;share/agt_bt_executor/local_setup.sh
+source;share/agt_bt_executor/local_setup.zsh

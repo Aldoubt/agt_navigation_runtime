@@ -1,0 +1,54 @@
+// generated from rosidl_adapter/resource/action.idl.em
+// with input from agt_interfaces/action/ChangeSystemMode.action
+// generated code does not contain a copyright notice
+
+
+module agt_interfaces {
+  module action {
+    module ChangeSystemMode_Goal_Constants {
+      const uint8 MODE_IDLE = 0;
+      const uint8 MODE_SENSOR_ONLY = 1;
+      const uint8 MODE_MAPPING = 2;
+      const uint8 MODE_LOCALIZATION_DEBUG = 3;
+      const uint8 MODE_NAVIGATION = 4;
+      const uint8 MODE_ERROR = 5;
+    };
+    @verbatim (language="comment", text=
+      "Main runtime mode transition. The server may only use configured profiles.")
+    struct ChangeSystemMode_Goal {
+      uint8 mode;
+
+      string profile;
+
+      sequence<string> argument_keys;
+
+      sequence<string> argument_values;
+
+      boolean wait_for_health;
+
+      double startup_timeout_s;
+    };
+    struct ChangeSystemMode_Result {
+      boolean success;
+
+      uint16 error_code;
+
+      string active_mode;
+
+      string profile;
+
+      sequence<int32> process_ids;
+
+      sequence<string> log_paths;
+
+      string message;
+    };
+    struct ChangeSystemMode_Feedback {
+      string state;
+
+      float progress;
+
+      string message;
+    };
+  };
+};

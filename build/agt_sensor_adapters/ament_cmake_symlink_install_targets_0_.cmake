@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_targets("TARGET_FILES" "/home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters/libagt_sensor_filter_geometry.a" "TARGETS" "agt_sensor_filter_geometry" "ARCHIVE_DESTINATION" "lib" "LIBRARY_DESTINATION" "lib" "RUNTIME_DESTINATION" "bin")

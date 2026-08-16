@@ -1,0 +1,26 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from agt_interfaces/srv/EvaluateTaskReadiness.srv
+// generated code does not contain a copyright notice
+
+#include "agt_interfaces/msg/TaskReadiness.idl"
+
+module agt_interfaces {
+  module srv {
+    module EvaluateTaskReadiness_Request_Constants {
+      const uint8 PROFILE_TASK_EXECUTION = 0;
+      const uint8 PROFILE_RELOCALIZATION = 1;
+    };
+    @verbatim (language="comment", text=
+      "Re-evaluate the common task gate in the service server.")
+    struct EvaluateTaskReadiness_Request {
+      boolean validate_task;
+
+      string task_id;
+
+      uint8 gate_profile;
+    };
+    struct EvaluateTaskReadiness_Response {
+      agt_interfaces::msg::TaskReadiness readiness;
+    };
+  };
+};

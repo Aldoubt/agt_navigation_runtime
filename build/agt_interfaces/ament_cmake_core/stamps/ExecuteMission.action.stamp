@@ -1,0 +1,13 @@
+# Resolve a versioned mission below the configured runtime/missions root.
+string mission_id
+string mission_version
+# Optional optimistic-lock check. Empty accepts the stored content hash.
+string expected_content_sha256
+---
+bool success
+uint16 error_code
+agt_interfaces/MissionStatus final_status
+string audit_log_uri
+string message
+---
+agt_interfaces/MissionStatus status

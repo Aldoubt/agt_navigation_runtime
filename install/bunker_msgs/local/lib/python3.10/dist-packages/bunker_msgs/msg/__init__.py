@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/bunker_msgs/rosidl_generator_py/bunker_msgs/msg/__init__.py

@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/agt_perception/ament_cmake_core/agt_perceptionConfig-version.cmake

@@ -1,0 +1,29 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from agt_interfaces/srv/ListBagSessions.srv
+// generated code does not contain a copyright notice
+
+#include "agt_interfaces/msg/BagSessionSummary.idl"
+
+module agt_interfaces {
+  module srv {
+    struct ListBagSessions_Request {
+      uint8 state;
+
+      string experiment_id;
+    };
+    module ListBagSessions_Response_Constants {
+      const uint16 ERROR_NONE = 0;
+      const uint16 ERROR_INVALID_REQUEST = 1;
+      const uint16 ERROR_INTERNAL = 255;
+    };
+    struct ListBagSessions_Response {
+      boolean success;
+
+      uint16 error_code;
+
+      sequence<agt_interfaces::msg::BagSessionSummary> sessions;
+
+      string message;
+    };
+  };
+};

@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/test_stream_monitor.dir/test/test_stream_monitor.cpp.o -o test_stream_monitor  gtest/libgtest_main.a gtest/libgtest.a libstream_monitor.a -pthread 

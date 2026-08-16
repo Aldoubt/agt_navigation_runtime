@@ -1,0 +1,274 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-539bd7b4c556a9698e1e.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.12"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						17,
+						18,
+						19,
+						20
+					]
+				},
+				{
+					"build" : "gtest",
+					"jsonFile" : "directory-gtest-a2408fe1a73b92c5e636.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "/opt/ros/humble/src/gtest_vendor",
+					"targetIndexes" : 
+					[
+						8,
+						9
+					]
+				}
+			],
+			"name" : "",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "agt_localization",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						17,
+						18,
+						19,
+						20
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "gtest",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						8,
+						9
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "agt_localization_candidates::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-agt_localization_candidates-6d8742ef27f70037f6b9.json",
+					"name" : "agt_localization_candidates",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "agt_localization_global_correction::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-agt_localization_global_correction-fb61e09daab3df1ada52.json",
+					"name" : "agt_localization_global_correction",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "agt_localization_map_readiness::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-agt_localization_map_readiness-71207ae9e18707f30f71.json",
+					"name" : "agt_localization_map_readiness",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "agt_localization_quality::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-agt_localization_quality-096dd176bb4a60e1e407.json",
+					"name" : "agt_localization_quality",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "agt_localization_recovery_trigger::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-agt_localization_recovery_trigger-2db900ca6166ebb2fcad.json",
+					"name" : "agt_localization_recovery_trigger",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "agt_localization_supervisor::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-agt_localization_supervisor-e146d0a8671878eb1974.json",
+					"name" : "agt_localization_supervisor",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "agt_localization_uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-agt_localization_uninstall-946bf399bc6458956a8c.json",
+					"name" : "agt_localization_uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "global_correction_manager::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-global_correction_manager-9bab618ff5b82a99b525.json",
+					"name" : "global_correction_manager",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "gtest::@0af4add9fe94340e763e",
+					"jsonFile" : "target-gtest-0f8033b4f5a3c203751d.json",
+					"name" : "gtest",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "gtest_main::@0af4add9fe94340e763e",
+					"jsonFile" : "target-gtest_main-271d586ac10cc8cb76d6.json",
+					"name" : "gtest_main",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "recovery_trigger_manager::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-recovery_trigger_manager-eb5945d86e0bdbba0a1c.json",
+					"name" : "recovery_trigger_manager",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "relocalization_node::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-relocalization_node-0491d3444d07e91ea2af.json",
+					"name" : "relocalization_node",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "test_candidate_provider::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-test_candidate_provider-fc842e94ec841061557a.json",
+					"name" : "test_candidate_provider",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "test_global_correction_core::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-test_global_correction_core-a38bbabe7b47f108c415.json",
+					"name" : "test_global_correction_core",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "test_localization_supervisor::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-test_localization_supervisor-8870730af2bb3a568b43.json",
+					"name" : "test_localization_supervisor",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "test_localization_timing::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-test_localization_timing-84a9d682f64bd73a1bba.json",
+					"name" : "test_localization_timing",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "test_map_readiness::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-test_map_readiness-62c8c2a9b9243ec21123.json",
+					"name" : "test_map_readiness",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "test_quality_validator::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-test_quality_validator-f427bc7a97fc0ef06767.json",
+					"name" : "test_quality_validator",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "test_recovery_trigger_policy::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-test_recovery_trigger_policy-e5c3a15bc3cacd7ace11.json",
+					"name" : "test_recovery_trigger_policy",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "test_tracking_validation::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-test_tracking_validation-8ebb1b48b039bcc6d834.json",
+					"name" : "test_tracking_validation",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-uninstall-f43f67c1b4ee6fd80375.json",
+					"name" : "uninstall",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/yangxuan/agt_navigation_runtime/build/agt_localization",
+		"source" : "/home/yangxuan/agt_navigation_runtime/src/agt_localization"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

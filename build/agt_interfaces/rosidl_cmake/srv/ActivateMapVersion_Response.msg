@@ -1,0 +1,17 @@
+
+uint16 ERROR_NONE=0
+uint16 ERROR_INVALID_REQUEST=1
+uint16 ERROR_NOT_FOUND=2
+uint16 ERROR_VALIDATION_FAILED=3
+uint16 ERROR_INTERNAL=255
+
+bool success
+uint16 error_code
+string map_id
+string map_version_id
+string state
+string[] blocker_codes
+string[] blocker_messages
+string[] operator_messages
+string[] technical_messages
+agt_interfaces/MapVersionSummary version

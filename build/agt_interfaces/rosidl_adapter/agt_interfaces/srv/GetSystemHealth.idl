@@ -1,0 +1,18 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from agt_interfaces/srv/GetSystemHealth.srv
+// generated code does not contain a copyright notice
+
+#include "agt_interfaces/msg/SystemHealth.idl"
+
+module agt_interfaces {
+  module srv {
+    @verbatim (language="comment", text=
+      "Return the latest health snapshot. Optional components are omitted when false.")
+    struct GetSystemHealth_Request {
+      boolean include_optional;
+    };
+    struct GetSystemHealth_Response {
+      agt_interfaces::msg::SystemHealth health;
+    };
+  };
+};

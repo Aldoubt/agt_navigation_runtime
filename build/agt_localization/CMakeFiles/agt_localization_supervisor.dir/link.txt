@@ -1,0 +1,2 @@
+/usr/bin/ar qc libagt_localization_supervisor.a CMakeFiles/agt_localization_supervisor.dir/src/localization_supervisor.cpp.o
+/usr/bin/ranlib libagt_localization_supervisor.a

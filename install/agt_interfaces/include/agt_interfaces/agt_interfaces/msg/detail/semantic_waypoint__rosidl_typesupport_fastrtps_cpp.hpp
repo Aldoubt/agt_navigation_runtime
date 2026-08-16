@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/rosidl_typesupport_fastrtps_cpp/agt_interfaces/msg/detail/semantic_waypoint__rosidl_typesupport_fastrtps_cpp.hpp

@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "agt_interfaces__rs",
+		"source" : "/home/yangxuan/agt_navigation_runtime/build/agt_interfaces/agt_interfaces__rs"
+	}
+}

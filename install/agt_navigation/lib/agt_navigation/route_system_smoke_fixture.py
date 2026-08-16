@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/agt_navigation/generated_scripts/route_system_smoke_fixture.py

@@ -1,0 +1,1 @@
+/home/yangxuan/agt_navigation_runtime/build/bunker_msgs/ament_cmake_python/bunker_msgs/bunker_msgs.egg-info/dependency_links.txt

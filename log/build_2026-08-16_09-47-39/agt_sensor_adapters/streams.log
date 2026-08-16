@@ -1,0 +1,140 @@
+[0.019s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_sensor_adapters -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters
+[0.108s] -- The C compiler identification is GNU 11.4.0
+[0.202s] -- The CXX compiler identification is GNU 11.4.0
+[0.218s] -- Detecting C compiler ABI info
+[0.350s] -- Detecting C compiler ABI info - done
+[0.365s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.366s] -- Detecting C compile features
+[0.366s] -- Detecting C compile features - done
+[0.372s] -- Detecting CXX compiler ABI info
+[0.490s] -- Detecting CXX compiler ABI info - done
+[0.507s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.508s] -- Detecting CXX compile features
+[0.509s] -- Detecting CXX compile features - done
+[0.516s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.786s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.888s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.970s] -- Found diagnostic_msgs: 4.9.1 (/opt/ros/humble/share/diagnostic_msgs/cmake)
+[1.068s] -- Found rosidl_generator_c: 3.1.8 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[1.083s] -- Found rosidl_adapter: 3.1.8 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[1.104s] -- Found rosidl_generator_cpp: 3.1.8 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[1.132s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.163s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.227s] -- Found geometry_msgs: 4.9.1 (/opt/ros/humble/share/geometry_msgs/cmake)
+[1.245s] -- Found livox_ros_driver2: 1.0.0 (/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/share/livox_ros_driver2/cmake)
+[1.330s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[1.335s] -- Found rmw_fastrtps_cpp: 6.2.10 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[1.488s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[1.541s] -- Found FastRTPS: /opt/ros/humble/include  
+[1.615s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[1.629s] -- Looking for pthread.h
+[1.730s] -- Looking for pthread.h - found
+[1.730s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[1.852s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[1.855s] -- Found Threads: TRUE  
+[2.062s] -- Checking for module 'eigen3'
+[2.084s] --   Found eigen3, version 3.4.0
+[2.135s] -- Found Eigen: /usr/include/eigen3 (Required is at least version "3.1") 
+[2.135s] -- Eigen found (include: /usr/include/eigen3, version: 3.4.0)
+[2.218s] -- Checking for module 'flann'
+[2.239s] --   Found flann, version 1.9.1
+[2.308s] -- Found FLANN: /usr/lib/x86_64-linux-gnu/libflann_cpp.so  
+[2.309s] -- FLANN found (include: /usr/include, lib: /usr/lib/x86_64-linux-gnu/libflann_cpp.so)
+[3.978s] -- Checking for module 'libusb-1.0'
+[4.003s] --   Found libusb-1.0, version 1.0.25
+[4.064s] -- Found libusb: /usr/lib/x86_64-linux-gnu/libusb-1.0.so  
+[4.066s] -- OpenNI found (version: 1.5.4.0, include: /usr/include/ni, lib: /usr/lib/libOpenNI.so;libusb::libusb)
+[4.162s] -- OpenNI2 found (version: 2.2.0.33, include: /usr/include/openni2, lib: /usr/lib/x86_64-linux-gnu/libOpenNI2.so;libusb::libusb)
+[4.445s] -- Eigen found (include: /usr/include/eigen3, version: 3.4.0)
+[4.456s] -- OpenNI found (version: 1.5.4.0, include: /usr/include/ni, lib: /usr/lib/libOpenNI.so;libusb::libusb)
+[4.468s] -- OpenNI2 found (version: 2.2.0.33, include: /usr/include/openni2, lib: /usr/lib/x86_64-linux-gnu/libOpenNI2.so;libusb::libusb)
+[4.727s] -- Found Qhull version 8.0.2
+[5.002s] -- OpenNI found (version: 1.5.4.0, include: /usr/include/ni, lib: /usr/lib/libOpenNI.so;libusb::libusb)
+[5.359s] -- Found PCL_COMMON: /usr/lib/x86_64-linux-gnu/libpcl_common.so  
+[5.361s] -- Found PCL_KDTREE: /usr/lib/x86_64-linux-gnu/libpcl_kdtree.so  
+[5.363s] -- Found PCL_OCTREE: /usr/lib/x86_64-linux-gnu/libpcl_octree.so  
+[5.365s] -- Found PCL_SEARCH: /usr/lib/x86_64-linux-gnu/libpcl_search.so  
+[5.367s] -- Found PCL_SAMPLE_CONSENSUS: /usr/lib/x86_64-linux-gnu/libpcl_sample_consensus.so  
+[5.369s] -- Found PCL_FILTERS: /usr/lib/x86_64-linux-gnu/libpcl_filters.so  
+[5.370s] -- Found PCL_2D: /usr/include/pcl-1.12  
+[5.371s] -- Found PCL_GEOMETRY: /usr/include/pcl-1.12  
+[5.373s] -- Found PCL_IO: /usr/lib/x86_64-linux-gnu/libpcl_io.so  
+[5.376s] -- Found PCL_FEATURES: /usr/lib/x86_64-linux-gnu/libpcl_features.so  
+[5.378s] -- Found PCL_ML: /usr/lib/x86_64-linux-gnu/libpcl_ml.so  
+[5.380s] -- Found PCL_SEGMENTATION: /usr/lib/x86_64-linux-gnu/libpcl_segmentation.so  
+[5.383s] -- Found PCL_VISUALIZATION: /usr/lib/x86_64-linux-gnu/libpcl_visualization.so  
+[5.385s] -- Found PCL_SURFACE: /usr/lib/x86_64-linux-gnu/libpcl_surface.so  
+[5.387s] -- Found PCL_REGISTRATION: /usr/lib/x86_64-linux-gnu/libpcl_registration.so  
+[5.390s] -- Found PCL_KEYPOINTS: /usr/lib/x86_64-linux-gnu/libpcl_keypoints.so  
+[5.392s] -- Found PCL_TRACKING: /usr/lib/x86_64-linux-gnu/libpcl_tracking.so  
+[5.394s] -- Found PCL_RECOGNITION: /usr/lib/x86_64-linux-gnu/libpcl_recognition.so  
+[5.397s] -- Found PCL_STEREO: /usr/lib/x86_64-linux-gnu/libpcl_stereo.so  
+[5.399s] -- Found PCL_APPS: /usr/lib/x86_64-linux-gnu/libpcl_apps.so  
+[5.400s] -- Found PCL_IN_HAND_SCANNER: /usr/include/pcl-1.12  
+[5.401s] -- Found PCL_MODELER: /usr/include/pcl-1.12  
+[5.402s] -- Found PCL_POINT_CLOUD_EDITOR: /usr/include/pcl-1.12  
+[5.404s] -- Found PCL_OUTOFCORE: /usr/lib/x86_64-linux-gnu/libpcl_outofcore.so  
+[5.406s] -- Found PCL_PEOPLE: /usr/lib/x86_64-linux-gnu/libpcl_people.so  
+[5.434s] -- Found tf2: 0.25.20 (/opt/ros/humble/share/tf2/cmake)
+[5.445s] -- Found tf2_geometry_msgs: 0.25.20 (/opt/ros/humble/share/tf2_geometry_msgs/cmake)
+[5.470s] -- Found eigen3_cmake_module: 0.1.1 (/opt/ros/humble/share/eigen3_cmake_module/cmake)
+[5.473s] -- Found Eigen3: TRUE (found version "3.4.0") 
+[5.473s] -- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+[5.689s] -- Found urdf: 2.6.1 (/opt/ros/humble/share/urdf/cmake)
+[5.953s] -- Found visualization_msgs: 4.9.1 (/opt/ros/humble/share/visualization_msgs/cmake)
+[6.111s] -- Found ament_cmake_gtest: 1.3.14 (/opt/ros/humble/share/ament_cmake_gtest/cmake)
+[6.124s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[6.332s] -- Configuring done
+[6.455s] -- Generating done
+[6.482s] -- Build files have been written to: /home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters
+[6.551s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/yangxuan/agt_navigation_runtime/src/agt_sensor_adapters -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters
+[6.552s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters -- -j32 -l32
+[6.747s] [  7%] [32mBuilding CXX object CMakeFiles/agt_sensor_filter_geometry.dir/src/urdf_self_filter_geometry.cpp.o[0m
+[6.757s] [ 15%] [32mBuilding CXX object CMakeFiles/agt_sensor_filter_geometry.dir/src/self_filter_geometry.cpp.o[0m
+[6.765s] [ 23%] [32mBuilding CXX object gtest/CMakeFiles/gtest.dir/src/gtest-all.cc.o[0m
+[6.766s] [ 30%] [32mBuilding CXX object gtest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o[0m
+[9.169s] [ 38%] [32m[1mLinking CXX static library libgtest_main.a[0m
+[9.306s] [ 38%] Built target gtest_main
+[10.111s] [ 46%] [32m[1mLinking CXX static library libagt_sensor_filter_geometry.a[0m
+[10.190s] [ 46%] Built target agt_sensor_filter_geometry
+[10.222s] [ 53%] [32mBuilding CXX object CMakeFiles/livox_custom_self_filter.dir/src/livox_custom_self_filter.cpp.o[0m
+[13.939s] [ 61%] [32m[1mLinking CXX static library libgtest.a[0m
+[14.009s] [ 61%] Built target gtest
+[14.036s] [ 69%] [32mBuilding CXX object CMakeFiles/test_self_filter_geometry.dir/test/test_self_filter_geometry.cpp.o[0m
+[14.037s] [ 76%] [32mBuilding CXX object CMakeFiles/test_urdf_self_filter_geometry.dir/test/test_urdf_self_filter_geometry.cpp.o[0m
+[15.081s] [ 84%] [32m[1mLinking CXX executable test_urdf_self_filter_geometry[0m
+[15.286s] [ 84%] Built target test_urdf_self_filter_geometry
+[15.392s] [ 92%] [32m[1mLinking CXX executable test_self_filter_geometry[0m
+[15.616s] [ 92%] Built target test_self_filter_geometry
+[26.834s] [100%] [32m[1mLinking CXX executable livox_custom_self_filter[0m
+[27.827s] [100%] Built target livox_custom_self_filter
+[27.848s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters -- -j32 -l32
+[27.851s] Invoking command in '/home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters
+[27.862s] -- Install configuration: ""
+[27.862s] -- Execute custom install script
+[27.863s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/lib/libagt_sensor_filter_geometry.a
+[27.876s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/lib/agt_sensor_adapters/livox_custom_self_filter
+[27.893s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/include/agt_sensor_adapters/self_filter_geometry.hpp
+[27.904s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/include/agt_sensor_adapters/urdf_self_filter_geometry.hpp
+[27.916s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/launch/README.md
+[27.930s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/launch/lidar_self_filter.launch.py
+[27.944s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/launch/mid360.launch.py
+[27.955s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/config/README.md
+[27.970s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/config/livox_self_filter.yaml
+[27.986s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/config/mid360_network.json
+[27.998s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/ament_index/resource_index/package_run_dependencies/agt_sensor_adapters
+[28.009s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/ament_index/resource_index/parent_prefix_path/agt_sensor_adapters
+[28.020s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/environment/ament_prefix_path.sh
+[28.031s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/environment/ament_prefix_path.dsv
+[28.047s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/environment/path.sh
+[28.059s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/environment/path.dsv
+[28.069s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/local_setup.bash
+[28.082s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/local_setup.sh
+[28.098s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/local_setup.zsh
+[28.113s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/local_setup.dsv
+[28.128s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/package.dsv
+[28.140s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/ament_index/resource_index/packages/agt_sensor_adapters
+[28.152s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/cmake/agt_sensor_adaptersConfig.cmake
+[28.164s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/cmake/agt_sensor_adaptersConfig-version.cmake
+[28.177s] -- Symlinking: /home/yangxuan/agt_navigation_runtime/install/agt_sensor_adapters/share/agt_sensor_adapters/package.xml
+[28.193s] Invoked command in '/home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters' returned '0': AMENT_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2:/opt/ros/humble LD_LIBRARY_PATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/opt/ortools_vendor/lib:/opt/ros/humble/opt/openvdb_vendor/lib:/opt/ros/humble/lib PYTHONPATH=/home/yangxuan/agt_navigation_runtime/install/livox_ros_driver2/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/yangxuan/agt_navigation_runtime/build/agt_sensor_adapters
