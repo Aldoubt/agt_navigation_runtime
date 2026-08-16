@@ -6,6 +6,7 @@ on:
       - 'v3-01/**'
       - 'feat/v3-01-*'
       - 'v3-02/**'
+      - 'v3-03/**'
   pull_request:
     paths:
       - 'profiles/platforms/**'
@@ -14,11 +15,17 @@ on:
       - 'tools/validate_runtime_contracts.py'
       - 'tests/contracts/**'
       - 'tests/odometry/**'
+      - 'tests/execution/**'
+      - 'src/agt_interfaces/**'
       - 'src/agt_odometry/**'
       - 'src/agt_mapping/**'
       - 'src/agt_localization/**'
       - 'src/agt_perception/**'
       - 'src/agt_navigation/**'
+      - 'src/agt_safety/**'
+      - 'src/agt_chassis/**'
+      - 'src/agt_chassis_bunker/**'
+      - 'src/agt_chassis_mk_mini/**'
       - 'src/agt_experiment_manager/**'
       - 'requirements-contracts.txt'
       - '.github/workflows/runtime-contracts.yml'
@@ -37,3 +44,5 @@ jobs:
         run: python -m pytest -q tests/contracts
       - name: Run V3-02 odometry source contracts
         run: python -m pytest -q tests/odometry
+      - name: Run V3-03 execution source contracts
+        run: python -m pytest -q tests/execution
