@@ -102,13 +102,14 @@ A READY package reports
 [PASS] site schema
 [PASS] relative paths
 [PASS] required assets
+[PASS] navigation map image
 [PASS] SHA256 integrity
 [PASS] vehicle compatibility
 [PASS] Ackermann geometry
 Runtime contract validation: READY
 ```
 
-Contract validation is fail-closed. Unsupported schema versions, unsafe paths, missing assets, hash failures, incompatible vehicles, or invalid Ackermann geometry return a non-zero exit code
+Contract validation is fail-closed. Unsupported schema versions, unsafe paths, missing direct or transitive assets, hash failures, incompatible vehicles, or invalid Ackermann geometry return a non-zero exit code
 
 Run the pure-Python regression suite with
 
