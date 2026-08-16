@@ -50,7 +50,11 @@ def _format_jsonschema_error(error: Any) -> str:
     return error.message
 
 
-def _schema_issues(document: Mapping[str, Any], schema: Mapping[str, Any], code: str) -> tuple[ValidationIssue, ...]:
+def _schema_issues(
+    document: Mapping[str, Any],
+    schema: Mapping[str, Any],
+    code: str,
+) -> tuple[ValidationIssue, ...]:
     validator = Draft202012Validator(schema)
     errors = sorted(validator.iter_errors(document), key=lambda item: list(item.absolute_path))
     return tuple(ValidationIssue(code, _format_jsonschema_error(error)) for error in errors)
@@ -73,19 +77,70 @@ def validate_vehicle_profile(path: Path, schema_path: Path) -> ValidationReport:
     return ValidationReport(ok=True, checks=("vehicle schema",))
 
 
-def _resolve_relative_path(site_root: Path, raw: str) -> tuple[Path | None, ValidationIssue | None]:
+def _resolve_relative_path(
+    site_root: Path,
+    raw: str,
+) -> tuple[Path | None, ValidationIssue | None]:
     candidate = Path(raw)
     if candidate.is_absolute():
-        return None, ValidationIssue("ABSOLUTE_PATH", f"absolute Site Package path is forbidden: {raw}")
+        return None, ValidationIssue(
+            "ABSOLUTE_PATH",
+            f"absolute Site Package path is forbidden: {raw}",
+        )
 
     root = site_root.resolve()
     resolved = (root / candidate).resolve()
     try:
         resolved.relative_to(root)
     except ValueError:
-        return None, ValidationIssue("PATH_ESCAPE", f"path escapes Site Package root: {raw}")
+        return None, ValidationIssue(
+            "PATH_ESCAPE",
+            f"path escapes Site Package root: {raw}",
+        )
 
     return resolved, None
+
+
+def _navigation_image_asset(
+    site_root: Path,
+    manifest: Mapping[str, Any],
+) -> tuple[str | None, Path | None, ValidationIssue | None]:
+    navigation_map_raw = manifest["assets"]["navigation_map"]
+    navigation_map_path, issue = _resolve_relative_path(site_root, navigation_map_raw)
+    if issue is not None or navigation_map_path is None:
+        return None, None, issue or ValidationIssue(
+            "NAVIGATION_MAP",
+            "invalid navigation map path",
+        )
+
+    try:
+        navigation_map = load_yaml(navigation_map_path)
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        return None, None, ValidationIssue("NAVIGATION_MAP", str(exc))
+
+    image_raw = navigation_map.get("image")
+    if not isinstance(image_raw, str) or not image_raw.strip():
+        return None, None, ValidationIssue(
+            "NAVIGATION_MAP",
+            "navigation map YAML must declare a non-empty image path",
+        )
+
+    if Path(image_raw).is_absolute():
+        return None, None, ValidationIssue(
+            "ABSOLUTE_PATH",
+            f"assets.navigation_map.image: absolute Site Package path is forbidden: {image_raw}",
+        )
+
+    image_site_raw = (Path(navigation_map_raw).parent / image_raw).as_posix()
+    image_path, image_issue = _resolve_relative_path(site_root, image_site_raw)
+    if image_issue is not None or image_path is None:
+        return None, None, ValidationIssue(
+            image_issue.code if image_issue is not None else "NAVIGATION_MAP",
+            "assets.navigation_map.image: "
+            + (image_issue.message if image_issue is not None else "invalid image path"),
+        )
+
+    return image_site_raw, image_path, None
 
 
 def validate_site_package(site_root: Path, schema_path: Path) -> ValidationReport:
@@ -133,6 +188,27 @@ def validate_site_package(site_root: Path, schema_path: Path) -> ValidationRepor
         return ValidationReport(ok=False, checks=tuple(checks), issues=tuple(issues))
     checks.append("required assets")
 
+    image_raw, image_path, image_issue = _navigation_image_asset(site_root, manifest)
+    if image_issue is not None:
+        return ValidationReport(
+            ok=False,
+            checks=tuple(checks),
+            issues=(image_issue,),
+        )
+    assert image_raw is not None and image_path is not None
+    if not image_path.is_file():
+        return ValidationReport(
+            ok=False,
+            checks=tuple(checks),
+            issues=(
+                ValidationIssue(
+                    "MISSING_ASSET",
+                    f"assets.navigation_map.image: missing file {image_path}",
+                ),
+            ),
+        )
+    checks.append("navigation map image")
+
     return ValidationReport(ok=True, checks=tuple(checks))
 
 
@@ -144,7 +220,10 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _validate_integrity(site_root: Path, manifest: Mapping[str, Any]) -> tuple[ValidationIssue, ...]:
+def _validate_integrity(
+    site_root: Path,
+    manifest: Mapping[str, Any],
+) -> tuple[ValidationIssue, ...]:
     issues: list[ValidationIssue] = []
     hashes_raw = manifest["integrity"]["hashes_file"]
     hashes_path, path_issue = _resolve_relative_path(site_root, hashes_raw)
@@ -160,7 +239,13 @@ def _validate_integrity(site_root: Path, manifest: Mapping[str, Any]) -> tuple[V
     if not isinstance(hashes, Mapping):
         return (ValidationIssue("HASHES_FILE", "hashes.yaml must contain a 'hashes' mapping"),)
 
-    for raw in manifest["assets"].values():
+    effective_assets = list(manifest["assets"].values())
+    image_raw, _, image_issue = _navigation_image_asset(site_root, manifest)
+    if image_issue is not None or image_raw is None:
+        return (image_issue or ValidationIssue("NAVIGATION_MAP", "invalid map image"),)
+    effective_assets.append(image_raw)
+
+    for raw in effective_assets:
         expected = hashes.get(raw)
         if expected is None:
             issues.append(ValidationIssue("HASH_MISSING", f"missing SHA256 entry for {raw}"))
@@ -171,7 +256,9 @@ def _validate_integrity(site_root: Path, manifest: Mapping[str, Any]) -> tuple[V
 
         asset_path, asset_issue = _resolve_relative_path(site_root, raw)
         if asset_issue is not None or asset_path is None:
-            issues.append(asset_issue or ValidationIssue("HASH_MISMATCH", f"invalid asset path {raw}"))
+            issues.append(
+                asset_issue or ValidationIssue("HASH_MISMATCH", f"invalid asset path {raw}")
+            )
             continue
         actual = _sha256(asset_path)
         if actual != expected:
@@ -185,7 +272,9 @@ def _validate_integrity(site_root: Path, manifest: Mapping[str, Any]) -> tuple[V
     return tuple(issues)
 
 
-def _validate_ackermann_geometry(profile: Mapping[str, Any]) -> tuple[ValidationIssue, ...]:
+def _validate_ackermann_geometry(
+    profile: Mapping[str, Any],
+) -> tuple[ValidationIssue, ...]:
     platform = profile["platform"]
     if platform.get("kinematics") != "ackermann":
         return ()
