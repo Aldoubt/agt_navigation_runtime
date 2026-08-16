@@ -1,6 +1,7 @@
 import ast
 from pathlib import Path
 
+from agt_chassis_mk_mini.ackermann_math import command_is_fresh
 from agt_chassis_mk_mini.mk_mini_command_state import CommandStateMachine, Gear
 from agt_chassis_mk_mini.mk_mini_protocol import (
     Gear as ProtocolGear,
@@ -52,6 +53,12 @@ def test_startup_motion_requires_stationary_feedback_hold():
     assert shifted.gear == Gear.DRIVE
     assert shifted.speed_mps == 0.0
     assert machine.step(0.07).speed_mps == 0.5
+
+
+def test_adapter_freshness_does_not_manufacture_heartbeat_after_timeout():
+    assert command_is_fresh(1.10, 1.00, 0.20)
+    assert not command_is_fresh(1.21, 1.00, 0.20)
+    assert not command_is_fresh(1.00, float("-inf"), 0.20)
 
 
 def test_socketcan_extended_flag_is_transport_only():
