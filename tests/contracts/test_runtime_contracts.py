@@ -1,5 +1,7 @@
 from importlib import import_module
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 import yaml
@@ -27,6 +29,23 @@ def runtime_report(site_fixture: str):
         REPO_ROOT / f"tests/contracts/fixtures/{site_fixture}",
         REPO_ROOT / "schemas/vehicle_profile.schema.json",
         REPO_ROOT / "schemas/site_package.schema.json",
+    )
+
+
+def run_cli(site_fixture: str):
+    return subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "tools/validate_runtime_contracts.py"),
+            "--vehicle",
+            str(REPO_ROOT / "profiles/platforms/mk_mini.yaml"),
+            "--site",
+            str(REPO_ROOT / f"tests/contracts/fixtures/{site_fixture}"),
+        ],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
     )
 
 
@@ -85,3 +104,17 @@ def test_incompatible_vehicle_fails_closed():
     report = runtime_report("site_incompatible_vehicle")
     assert not report.ok
     assert any(issue.code == "INCOMPATIBLE_VEHICLE" for issue in report.issues)
+
+
+def test_cli_returns_zero_for_ready_contract():
+    result = run_cli("site_valid")
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "Runtime contract validation: READY" in result.stdout
+    assert "[PASS] SHA256 integrity" in result.stdout
+
+
+def test_cli_returns_two_for_contract_failure():
+    result = run_cli("site_hash_mismatch")
+    assert result.returncode == 2, result.stderr + result.stdout
+    assert "Runtime contract validation: NOT READY" in result.stdout
+    assert "HASH_MISMATCH" in result.stdout
