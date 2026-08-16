@@ -23,7 +23,7 @@ public:
     tf_listener_(tf_buffer_)
   {
     const auto input = declare_parameter<std::string>(
-      "input_topic", "/agt/mapping/registered_points");
+      "input_topic", "/agt/odometry/registered_points");
     const auto output = declare_parameter<std::string>(
       "output_topic", "/agt/perception/obstacle_cloud");
     target_frame_ = declare_parameter<std::string>("target_frame", "base_footprint");
