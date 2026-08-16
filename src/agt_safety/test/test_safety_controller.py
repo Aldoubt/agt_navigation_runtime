@@ -5,8 +5,8 @@ from agt_interfaces.msg import LocalizationStatus
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "tracked_safety_controller.py"
-SPEC = importlib.util.spec_from_file_location("tracked_safety_controller", SCRIPT)
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "safety_controller.py"
+SPEC = importlib.util.spec_from_file_location("safety_controller", SCRIPT)
 SAFETY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(SAFETY)
 
@@ -25,7 +25,7 @@ def test_localization_guard_requires_accepted_tracking_state():
     assert not SAFETY.localization_status_is_valid(status)
 
 
-def test_sensor_summary_guard_requires_fresh_required_stream_evidence():
+def test_sensor_summary_guard_requires_required_stream_evidence():
     array = DiagnosticArray()
     unrelated = DiagnosticStatus()
     unrelated.name = "other/component"
@@ -57,10 +57,13 @@ def test_safety_contract_exports_authoritative_estop_navigation_and_sensor_readi
     assert 'key="navigation_ready"' in source
     assert 'key="sensor_input_ready"' in source
     assert "MultiThreadedExecutor" in source
+    assert "project_track_speeds" not in source
+    assert "max_track_speed" not in source
+    assert "effective_track_width" not in source
 
 
-def test_bunker_config_requires_sensor_gate_and_localization_window():
-    config = SCRIPT.parents[1] / "config" / "bunker_safety.yaml"
+def test_generic_config_requires_sensor_gate_and_localization_window():
+    config = SCRIPT.parents[1] / "config" / "safety.yaml"
     text = config.read_text(encoding="utf-8")
     assert "localization_status_timeout: 10.0" in text
     assert "require_sensor_input_ready: true" in text
