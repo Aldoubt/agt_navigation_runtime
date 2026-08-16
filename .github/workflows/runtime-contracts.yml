@@ -5,6 +5,7 @@ on:
     branches:
       - 'v3-01/**'
       - 'feat/v3-01-*'
+      - 'v3-02/**'
   pull_request:
     paths:
       - 'profiles/platforms/**'
@@ -12,6 +13,13 @@ on:
       - 'tools/runtime_contracts/**'
       - 'tools/validate_runtime_contracts.py'
       - 'tests/contracts/**'
+      - 'tests/odometry/**'
+      - 'src/agt_odometry/**'
+      - 'src/agt_mapping/**'
+      - 'src/agt_localization/**'
+      - 'src/agt_perception/**'
+      - 'src/agt_navigation/**'
+      - 'src/agt_experiment_manager/**'
       - 'requirements-contracts.txt'
       - '.github/workflows/runtime-contracts.yml'
 
@@ -25,5 +33,7 @@ jobs:
           python-version: '3.10'
       - name: Install contract test dependencies
         run: python -m pip install -r requirements-contracts.txt
-      - name: Run contract tests
+      - name: Run V3-01 contract tests
         run: python -m pytest -q tests/contracts
+      - name: Run V3-02 odometry source contracts
+        run: python -m pytest -q tests/odometry
