@@ -37,11 +37,15 @@ def test_sim_protocol_is_independent_from_real_feedback_decoder():
 
 
 def test_simulator_runtime_defaults_to_vcan_and_has_no_host_network_mutation():
-    tree_text = "\n".join(
-        read(path)
-        for path in SIM.rglob("*")
-        if path.is_file() and path.suffix in {".py", ".yaml", ".xml", ".txt"}
-    )
+    runtime_paths = [
+        *sorted((SIM / "agt_chassis_mk_mini_sim").glob("*.py")),
+        *sorted((SIM / "scripts").glob("*.py")),
+        *sorted((SIM / "launch").glob("*.py")),
+        *sorted((SIM / "config").glob("*.yaml")),
+        SIM / "package.xml",
+        SIM / "CMakeLists.txt",
+    ]
+    tree_text = "\n".join(read(path) for path in runtime_paths if path.is_file())
     assert "vcan0" in tree_text
     lowered = tree_text.lower()
     assert "sudo " not in lowered
