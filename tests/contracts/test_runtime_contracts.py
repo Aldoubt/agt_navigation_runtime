@@ -33,3 +33,25 @@ def test_real_mk_mini_profile_passes_vehicle_schema():
     )
     assert report.ok, report.issues
     assert "vehicle schema" in report.checks
+
+
+def test_site_relative_paths_pass():
+    validator = load_validator_module()
+    report = validator.validate_site_package(
+        REPO_ROOT / "tests/contracts/fixtures/site_valid",
+        REPO_ROOT / "schemas/site_package.schema.json",
+    )
+    assert report.ok, report.issues
+    assert "site schema" in report.checks
+    assert "relative paths" in report.checks
+    assert "required assets" in report.checks
+
+
+def test_site_absolute_asset_path_fails_closed():
+    validator = load_validator_module()
+    report = validator.validate_site_package(
+        REPO_ROOT / "tests/contracts/fixtures/site_absolute_path",
+        REPO_ROOT / "schemas/site_package.schema.json",
+    )
+    assert not report.ok
+    assert any(issue.code == "ABSOLUTE_PATH" for issue in report.issues)
