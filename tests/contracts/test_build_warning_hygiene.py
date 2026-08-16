@@ -35,7 +35,10 @@ def test_vikit_cpu_message_is_status_output() -> None:
     assert "message(\"Current CPU archtecture: ${CMAKE_SYSTEM_PROCESSOR}\")" not in cmake
 
 
-def test_relocalization_declares_pcl_io_optional_backend_dependencies() -> None:
+def test_relocalization_keeps_required_pcl_io_quiet_without_unused_backend_deps() -> None:
+    cmake = read("third_party/relocalization_core/CMakeLists.txt")
     package_xml = read("third_party/relocalization_core/package.xml")
-    assert "<depend>libpcap</depend>" in package_xml
-    assert "<depend>libpng-dev</depend>" in package_xml
+
+    assert "find_package(PCL REQUIRED QUIET COMPONENTS common filters io registration)" in cmake
+    assert "<depend>libpcap</depend>" not in package_xml
+    assert "<depend>libpng-dev</depend>" not in package_xml
