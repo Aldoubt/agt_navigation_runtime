@@ -3,7 +3,7 @@
 import math
 import time
 
-from agt_chassis_mk_mini.ackermann_math import twist_to_ackermann
+from agt_chassis_mk_mini.ackermann_math import command_is_fresh, twist_to_ackermann
 from agt_interfaces.msg import AckermannCommand
 from geometry_msgs.msg import Twist
 import rclpy
@@ -62,22 +62,28 @@ class MkMiniAdapter(Node):
         self._last_stamp = time.monotonic()
 
     def _tick(self) -> None:
+        now = time.monotonic()
+        if not command_is_fresh(now, self._last_stamp, self._command_timeout):
+            # Do not manufacture a fresh zero command after the upstream Twist
+            # source disappears. The physical CAN backend owns the 100 Hz VCU
+            # heartbeat and its command-timeout/park fail-safe state machine.
+            return
+
         output = AckermannCommand()
         output.header.stamp = self.get_clock().now().to_msg()
-        if time.monotonic() - self._last_stamp <= self._command_timeout:
-            speed = min(
-                max(self._last_command.linear.x, -self._max_reverse_speed),
-                self._max_forward_speed,
-            )
-            setpoint = twist_to_ackermann(
-                speed,
-                self._last_command.angular.z,
-                self._wheelbase,
-                self._min_turning_radius,
-                speed_deadband=self._speed_deadband,
-            )
-            output.speed_mps = setpoint.speed_mps
-            output.steering_angle_rad = setpoint.steering_angle_rad
+        speed = min(
+            max(self._last_command.linear.x, -self._max_reverse_speed),
+            self._max_forward_speed,
+        )
+        setpoint = twist_to_ackermann(
+            speed,
+            self._last_command.angular.z,
+            self._wheelbase,
+            self._min_turning_radius,
+            speed_deadband=self._speed_deadband,
+        )
+        output.speed_mps = setpoint.speed_mps
+        output.steering_angle_rad = setpoint.steering_angle_rad
         self._publisher.publish(output)
 
 
