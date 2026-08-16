@@ -69,7 +69,7 @@ class RouteControllerSmoke(Node):
         self._odom = None
         self._client = ActionClient(self, FollowPath, "follow_path")
         self.create_subscription(
-            Odometry, "/agt/mapping/odometry", self._odom_callback, 20
+            Odometry, "/agt/odometry/odometry", self._odom_callback, 20
         )
 
     def _odom_callback(self, message: Odometry) -> None:
@@ -108,7 +108,7 @@ class RouteControllerSmoke(Node):
 
     def run(self) -> dict:
         if not self._wait_until(lambda: self._odom is not None, self.odom_timeout_s):
-            raise RuntimeError("timed out waiting for /agt/mapping/odometry")
+            raise RuntimeError("timed out waiting for /agt/odometry/odometry")
         if not self._client.wait_for_server(timeout_sec=self.server_timeout_s):
             raise RuntimeError("timed out waiting for Nav2 FollowPath action")
 

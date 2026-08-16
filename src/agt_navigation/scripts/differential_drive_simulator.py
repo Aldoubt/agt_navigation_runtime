@@ -33,7 +33,7 @@ class DifferentialDriveSimulator(Node):
         self._obstacle_y = float(self.declare_parameter("synthetic_obstacle_y", 0.0).value)
         self._obstacle_z = float(self.declare_parameter("synthetic_obstacle_z", 0.3).value)
         self._last_time = self.get_clock().now()
-        self._odom = self.create_publisher(Odometry, "/agt/mapping/odometry", 20)
+        self._odom = self.create_publisher(Odometry, "/agt/odometry/odometry", 20)
         self._cloud = self.create_publisher(PointCloud2, "/agt/perception/obstacle_cloud", 10)
         self._tf = TransformBroadcaster(self)
         self.create_subscription(Twist, "/agt/safety/cmd_vel", self._on_cmd, 10)

@@ -6,7 +6,7 @@ status 并拥有唯一的 `map -> odom`。
 
 ## 接口
 
-- 输入点云：`/agt/mapping/registered_points` (`sensor_msgs/PointCloud2`)
+- 输入点云：`/agt/odometry/registered_points` (`sensor_msgs/PointCloud2`)
 - 手动对比入口：`/initialpose` (`geometry_msgs/PoseWithCovarianceStamped`，语义为 `map -> base_link`，默认启用)
 - 证据状态：`/agt/localization/evidence_status` (`agt_interfaces/LocalizationStatus`)
 - canonical 状态：`/agt/localization/status` (`agt_interfaces/LocalizationStatus`)，由 GlobalCorrectionManager 发布
@@ -58,7 +58,7 @@ external coarse pose 中至少一种有界来源。
 
 ## Tracking supervisor
 
-节点只缓存 `/agt/mapping/registered_points` 的最新一帧；一次 `runCandidates()` 固定使用
+节点只缓存 `/agt/odometry/registered_points` 的最新一帧；一次 `runCandidates()` 固定使用
 这一帧及其 `cloud_stamp`，所有候选不会切换到其他点云。动态 `odom -> tracking_frame` 查询在
 该点云时间执行，静态 `base_link -> lidar_link` 外参可以使用静态 TF。
 

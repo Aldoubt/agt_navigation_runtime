@@ -115,7 +115,7 @@ def test_mapping_playback_filters_algorithm_outputs(tmp_path):
         "/agt/sensors/imu/data",
     ]
     assert "--topics" in result["command"]
-    assert "/agt/mapping/odometry" not in result["command"]
+    assert "/agt/odometry/odometry" not in result["command"]
 
 
 def test_teach_repeat_result_and_failure_case_are_auditable(tmp_path):
@@ -197,7 +197,7 @@ def test_mapping_and_navigation_bag_profiles_keep_replay_and_task_evidence():
         "/agt/sensors/lidar/custom",
         "/agt/sensors/lidar/custom_filtered",
         "/agt/sensors/imu/data",
-        "/agt/mapping/odometry",
+        "/agt/odometry/odometry",
         "/agt/mapping/octomap_points",
         "/agt/map/mapping_occupancy",
         "/agt/mapping/manage_session/_action/status",

@@ -13,7 +13,7 @@ spec.loader.exec_module(validation)
 
 
 def test_handheld_frames_and_tf_invariants():
-    adapter = yaml.safe_load((Path(__file__).parents[2] / "agt_mapping/config/fast_livo2_adapter_handheld.yaml").read_text())["/**"]["ros__parameters"]
+    adapter = yaml.safe_load((Path(__file__).parents[2] / "agt_odometry/config/fast_livo2_adapter_handheld.yaml").read_text())["/**"]["ros__parameters"]
     relocalization = yaml.safe_load((ROOT / "config/relocalization_handheld_validation.yaml").read_text())["/**"]["ros__parameters"]
     correction = yaml.safe_load((ROOT / "config/global_correction_handheld_validation.yaml").read_text())["/**"]["ros__parameters"]
     assert adapter["base_frame"] == adapter["backend_body_frame"] == "imu_link"
@@ -23,14 +23,14 @@ def test_handheld_frames_and_tf_invariants():
 
 
 def test_mapping_launch_wires_overridable_adapter_parameters():
-    source = (Path(__file__).parents[2] / "agt_mapping/launch/fast_livo2_mapping.launch.py").read_text()
+    source = (Path(__file__).parents[2] / "agt_odometry/launch/fast_livo2_odometry.launch.py").read_text()
     assert '"adapter_params_file"' in source
     assert 'LaunchConfiguration("adapter_params_file")' in source
 
 
 def test_rviz_references_validation_topics():
     rviz = (ROOT / "rviz/v25_10_realbag_validation.rviz").read_text()
-    for topic in ("/agt/localization/reference_map", "/agt/mapping/registered_points", "/agt/localization/aligned_points", "/agt/localization/candidate_pose", "/agt/localization/global_pose", "/agt/mapping/odometry"):
+    for topic in ("/agt/localization/reference_map", "/agt/odometry/registered_points", "/agt/localization/aligned_points", "/agt/localization/candidate_pose", "/agt/localization/global_pose", "/agt/odometry/odometry"):
         assert topic in rviz
     assert "Fixed Frame: map" in rviz
 

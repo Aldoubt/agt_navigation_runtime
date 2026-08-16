@@ -59,7 +59,7 @@ class RouteSystemSmoke(Node):
             ExecuteWaypointTask,
             "/agt/navigation/execute_waypoint_task",
         )
-        self.create_subscription(Odometry, "/agt/mapping/odometry", self._odom_cb, 20)
+        self.create_subscription(Odometry, "/agt/odometry/odometry", self._odom_cb, 20)
         self.create_subscription(
             MapVersionSummary, "/agt/maps/active", self._active_map_cb, 10
         )

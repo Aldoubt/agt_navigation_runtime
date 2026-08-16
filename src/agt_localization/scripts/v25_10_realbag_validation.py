@@ -262,7 +262,7 @@ def process_diagnostics():
         "agt_global_correction_manager": "agt_global_correction_manager",
         "agt_recovery_trigger_manager": "agt_recovery_trigger_manager",
         "fast_livo2_backend": "fast_livo2_backend",
-        "agt_mapping_fast_livo2_adapter": "agt_mapping_fast_livo2_adapter",
+        "agt_odometry_fast_livo2_adapter": "agt_odometry_fast_livo2_adapter",
         "reference_map_publisher": "reference_map_publisher",
     }
     try:
@@ -303,9 +303,9 @@ def preflight(args):
         result["checks"]["interface_typesupport"] = "PASS"
     except Exception as error:
         return result, failure("preflight", FAILURE_CODES["interface"], str(error), {
-            "source_hint": ["source /opt/ros/humble/setup.bash", "source ~/agt_navigation_v2/install/setup.bash"]
+            "source_hint": ["source /opt/ros/humble/setup.bash", "source ~/agt_navigation_runtime/install/setup.bash"]
         })
-    conflicts = {"fast_livo2_backend", "agt_mapping_fast_livo2_adapter", "agt_relocalization", "agt_global_correction_manager", "agt_recovery_trigger_manager", "reference_map_publisher"}
+    conflicts = {"fast_livo2_backend", "agt_odometry_fast_livo2_adapter", "agt_relocalization", "agt_global_correction_manager", "agt_recovery_trigger_manager", "reference_map_publisher"}
     result["checks"]["process_diagnostics"] = process_diagnostics()
     try:
         nodes = set(subprocess.run(["ros2", "node", "list"], check=False, capture_output=True, text=True, timeout=5).stdout.split())
@@ -391,8 +391,8 @@ def observe_runtime(directory, timeout, playback_rate, validation_mode, action_c
             clock_qos.durability = DurabilityPolicy.VOLATILE
             self.create_subscription(Clock, "/clock", self.clock_seen, clock_qos)
             self.create_subscription(TFMessage, "/tf", self.tf_seen, 50)
-            self.create_subscription(PointCloud2, "/agt/mapping/registered_points", lambda msg: self.seen("registered_points", msg), 10)
-            self.create_subscription(Odometry, "/agt/mapping/odometry", lambda msg: self.seen("odometry", msg), 10)
+            self.create_subscription(PointCloud2, "/agt/odometry/registered_points", lambda msg: self.seen("registered_points", msg), 10)
+            self.create_subscription(Odometry, "/agt/odometry/odometry", lambda msg: self.seen("odometry", msg), 10)
             self.create_subscription(LocalizationStatus, "/agt/localization/evidence_status", lambda msg: self.status("evidence", msg), 10)
             self.create_subscription(LocalizationStatus, "/agt/localization/status", lambda msg: self.status("correction", msg), 10)
             self.action = ActionClient(self, Relocalize, "/agt/localization/relocalize")
@@ -785,7 +785,7 @@ def main(argv=None):
             write_report(directory, result, error, {"validation_mode": args.validation_mode, "playback": playback_gate(args.playback_rate)})
             return 1
         report.stage("ACTION_SERVER_READY", "PASS")
-        recorder = subprocess.Popen(["ros2", "bag", "record", "-o", str(directory / "result_bag"), "/clock", "/agt/mapping/odometry", "/agt/mapping/registered_points", "/agt/localization/evidence_status", "/agt/localization/status", "/agt/localization/candidate_pose", "/agt/localization/global_pose", "/agt/localization/aligned_points", "/agt/localization/initial_guess", "/agt/localization/aligned_candidate", "/agt/localization/global_correction_status", "/tf", "/tf_static"], stdout=open(directory / "record.log", "w"), stderr=subprocess.STDOUT)
+        recorder = subprocess.Popen(["ros2", "bag", "record", "-o", str(directory / "result_bag"), "/clock", "/agt/odometry/odometry", "/agt/odometry/registered_points", "/agt/localization/evidence_status", "/agt/localization/status", "/agt/localization/candidate_pose", "/agt/localization/global_pose", "/agt/localization/aligned_points", "/agt/localization/initial_guess", "/agt/localization/aligned_candidate", "/agt/localization/global_correction_status", "/tf", "/tf_static"], stdout=open(directory / "record.log", "w"), stderr=subprocess.STDOUT)
         report.stage("RECORDER_STARTED", "PASS", pid=recorder.pid)
         if args.start_rviz and not args.no_rviz:
             from ament_index_python.packages import get_package_share_directory
