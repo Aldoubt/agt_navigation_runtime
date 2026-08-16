@@ -59,7 +59,9 @@ See [`docs/architecture/runtime_boundary.md`](docs/architecture/runtime_boundary
 
 ## Current Status
 
-Current milestone: **V3-02 Odometry / Localization Separation**
+Current milestone: **V3-02 Odometry / Localization Separation — Acceptance PASS**
+
+V3-02 acceptance is recorded in [`docs/acceptance/v3-02-acceptance.md`](docs/acceptance/v3-02-acceptance.md). The acceptance evidence includes the cloud contract suite, an independent ROS 2 Humble 23-package build, zero-failure `agt_odometry` package tests, and successful ROS launch-argument resolution
 
 The V3-00 extracted ROS 2 Humble workspace completed an independent local build with 23 packages finished successfully. V3-01 then froze Vehicle Profile and deployable Site Package contracts with fail-closed validation
 
@@ -187,7 +189,7 @@ Qt map tooling and offline coverage-planning dependencies are intentionally excl
 ```text
 V3-00  Runtime extraction baseline
 V3-01  Runtime contracts and boundary freeze
-V3-02  Odometry / localization separation
+V3-02  Odometry / localization separation            PASS
 V3-03  Navigation / safety / chassis execution
 V3-04  Site runtime loading + Vehicle + Task binding
 V3-05  BehaviorTree / Mission integration
