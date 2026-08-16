@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agt-navigation-runtime.local/schemas/site_package.schema.json",
+  "title": "AGT Site Package 1.0",
+  "type": "object",
+  "required": ["site_schema_version", "site", "frames", "assets", "compatibility", "integrity"],
+  "properties": {
+    "site_schema_version": {
+      "const": "1.0"
+    },
+    "site": {
+      "type": "object",
+      "required": ["id", "revision"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "frames": {
+      "type": "object",
+      "required": ["global"],
+      "properties": {
+        "global": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "assets": {
+      "type": "object",
+      "required": ["navigation_map", "localization_map", "semantic_map", "route_graph"],
+      "properties": {
+        "navigation_map": {"type": "string", "minLength": 1},
+        "localization_map": {"type": "string", "minLength": 1},
+        "semantic_map": {"type": "string", "minLength": 1},
+        "route_graph": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "required": ["vehicle_profiles"],
+      "properties": {
+        "vehicle_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": true
+    },
+    "integrity": {
+      "type": "object",
+      "required": ["hashes_file"],
+      "properties": {
+        "hashes_file": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
