@@ -23,4 +23,7 @@ def test_adapter_stops_publishing_after_upstream_twist_timeout():
     ).read_text(encoding="utf-8")
     assert "command_is_fresh" in adapter
     assert "if not command_is_fresh(" in adapter
-    assert "return" in adapter.split("if not command_is_fresh(", 1)[1].split("\n", 4)[0:4]
+    window = "\n".join(
+        adapter.split("if not command_is_fresh(", 1)[1].split("\n", 5)[:5]
+    )
+    assert "return" in window
