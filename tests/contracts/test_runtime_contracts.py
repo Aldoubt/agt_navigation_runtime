@@ -65,6 +65,19 @@ def test_real_mk_mini_profile_passes_vehicle_schema():
     assert "vehicle schema" in report.checks
 
 
+@pytest.mark.parametrize(
+    "profile_name",
+    ["mk_mini.yaml", "bunker.yaml", "greenhouse_ackermann.yaml"],
+)
+def test_canonical_platform_profiles_pass_vehicle_schema(profile_name):
+    validator = load_validator_module()
+    report = validator.validate_vehicle_profile(
+        REPO_ROOT / "profiles/platforms" / profile_name,
+        REPO_ROOT / "schemas/vehicle_profile.schema.json",
+    )
+    assert report.ok, f"{profile_name}: {report.issues}"
+
+
 def test_site_relative_paths_pass():
     validator = load_validator_module()
     report = validator.validate_site_package(
@@ -119,7 +132,10 @@ def test_navigation_map_image_is_required(tmp_path):
         REPO_ROOT / "schemas/site_package.schema.json",
     )
     assert not report.ok
-    assert any(issue.code == "MISSING_ASSET" and "navigation.pgm" in issue.message for issue in report.issues)
+    assert any(
+        issue.code == "MISSING_ASSET" and "navigation.pgm" in issue.message
+        for issue in report.issues
+    )
 
 
 def test_valid_runtime_contracts_are_ready():
