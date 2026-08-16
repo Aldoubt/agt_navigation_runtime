@@ -28,7 +28,8 @@ def generate_launch_description():
     return LaunchDescription(
         [
             DeclareLaunchArgument(
-                "params_file", default_value=str(share / "config" / "nav2_bunker.yaml")
+                "params_file",
+                description="Vehicle-specific Nav2 parameter file. This must be provided explicitly.",
             ),
             DeclareLaunchArgument("map", default_value=str(share / "maps" / "offline_test.yaml")),
             DeclareLaunchArgument("runtime_dir", default_value="runtime"),
