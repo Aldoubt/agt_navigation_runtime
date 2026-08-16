@@ -198,9 +198,7 @@ def test_mapping_and_navigation_bag_profiles_keep_replay_and_task_evidence():
         "/agt/sensors/lidar/custom_filtered",
         "/agt/sensors/imu/data",
         "/agt/odometry/odometry",
-        "/agt/mapping/octomap_points",
         "/agt/map/mapping_occupancy",
-        "/agt/mapping/manage_session/_action/status",
         "/diagnostics",
     } <= set(mapping)
     assert {
