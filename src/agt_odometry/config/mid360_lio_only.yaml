@@ -95,4 +95,3 @@
       filter_size_pcd: 0.25
       max_abs_coordinate: 10000.0
       interval: -1
-      output_directory: runtime/maps/fast_livo2
