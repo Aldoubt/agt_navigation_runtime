@@ -7,6 +7,16 @@ class AckermannSetpoint(NamedTuple):
     steering_angle_rad: float
 
 
+def command_is_fresh(now: float, last_stamp: float, timeout: float) -> bool:
+    """Return true only for a finite, non-future command inside its timeout."""
+    if not math.isfinite(timeout) or timeout <= 0.0:
+        raise ValueError("timeout must be finite and positive")
+    if not math.isfinite(now) or not math.isfinite(last_stamp):
+        return False
+    age = now - last_stamp
+    return 0.0 <= age <= timeout
+
+
 def twist_to_ackermann(
     linear_velocity: float,
     yaw_rate: float,
