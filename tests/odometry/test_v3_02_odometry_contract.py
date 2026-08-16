@@ -61,3 +61,7 @@ def test_runtime_consumers_do_not_launch_agt_mapping():
         if "agt_mapping" in content:
             violations.append(str(path.relative_to(ROOT)))
     assert violations == []
+
+
+def test_legacy_mapping_package_is_removed():
+    assert not (ROOT / "src/agt_mapping").exists()
