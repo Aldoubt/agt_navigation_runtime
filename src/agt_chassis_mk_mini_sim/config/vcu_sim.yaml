@@ -1,0 +1,19 @@
+agt_mk_mini_vcu_sim:
+  ros__parameters:
+    can_interface: vcan0
+    rx_poll_period_sec: 0.002
+    feedback_period_sec: 0.01
+    bms_period_sec: 0.10
+    reconnect_period_sec: 0.50
+    drop_feedback: false
+    corrupt_bcc: false
+
+    max_accel_mps2: 1.0
+    max_decel_mps2: 2.0
+    stationary_threshold_mps: 0.01
+    wheel_diameter_m: 0.24
+    encoder_pulses_per_rev: 4096
+
+    battery_voltage_v: 48.0
+    remaining_capacity_ah: 20.0
+    vcu_mode: 0
