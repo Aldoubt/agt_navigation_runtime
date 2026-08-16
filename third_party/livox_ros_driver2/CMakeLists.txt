@@ -58,8 +58,8 @@ if(ROS_EDITION STREQUAL "ROS1")
   find_package(PkgConfig)
   pkg_check_modules(APR apr-1)
   if (APR_FOUND)
-    message(${APR_INCLUDE_DIRS})
-    message(${APR_LIBRARIES})
+    message(STATUS "APR include dirs: ${APR_INCLUDE_DIRS}")
+    message(STATUS "APR libraries: ${APR_LIBRARIES}")
   endif (APR_FOUND)
 
   ###################################
@@ -70,7 +70,7 @@ if(ROS_EDITION STREQUAL "ROS1")
   ## INCLUDE_DIRS: uncomment this if your package contains header files
   ## LIBRARIES: libraries you create in this project that dependent projects als    o need
   ## CATKIN_DEPENDS: catkin_packages dependent projects also need
-  ## DEPENDS: system dependencies of this project that dependent projects also n    eed
+  ## DEPENDS: system dependencies of this project dependent projects also n    eed
   catkin_package(CATKIN_DEPENDS
     roscpp rospy std_msgs message_runtime
     pcl_ros
@@ -232,8 +232,8 @@ else(ROS_EDITION STREQUAL "ROS2")
   find_package(PkgConfig)
   pkg_check_modules(APR apr-1)
   if (APR_FOUND)
-    message(${APR_INCLUDE_DIRS})
-    message(${APR_LIBRARIES})
+    message(STATUS "APR include dirs: ${APR_INCLUDE_DIRS}")
+    message(STATUS "APR libraries: ${APR_LIBRARIES}")
   endif (APR_FOUND)
 
   # generate custom msg headers
