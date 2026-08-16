@@ -59,17 +59,17 @@ See [`docs/architecture/runtime_boundary.md`](docs/architecture/runtime_boundary
 
 ## Current Status
 
-Current milestone: **V3-01 Runtime Contracts & Boundary Freeze**
+Current milestone: **V3-02 Odometry / Localization Separation**
 
-The V3-00 extracted ROS 2 Humble workspace completed an independent local build with 23 packages finished successfully
+The V3-00 extracted ROS 2 Humble workspace completed an independent local build with 23 packages finished successfully. V3-01 then froze Vehicle Profile and deployable Site Package contracts with fail-closed validation
 
-V3-01 adds versioned Vehicle Profile and deployable Site Package contracts plus a ROS-independent fail-closed validator. Algorithm, localization, Nav2, safety, BT, and chassis behavior remain unchanged in this milestone
+V3-02 replaces the inherited runtime `agt_mapping` role with `agt_odometry`. FAST-LIVO2 adapter math is intentionally unchanged; the change is package responsibility, public topic ownership, and removal of runtime PCD/map-production controls
 
 Current migrated runtime capabilities include
 
 - Robot description and platform profiles
 - Sensor adapters and sensor health monitoring
-- FAST-LIVO2 runtime backend
+- FAST-LIVO2 continuous odometry through `agt_odometry`
 - ICP / NDT relocalization
 - Local obstacle perception
 - Nav2 runtime planning and control
@@ -111,16 +111,37 @@ Runtime contract validation: READY
 
 Contract validation is fail-closed. Unsupported schema versions, unsafe paths, missing direct or transitive assets, hash failures, incompatible vehicles, or invalid Ackermann geometry return a non-zero exit code
 
-Run the pure-Python regression suite with
+Run the pure-Python contract and odometry-boundary regressions with
 
 ```bash
-python3 -m pytest -q tests/contracts
+python3 -m pytest -q tests/contracts tests/odometry
 ```
 
 Contract definitions are documented in
 
 - [`docs/architecture/vehicle_profile_contract.md`](docs/architecture/vehicle_profile_contract.md)
 - [`docs/architecture/site_package_contract.md`](docs/architecture/site_package_contract.md)
+- [`docs/superpowers/specs/2026-08-16-v3-02-odometry-separation-design.md`](docs/superpowers/specs/2026-08-16-v3-02-odometry-separation-design.md)
+
+## Odometry Runtime Contract
+
+`agt_odometry` is the runtime owner of continuous local state-estimation adaptation
+
+```text
+FAST-LIVO2 backend
+        |
+        v
+agt_odometry
+├── /agt/odometry/odometry
+├── /agt/odometry/registered_points
+└── odom -> base_footprint
+```
+
+The backend-private registered cloud is `/agt/odometry/backend/registered_points`
+
+`agt_odometry` does not create maps, mapping sessions, `localization_map.pcd`, map versions, or Site Package assets. `fast_livo2_odometry.launch.py` forces FAST-LIVO2 PCD saving off
+
+Global localization remains separate: localization/global correction owns `map -> odom`
 
 ## Current Runtime Packages
 
@@ -133,20 +154,20 @@ src/
 ├── agt_interfaces
 ├── agt_localization
 ├── agt_localization_fusion
-├── agt_mapping
 ├── agt_mission_manager
 ├── agt_navigation
+├── agt_odometry
 ├── agt_perception
 ├── agt_safety
 ├── agt_sensor_adapters
 └── agt_sensor_monitor
 ```
 
-`agt_mapping` is retained temporarily during extraction compatibility work and is frozen in V3-01 to continuous runtime estimator / LIO ownership. Map production and offline asset generation remain outside the V3 runtime boundary
+The V2.5-derived `agt_mapping` package is not part of the V3 runtime source tree. Mapping and offline asset generation remain owned by `agt_navigation_v2`
 
 ## Third-party Runtime Dependencies
 
-The initial extraction keeps only dependencies required by the current runtime baseline
+The runtime keeps only dependencies required by the current execution baseline
 
 ```text
 third_party/
