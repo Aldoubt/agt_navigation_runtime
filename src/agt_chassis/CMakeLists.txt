@@ -5,7 +5,6 @@ find_package(ament_cmake REQUIRED)
 
 install(PROGRAMS
   scripts/chassis_command_guard.py
-  scripts/bunker_status_bridge.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
