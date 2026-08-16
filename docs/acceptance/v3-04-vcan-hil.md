@@ -4,13 +4,16 @@
 
 ```text
 Cloud source / pure tests: PASS
-Local ROS 2 Humble build: PENDING
-Local vcan0 five-scenario HIL: PENDING
+Local affected-package ROS 2 Humble build: PASS
+Local full-workspace clean build after simulator integration: PENDING
+Local vcan0 five-scenario HIL: PASS
+Virtual-CAN Software-HIL Acceptance: PASS
+Physical CAN / vehicle acceptance: PENDING
 ```
 
-Cloud CI proves source contracts, independent protocol packing, deterministic VCU-model tests, launch/source structure, and existing V3 regressions. It does **not** prove Linux PF_CAN/vcan behavior or ROS runtime integration on the target workstation.
+Cloud CI proves source contracts, independent protocol packing, deterministic VCU-model tests, launch/source structure, ROS Python entrypoint execute-bit regression coverage, and existing V3 regressions. It does **not** prove Linux PF_CAN/vcan behavior or ROS runtime integration on the target workstation.
 
-V3-04 virtual-CAN HIL is Acceptance PASS only after all five local scenarios below report `[PASS]` on a real `vcan0` interface.
+The local five-scenario run on 2026-08-16 proves the package-level virtual-CAN backend HIL path. It does **not** constitute full runtime safety-chain acceptance, physical MK-mini steering calibration, physical CAN acceptance, or permission for autonomous ground operation.
 
 ## 1. Checkout and build
 
@@ -245,15 +248,39 @@ ros2 launch agt_chassis_mk_mini_sim mk_mini_vcan_hil.launch.py \
   drop_feedback:=true
 ```
 
-## 8. Acceptance record
+## 8. Local acceptance record — 2026-08-16
 
-Record the exact outputs for:
+Branch: `v3-04/vcan-sim`
+
+Executable-install regression discovered during local HIL bringup:
 
 ```text
-colcon build Summary
-pytest summary
-colcon test-result --verbose
-mk_mini_vcan_hil.launch.py --show-args
+symptom: ros2 launch could not find mk_mini_adapter.py in libexec
+cause: ROS Python scripts were tracked as 100644 while --symlink-install preserved source permissions
+fix: 0d75258049c2bb4e028c67b4c0f4dbc4a1c45aeb
+regression contract: d42de0860125465695ee61ca9bab1da2e23de566
+```
+
+Affected-package rebuild after the execute-bit fix:
+
+```text
+agt_chassis_mk_mini: finished
+agt_chassis_mk_mini_sim: finished
+Summary: 2 packages finished [5.99s]
+```
+
+ROS executable discovery and installed execute-bit checks passed for:
+
+```text
+agt_chassis_mk_mini/mk_mini_adapter.py
+agt_chassis_mk_mini/mk_mini_can_backend.py
+agt_chassis_mk_mini_sim/mk_mini_vcu_sim.py
+agt_chassis_mk_mini_sim/vcan_hil_acceptance.py
+```
+
+Five-scenario result:
+
+```text
 [PASS] monitor_only
 [PASS] forward
 [PASS] reverse_interlock
@@ -261,4 +288,56 @@ mk_mini_vcan_hil.launch.py --show-args
 [PASS] feedback_fault
 ```
 
-Only after all five scenario results are present should this document's local HIL status be changed to PASS.
+Additional operator evidence:
+
+```text
+monitor_only:
+  backend connected=true
+  backend rx_frames > 0
+  backend tx_frames=0
+  protocol_errors=0
+  transport_errors=0
+
+forward:
+  real backend ctrl_cmd (0x18C4D2D0) observed on vcan0
+  virtual VCU ctrl/wheel feedback observed
+  runner verified D-zero before D-moving and positive feedback
+
+reverse_interlock:
+  runner verified D-zero < R-zero < R-moving
+  reverse motion completed before post-test fail-safe PARK
+
+command_timeout:
+  upstream Twist refresh stopped
+  backend CAN heartbeat continued
+  zero/stationary transition completed before PARK
+  PARK heartbeat continued with AliveCounter progression
+
+feedback_fault:
+  executed with drop_feedback=true
+  /agt/chassis/connected=false
+  /agt/chassis/status=ERROR, message="CAN/VCU feedback unavailable"
+  state_reason=command_stale+feedback_stale
+  rx_frames=0 while tx_frames continued
+  protocol_errors=0 and transport_errors=0
+```
+
+For the control-mode virtual scenarios, the local run used `allow_uncalibrated_control:=true` as a **simulation-only override**. This is not steering calibration evidence and must not be carried into physical autonomous ground operation.
+
+The first `monitor_only` runner attempt timed out waiting for ROS connected discovery even though raw CAN and backend diagnostics subsequently showed a healthy monitor path. A final 20-second rerun returned `[PASS] monitor_only`; the final five-scenario acceptance record therefore contains five explicit runner PASS results.
+
+## 9. Remaining scope
+
+The following are intentionally outside this virtual-CAN acceptance:
+
+```text
+full-workspace clean rebuild after simulator integration
+physical can0 monitor-only validation
+physical VCU feedback validation
+physical steering calibration
+wheels-lifted physical control validation
+autonomous ground operation
+full V3 runtime safety-chain acceptance
+```
+
+No physical autonomous ground control is authorized by this Software-HIL result.
