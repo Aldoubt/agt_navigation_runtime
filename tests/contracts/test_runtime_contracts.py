@@ -20,6 +20,16 @@ def load_validator_module():
         pytest.fail(f"runtime contract validator is missing: {exc}")
 
 
+def runtime_report(site_fixture: str):
+    validator = load_validator_module()
+    return validator.validate_runtime_contracts(
+        REPO_ROOT / "profiles/platforms/mk_mini.yaml",
+        REPO_ROOT / f"tests/contracts/fixtures/{site_fixture}",
+        REPO_ROOT / "schemas/vehicle_profile.schema.json",
+        REPO_ROOT / "schemas/site_package.schema.json",
+    )
+
+
 def test_real_mk_mini_profile_declares_v1_schema():
     profile = load_yaml(REPO_ROOT / "profiles/platforms/mk_mini.yaml")
     assert profile["schema_version"] == "1.0"
@@ -55,3 +65,23 @@ def test_site_absolute_asset_path_fails_closed():
     )
     assert not report.ok
     assert any(issue.code == "ABSOLUTE_PATH" for issue in report.issues)
+
+
+def test_valid_runtime_contracts_are_ready():
+    report = runtime_report("site_valid")
+    assert report.ok, report.issues
+    assert "SHA256 integrity" in report.checks
+    assert "vehicle compatibility" in report.checks
+    assert "Ackermann geometry" in report.checks
+
+
+def test_hash_mismatch_fails_closed():
+    report = runtime_report("site_hash_mismatch")
+    assert not report.ok
+    assert any(issue.code == "HASH_MISMATCH" for issue in report.issues)
+
+
+def test_incompatible_vehicle_fails_closed():
+    report = runtime_report("site_incompatible_vehicle")
+    assert not report.ok
+    assert any(issue.code == "INCOMPATIBLE_VEHICLE" for issue in report.issues)
