@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 from pathlib import Path
+import re
 from typing import Any, Mapping
 
 import yaml
 from jsonschema import Draft202012Validator
+
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True)
@@ -103,8 +108,7 @@ def validate_site_package(site_root: Path, schema_path: Path) -> ValidationRepor
     checks.append("site schema")
 
     declared_paths: list[tuple[str, str]] = []
-    assets = manifest["assets"]
-    for name, raw in assets.items():
+    for name, raw in manifest["assets"].items():
         declared_paths.append((f"assets.{name}", raw))
     declared_paths.append(("integrity.hashes_file", manifest["integrity"]["hashes_file"]))
 
@@ -128,5 +132,143 @@ def validate_site_package(site_root: Path, schema_path: Path) -> ValidationRepor
     if issues:
         return ValidationReport(ok=False, checks=tuple(checks), issues=tuple(issues))
     checks.append("required assets")
+
+    return ValidationReport(ok=True, checks=tuple(checks))
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _validate_integrity(site_root: Path, manifest: Mapping[str, Any]) -> tuple[ValidationIssue, ...]:
+    issues: list[ValidationIssue] = []
+    hashes_raw = manifest["integrity"]["hashes_file"]
+    hashes_path, path_issue = _resolve_relative_path(site_root, hashes_raw)
+    if path_issue is not None or hashes_path is None:
+        return (path_issue or ValidationIssue("HASHES_FILE", "invalid hashes file path"),)
+
+    try:
+        hashes_doc = load_yaml(hashes_path)
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        return (ValidationIssue("HASHES_FILE", str(exc)),)
+
+    hashes = hashes_doc.get("hashes")
+    if not isinstance(hashes, Mapping):
+        return (ValidationIssue("HASHES_FILE", "hashes.yaml must contain a 'hashes' mapping"),)
+
+    for raw in manifest["assets"].values():
+        expected = hashes.get(raw)
+        if expected is None:
+            issues.append(ValidationIssue("HASH_MISSING", f"missing SHA256 entry for {raw}"))
+            continue
+        if not isinstance(expected, str) or _SHA256_RE.fullmatch(expected) is None:
+            issues.append(ValidationIssue("HASH_FORMAT", f"invalid SHA256 digest for {raw}"))
+            continue
+
+        asset_path, asset_issue = _resolve_relative_path(site_root, raw)
+        if asset_issue is not None or asset_path is None:
+            issues.append(asset_issue or ValidationIssue("HASH_MISMATCH", f"invalid asset path {raw}"))
+            continue
+        actual = _sha256(asset_path)
+        if actual != expected:
+            issues.append(
+                ValidationIssue(
+                    "HASH_MISMATCH",
+                    f"SHA256 mismatch for {raw}: expected {expected}, got {actual}",
+                )
+            )
+
+    return tuple(issues)
+
+
+def _validate_ackermann_geometry(profile: Mapping[str, Any]) -> tuple[ValidationIssue, ...]:
+    platform = profile["platform"]
+    if platform.get("kinematics") != "ackermann":
+        return ()
+
+    geometry = platform.get("geometry")
+    if not isinstance(geometry, Mapping):
+        return (ValidationIssue("ACKERMANN_GEOMETRY", "platform.geometry must be a mapping"),)
+
+    wheelbase = geometry.get("wheel_base", geometry.get("wheelbase"))
+    min_turning_radius = geometry.get("min_turning_radius")
+    footprint = geometry.get("footprint")
+
+    missing: list[str] = []
+    if not isinstance(wheelbase, (int, float)) or wheelbase <= 0:
+        missing.append("wheel_base/wheelbase")
+    if not isinstance(min_turning_radius, (int, float)) or min_turning_radius <= 0:
+        missing.append("min_turning_radius")
+    if not isinstance(footprint, list) or len(footprint) < 3:
+        missing.append("footprint")
+
+    if missing:
+        return (
+            ValidationIssue(
+                "ACKERMANN_GEOMETRY",
+                "invalid or missing Ackermann geometry: " + ", ".join(missing),
+            ),
+        )
+    return ()
+
+
+def validate_runtime_contracts(
+    vehicle_path: Path,
+    site_root: Path,
+    vehicle_schema_path: Path,
+    site_schema_path: Path,
+) -> ValidationReport:
+    checks: list[str] = []
+    issues: list[ValidationIssue] = []
+
+    vehicle_report = validate_vehicle_profile(vehicle_path, vehicle_schema_path)
+    checks.extend(vehicle_report.checks)
+    issues.extend(vehicle_report.issues)
+
+    site_report = validate_site_package(site_root, site_schema_path)
+    checks.extend(site_report.checks)
+    issues.extend(site_report.issues)
+
+    if issues:
+        return ValidationReport(ok=False, checks=tuple(checks), issues=tuple(issues))
+
+    try:
+        profile = load_yaml(vehicle_path)
+        manifest = load_yaml(Path(site_root) / "manifest.yaml")
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        return ValidationReport(
+            ok=False,
+            checks=tuple(checks),
+            issues=(ValidationIssue("CONTRACT_LOAD", str(exc)),),
+        )
+
+    integrity_issues = _validate_integrity(Path(site_root), manifest)
+    if integrity_issues:
+        return ValidationReport(ok=False, checks=tuple(checks), issues=integrity_issues)
+    checks.append("SHA256 integrity")
+
+    vehicle_name = profile["platform"]["name"]
+    compatible = manifest["compatibility"]["vehicle_profiles"]
+    if vehicle_name not in compatible:
+        return ValidationReport(
+            ok=False,
+            checks=tuple(checks),
+            issues=(
+                ValidationIssue(
+                    "INCOMPATIBLE_VEHICLE",
+                    f"vehicle '{vehicle_name}' is not listed in Site Package compatibility",
+                ),
+            ),
+        )
+    checks.append("vehicle compatibility")
+
+    ackermann_issues = _validate_ackermann_geometry(profile)
+    if ackermann_issues:
+        return ValidationReport(ok=False, checks=tuple(checks), issues=ackermann_issues)
+    checks.append("Ackermann geometry")
 
     return ValidationReport(ok=True, checks=tuple(checks))
