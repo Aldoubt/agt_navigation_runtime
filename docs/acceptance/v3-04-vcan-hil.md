@@ -5,15 +5,16 @@
 ```text
 Cloud source / pure tests: PASS
 Local affected-package ROS 2 Humble build: PASS
-Local full-workspace clean build after simulator integration: PENDING
+Local full-workspace clean build after simulator integration: PASS
+Known build-warning cleanup: PASS
 Local vcan0 five-scenario HIL: PASS
 Virtual-CAN Software-HIL Acceptance: PASS
 Physical CAN / vehicle acceptance: PENDING
 ```
 
-Cloud CI proves source contracts, independent protocol packing, deterministic VCU-model tests, launch/source structure, ROS Python entrypoint execute-bit regression coverage, and existing V3 regressions. It does **not** prove Linux PF_CAN/vcan behavior or ROS runtime integration on the target workstation.
+Cloud CI proves source contracts, independent protocol packing, deterministic VCU-model tests, launch/source structure, ROS Python entrypoint execute-bit regression coverage, build-warning hygiene contracts, and existing V3 regressions. It does **not** prove Linux PF_CAN/vcan behavior or ROS runtime integration on the target workstation.
 
-The local five-scenario run on 2026-08-16 proves the package-level virtual-CAN backend HIL path. It does **not** constitute full runtime safety-chain acceptance, physical MK-mini steering calibration, physical CAN acceptance, or permission for autonomous ground operation.
+The local five-scenario run on 2026-08-16 proves the package-level virtual-CAN backend HIL path. The local clean build on 2026-08-16 additionally proves that the integrated 26-package ROS 2 Humble workspace builds from a clean `build/install/log` state without known CMake/colcon warning regressions. Neither result constitutes full runtime safety-chain acceptance, physical MK-mini steering calibration, physical CAN acceptance, or permission for autonomous ground operation.
 
 ## 1. Checkout and build
 
@@ -326,12 +327,25 @@ For the control-mode virtual scenarios, the local run used `allow_uncalibrated_c
 
 The first `monitor_only` runner attempt timed out waiting for ROS connected discovery even though raw CAN and backend diagnostics subsequently showed a healthy monitor path. A final 20-second rerun returned `[PASS] monitor_only`; the final five-scenario acceptance record therefore contains five explicit runner PASS results.
 
+Full-workspace warning-hygiene verification after the cleanup branch was integrated:
+
+```text
+fresh shell sourced only /opt/ros/humble/setup.bash before clean build
+build/install/log removed before build
+Summary: 26 packages finished [2min 44s]
+no package reported stderr output in the summary
+no CMake Warning / WARNING / CMP0074 / disabled pcap/png backend warning remained
+warning grep matched only the normal CMake STATUS line:
+  -- Found PNG: /usr/lib/x86_64-linux-gnu/libpng.so (found version "1.6.37")
+```
+
+The warning cleanup addresses root causes rather than globally suppressing developer warnings: FAST-LIVO selects CMP0074 NEW behavior, NDT-OMP requests only needed PCL components, Livox/vikit informational messages use STATUS severity, and relocalization_core keeps required PCL IO while quietly ignoring unused optional IO backends.
+
 ## 9. Remaining scope
 
 The following are intentionally outside this virtual-CAN acceptance:
 
 ```text
-full-workspace clean rebuild after simulator integration
 physical can0 monitor-only validation
 physical VCU feedback validation
 physical steering calibration
