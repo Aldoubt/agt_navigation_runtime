@@ -7,7 +7,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(OpenMP REQUIRED)
-find_package(PCL REQUIRED COMPONENTS common filters io registration)
+find_package(PCL REQUIRED QUIET COMPONENTS common filters io registration)
 find_package(ndt_omp_ros2 REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
