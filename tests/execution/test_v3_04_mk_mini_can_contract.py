@@ -59,3 +59,11 @@ def test_mk_mini_full_launch_exists_and_never_configures_can_with_shell_commands
     lowered = launch.lower()
     assert "sudo" not in lowered
     assert "ip link" not in lowered
+
+
+def test_full_launch_exposes_explicit_safe_steering_calibration_gates():
+    launch = read("src/agt_chassis_mk_mini/launch/mk_mini.launch.py")
+    assert '"steering_calibration_confirmed", default_value="false"' in launch
+    assert '"allow_uncalibrated_control", default_value="false"' in launch
+    assert 'LaunchConfiguration("steering_calibration_confirmed")' in launch
+    assert 'LaunchConfiguration("allow_uncalibrated_control")' in launch
