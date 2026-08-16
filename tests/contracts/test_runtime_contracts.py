@@ -1,5 +1,6 @@
 from importlib import import_module
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -104,6 +105,21 @@ def test_unsupported_site_schema_fails_closed():
     )
     assert not report.ok
     assert any(issue.code == "SITE_SCHEMA" for issue in report.issues)
+
+
+def test_navigation_map_image_is_required(tmp_path):
+    validator = load_validator_module()
+    source = REPO_ROOT / "tests/contracts/fixtures/site_valid"
+    site = tmp_path / "site"
+    shutil.copytree(source, site)
+    (site / "map/navigation.pgm").unlink()
+
+    report = validator.validate_site_package(
+        site,
+        REPO_ROOT / "schemas/site_package.schema.json",
+    )
+    assert not report.ok
+    assert any(issue.code == "MISSING_ASSET" and "navigation.pgm" in issue.message for issue in report.issues)
 
 
 def test_valid_runtime_contracts_are_ready():
