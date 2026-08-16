@@ -9,3 +9,28 @@ agt_mk_mini_adapter:
     publish_rate: 30.0
     max_forward_speed: 1.0
     max_reverse_speed: 0.5
+
+agt_mk_mini_can_backend:
+  ros__parameters:
+    operation_mode: monitor
+    can_interface: can0
+    input_topic: /agt/chassis/backend/ackermann_command
+    tx_period_sec: 0.01
+    rx_poll_period_sec: 0.005
+    reconnect_period_sec: 1.0
+    command_timeout: 0.20
+    feedback_timeout: 0.20
+    speed_deadband: 0.01
+    shift_speed_threshold: 0.05
+    gear_shift_hold_sec: 0.05
+    park_hold_sec: 0.20
+    wheelbase: 0.600
+    base_frame: base_footprint
+
+    # Equivalent bicycle-model steering -> VCU target steering calibration.
+    # Defaults preserve legacy semantic compatibility but are NOT a field calibration.
+    steering_scale: 1.0
+    steering_offset_deg: 0.0
+    vcu_steering_soft_limit_deg: 34.0
+    steering_calibration_confirmed: false
+    allow_uncalibrated_control: false
