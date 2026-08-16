@@ -7,6 +7,7 @@ on:
       - 'feat/v3-01-*'
       - 'v3-02/**'
       - 'v3-03/**'
+      - 'v3-04/**'
   pull_request:
     paths:
       - 'profiles/platforms/**'
@@ -44,5 +45,5 @@ jobs:
         run: python -m pytest -q tests/contracts
       - name: Run V3-02 odometry source contracts
         run: python -m pytest -q tests/odometry
-      - name: Run V3-03 execution source contracts
+      - name: Run V3-03/V3-04 execution source contracts
         run: python -m pytest -q tests/execution
