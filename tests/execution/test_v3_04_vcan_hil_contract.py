@@ -36,6 +36,21 @@ def test_sim_protocol_is_independent_from_real_feedback_decoder():
     assert "decode_bms_info" not in source
 
 
+def test_ros_python_entrypoints_are_executable():
+    entrypoints = [
+        REAL / "scripts" / "mk_mini_adapter.py",
+        REAL / "scripts" / "mk_mini_can_backend.py",
+        SIM / "scripts" / "mk_mini_vcu_sim.py",
+        SIM / "scripts" / "vcan_hil_acceptance.py",
+    ]
+    for path in entrypoints:
+        assert path.is_file(), f"missing ROS Python entrypoint: {path}"
+        assert path.stat().st_mode & 0o111, (
+            f"ROS Python entrypoint must carry an execute bit for colcon "
+            f"--symlink-install: {path}"
+        )
+
+
 def test_simulator_runtime_defaults_to_vcan_and_has_no_host_network_mutation():
     runtime_paths = [
         *sorted((SIM / "agt_chassis_mk_mini_sim").glob("*.py")),
