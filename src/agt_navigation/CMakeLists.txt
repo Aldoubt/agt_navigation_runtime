@@ -21,6 +21,7 @@ set(AGT_NAVIGATION_ENTRYPOINTS
   differential_drive_simulator.py
   execute_waypoint_task.py
   goal_pose_bridge.py
+  localization_navigation_gate.py
   navigation_capability_server.py
   route_controller_smoke.py
   route_system_smoke.py
@@ -92,6 +93,10 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_v25_10_route_correction_generation
     test/test_v25_10_route_correction_generation.py
+  )
+  ament_add_pytest_test(
+    test_localization_navigation_gate
+    test/test_localization_navigation_gate.py
   )
 endif()
 
