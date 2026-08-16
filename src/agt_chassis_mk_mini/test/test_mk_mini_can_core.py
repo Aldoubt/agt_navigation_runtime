@@ -2,7 +2,11 @@ import ast
 from pathlib import Path
 
 from agt_chassis_mk_mini.ackermann_math import command_is_fresh
-from agt_chassis_mk_mini.mk_mini_command_state import CommandStateMachine, Gear
+from agt_chassis_mk_mini.mk_mini_command_state import (
+    CommandStateMachine,
+    Gear,
+    gear_feedback_allows_motion,
+)
 from agt_chassis_mk_mini.mk_mini_protocol import (
     Gear as ProtocolGear,
     encode_ctrl_command,
@@ -53,6 +57,14 @@ def test_startup_motion_requires_stationary_feedback_hold():
     assert shifted.gear == Gear.DRIVE
     assert shifted.speed_mps == 0.0
     assert machine.step(0.07).speed_mps == 0.5
+
+
+def test_vcu_gear_feedback_must_match_before_motion():
+    assert gear_feedback_allows_motion(Gear.DRIVE, Gear.DRIVE)
+    assert gear_feedback_allows_motion(Gear.REVERSE, Gear.REVERSE)
+    assert not gear_feedback_allows_motion(Gear.DRIVE, Gear.PARK)
+    assert not gear_feedback_allows_motion(Gear.REVERSE, Gear.DRIVE)
+    assert not gear_feedback_allows_motion(Gear.DRIVE, None)
 
 
 def test_adapter_freshness_does_not_manufacture_heartbeat_after_timeout():
