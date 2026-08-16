@@ -39,11 +39,28 @@ The runtime repository must not require
 
 ### State Estimation
 
-- `agt_mapping`
+- `agt_odometry`
 - `agt_localization`
 - `agt_localization_fusion`
 
-`agt_mapping` is transitional in V3-01. It may provide continuous runtime LIO odometry and registered cloud behavior required for compatibility, but no new map production, PCD artifact production, offline processing, or Site Package responsibilities may be added
+`agt_odometry` owns continuous local odometry backend adaptation, the canonical runtime odometry and registered-cloud outputs, and the unique `odom -> base_footprint` transform while its backend is active
+
+Its public runtime outputs are
+
+```text
+/agt/odometry/odometry
+/agt/odometry/registered_points
+```
+
+The FAST-LIVO2 backend-private registered cloud is
+
+```text
+/agt/odometry/backend/registered_points
+```
+
+`agt_odometry` must not create or persist maps, PCD map artifacts, mapping sessions, map versions, or Site Package assets. Runtime FAST-LIVO2 launch forces PCD saving off
+
+`agt_localization` and the global-correction authority remain separate from local odometry. They own accepted global-pose evidence and canonical `map -> odom`; they do not publish `odom -> base_footprint`
 
 ### Navigation Runtime
 
@@ -58,8 +75,29 @@ The runtime repository must not require
 - `agt_mission_manager`
 - `agt_experiment_manager`
 
-## V3-01 Compatibility Rule
+## V3-02 Ownership Rule
 
-V3-01 freezes contracts before package surgery. Existing runtime packages keep their names and algorithm behavior so the independent 23-package colcon baseline remains comparable
+V3-02 removes the inherited runtime `agt_mapping` package instead of retaining a permanent compatibility wrapper
 
-Package renaming, dependency cleanup, `agt_mapping` extraction, Site Manager implementation, and chassis backend splitting belong to later milestones
+The final state-estimation chain is
+
+```text
+sensor adapters
+      |
+      v
+FAST-LIVO2 backend
+      |
+      v
+agt_odometry
+  |         |
+  |         +----> /agt/odometry/registered_points ----> localization / perception
+  |
+  +--------------> /agt/odometry/odometry
+  |
+  +--------------> odom -> base_footprint
+
+agt_localization / global correction
+  +--------------> map -> odom
+```
+
+Algorithm behavior is intentionally unchanged in V3-02; the milestone separates responsibilities and freezes the runtime interface before later fusion, navigation, and bringup work
