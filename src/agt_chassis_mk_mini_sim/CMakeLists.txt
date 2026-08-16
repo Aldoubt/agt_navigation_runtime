@@ -11,7 +11,7 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY config
+install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
 )
 
@@ -20,6 +20,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_vcu_protocol test/test_vcu_protocol.py)
   ament_add_pytest_test(test_vcu_model test/test_vcu_model.py)
   ament_add_pytest_test(test_vcu_sim_source test/test_vcu_sim_source.py)
+  ament_add_pytest_test(test_vcan_hil_launch test/test_vcan_hil_launch.py)
 endif()
 
 ament_package()
