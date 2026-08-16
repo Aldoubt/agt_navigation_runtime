@@ -7,7 +7,7 @@
     # SOFTWARE_VALIDATION_ONLY; this is not a calibrated handheld rig pose.
     base_frame: imu_link
     tracking_frame: lidar_link
-    cloud_topic: /agt/mapping/registered_points
+    cloud_topic: /agt/odometry/registered_points
     initialpose_topic: /initialpose
     relocalize_action_name: /agt/localization/relocalize
     configured_candidates_yaml: ""
