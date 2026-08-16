@@ -8,6 +8,7 @@ ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
   scripts/mk_mini_adapter.py
+  scripts/mk_mini_can_backend.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -20,6 +21,10 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_ackermann_math
     test/test_ackermann_math.py
+  )
+  ament_add_pytest_test(
+    test_mk_mini_can_core
+    test/test_mk_mini_can_core.py
   )
 endif()
 
