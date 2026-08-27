@@ -64,7 +64,18 @@ class MockVisionServer(Node):
         result.inference_time_ms = self._delay_s * 1000.0
         result.primary_confidence = 0.93
         result.result_json = json.dumps(
-            {"class": "test_target", "confidence": 0.93},
+            {
+                "class": "test_target",
+                "confidence": 0.93,
+                "raw_count": 3,
+                "instances": [
+                    {"local_instance_id": "I0001", "confidence": 0.93},
+                    {"local_instance_id": "I0002", "confidence": 0.91},
+                    {"local_instance_id": "I0003", "confidence": 0.89},
+                ],
+                "overlay_uri": "",
+                "mask_uri": "",
+            },
             separators=(",", ":"),
         )
         result.message = "mock inference completed"
