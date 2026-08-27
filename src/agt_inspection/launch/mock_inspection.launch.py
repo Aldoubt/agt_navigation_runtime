@@ -33,6 +33,12 @@ def generate_launch_description():
             ),
             Node(
                 package="agt_inspection",
+                executable="mock_view_aggregator_server.py",
+                name="agt_mock_view_aggregator",
+                output="screen",
+            ),
+            Node(
+                package="agt_inspection",
                 executable="inspection_task_server.py",
                 name="agt_inspection_task_server",
                 output="screen",
