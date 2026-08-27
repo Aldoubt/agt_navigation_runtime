@@ -2,9 +2,23 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from enum import IntEnum
 from typing import Awaitable, Callable, Protocol
 
 from .model import InspectionPoint, InspectionTask
+
+
+class InspectionErrorCode(IntEnum):
+    NONE = 0
+    INVALID_TASK = 1
+    MAP_MISMATCH = 2
+    NAVIGATION = 3
+    NOT_STATIONARY = 4
+    GIMBAL = 5
+    CAPTURE = 6
+    INFERENCE = 7
+    CANCELED = 8
+    INTERNAL = 255
 
 
 @dataclass(frozen=True)
@@ -12,13 +26,15 @@ class ChildResult:
     success: bool
     error_code: int = 0
     message: str = ""
+    canceled: bool = False
+    cancel_confirmed: bool = False
 
 
 @dataclass(frozen=True)
 class CaptureResult:
     success: bool
     error_code: int = 0
-    image_payload: bytes = b""
+    image_bytes: bytes = b""
     image_uri: str = ""
     message: str = ""
 
@@ -41,6 +57,7 @@ class InspectionResult:
     error_code: int
     message: str
     evidence_root_uri: str
+    canceled: bool = False
 
 
 class NavigationRunner(Protocol):
@@ -54,11 +71,15 @@ class GimbalRunner(Protocol):
 
 
 class CameraRunner(Protocol):
-    async def capture(self, point: InspectionPoint, capture_index: int) -> CaptureResult: ...
+    async def capture(
+        self, point: InspectionPoint, capture_index: int, request_id: str
+    ) -> CaptureResult: ...
 
 
 class VisionRunner(Protocol):
-    async def inspect(self, point: InspectionPoint, capture: CaptureResult) -> VisionResult: ...
+    async def inspect(
+        self, point: InspectionPoint, capture: CaptureResult, request_id: str
+    ) -> VisionResult: ...
     async def cancel(self) -> bool: ...
 
 
@@ -66,7 +87,7 @@ class StationaryProvider(Protocol):
     def sample(self) -> tuple[float, float, float]: ...
 
 
-class EvidenceWriter(Protocol):
+class EvidenceWriterProtocol(Protocol):
     def start_session(self, task: InspectionTask, session_id: str) -> str: ...
     def persist_capture(
         self,
@@ -84,20 +105,21 @@ class EvidenceWriter(Protocol):
         success: bool,
         error_code: int,
         message: str,
+        canceled: bool = False,
     ) -> None: ...
 
 
 class InspectionExecutor:
-    ERROR_NONE = 0
-    ERROR_INVALID_TASK = 1
-    ERROR_MAP_MISMATCH = 2
-    ERROR_NAVIGATION = 3
-    ERROR_NOT_STATIONARY = 4
-    ERROR_GIMBAL = 5
-    ERROR_CAPTURE = 6
-    ERROR_INFERENCE = 7
-    ERROR_CANCELED = 8
-    ERROR_INTERNAL = 255
+    ERROR_NONE = InspectionErrorCode.NONE
+    ERROR_INVALID_TASK = InspectionErrorCode.INVALID_TASK
+    ERROR_MAP_MISMATCH = InspectionErrorCode.MAP_MISMATCH
+    ERROR_NAVIGATION = InspectionErrorCode.NAVIGATION
+    ERROR_NOT_STATIONARY = InspectionErrorCode.NOT_STATIONARY
+    ERROR_GIMBAL = InspectionErrorCode.GIMBAL
+    ERROR_CAPTURE = InspectionErrorCode.CAPTURE
+    ERROR_INFERENCE = InspectionErrorCode.INFERENCE
+    ERROR_CANCELED = InspectionErrorCode.CANCELED
+    ERROR_INTERNAL = InspectionErrorCode.INTERNAL
 
     def __init__(
         self,
@@ -107,12 +129,12 @@ class InspectionExecutor:
         camera: CameraRunner,
         vision: VisionRunner,
         stationary: StationaryProvider,
-        evidence: EvidenceWriter,
+        evidence: EvidenceWriterProtocol,
         monotonic: Callable[[], float],
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
-        stage_callback: Callable[[str], None] | None = None,
-        stationary_poll_s: float = 0.05,
-        stationary_sample_max_age_s: float = 0.5,
+        stage_callback: Callable[[str, str], None] | None = None,
+        poll_period_s: float = 0.05,
+        stationary_freshness_s: float = 0.5,
     ) -> None:
         self._navigation = navigation
         self._gimbal = gimbal
@@ -122,21 +144,19 @@ class InspectionExecutor:
         self._evidence = evidence
         self._monotonic = monotonic
         self._sleep = sleep
-        self._stage_callback = stage_callback or (lambda _stage: None)
-        self._stationary_poll_s = max(float(stationary_poll_s), 0.01)
-        self._stationary_sample_max_age_s = max(float(stationary_sample_max_age_s), 0.01)
+        self._stage_callback = stage_callback or (lambda _stage, _point_id: None)
+        self._poll_period_s = max(float(poll_period_s), 0.001)
+        self._stationary_freshness_s = max(float(stationary_freshness_s), 0.001)
         self._cancel_requested = False
         self._active_child = ""
 
-    async def cancel(self) -> bool:
+    def request_cancel(self) -> None:
+        """Request fail-closed cancellation from the executor's event-loop thread."""
         self._cancel_requested = True
-        if self._active_child == "navigation":
-            return bool(await self._navigation.cancel())
-        if self._active_child == "gimbal":
-            return bool(await self._gimbal.cancel())
-        if self._active_child == "vision":
-            return bool(await self._vision.cancel())
-        return True
+
+    async def cancel(self) -> bool:
+        self.request_cancel()
+        return await self._cancel_active_child()
 
     async def execute(self, task: InspectionTask, session_id: str) -> InspectionResult:
         self._cancel_requested = False
@@ -144,86 +164,141 @@ class InspectionExecutor:
         try:
             for point in task.points:
                 if self._cancel_requested:
-                    return self._finish(task, session_id, root, False, self.ERROR_CANCELED, "canceled")
+                    return self._finish_canceled(task, session_id, root)
 
-                navigation = await self._retry_child(
-                    "navigation", point.retry.navigation, lambda: self._navigation.run(point)
+                self._stage("NAVIGATING", point)
+                navigation = await self._retry_cancelable(
+                    "navigation",
+                    point.retry.navigation,
+                    lambda: self._navigation.run(point),
+                    self._navigation.cancel,
                 )
+                if navigation.canceled or self._cancel_requested:
+                    return self._finish_canceled(task, session_id, root)
                 if not navigation.success:
-                    error_code = (
-                        self.ERROR_CANCELED
-                        if navigation.error_code == self.ERROR_CANCELED
-                        else self.ERROR_NAVIGATION
-                    )
                     return self._finish(
-                        task, session_id, root, False, error_code,
+                        task,
+                        session_id,
+                        root,
+                        False,
+                        InspectionErrorCode.NAVIGATION,
                         navigation.message or "navigation failed",
                     )
 
+                self._stage("WAITING_ROBOT_STABLE", point)
                 if not await self._wait_stationary(point):
                     if self._cancel_requested:
-                        return self._finish(task, session_id, root, False, self.ERROR_CANCELED, "canceled")
+                        return self._finish_canceled(task, session_id, root)
                     return self._finish(
-                        task, session_id, root, False, self.ERROR_NOT_STATIONARY,
+                        task,
+                        session_id,
+                        root,
+                        False,
+                        InspectionErrorCode.NOT_STATIONARY,
                         "robot did not remain stationary for the required window",
                     )
 
-                gimbal = await self._retry_child(
-                    "gimbal", point.retry.gimbal, lambda: self._gimbal.move(point)
+                self._stage("MOVING_GIMBAL", point)
+                gimbal = await self._retry_cancelable(
+                    "gimbal",
+                    point.retry.gimbal,
+                    lambda: self._gimbal.move(point),
+                    self._gimbal.cancel,
                 )
+                if gimbal.canceled or self._cancel_requested:
+                    return self._finish_canceled(task, session_id, root)
                 if not gimbal.success:
-                    error_code = (
-                        self.ERROR_CANCELED
-                        if gimbal.error_code == self.ERROR_CANCELED
-                        else self.ERROR_GIMBAL
-                    )
                     return self._finish(
-                        task, session_id, root, False, error_code,
+                        task,
+                        session_id,
+                        root,
+                        False,
+                        InspectionErrorCode.GIMBAL,
                         gimbal.message or "gimbal move failed",
                     )
 
-                await self._sleep(point.gimbal.settle_duration_s)
-                self._stage_callback("gimbal_settle")
+                self._stage("WAITING_GIMBAL_STABLE", point)
+                if not await self._sleep_cancelable(point.gimbal.settle_duration_s):
+                    return self._finish_canceled(task, session_id, root)
 
                 for capture_index in range(point.camera.capture_count):
-                    capture = await self._retry_capture(point, capture_index)
+                    request_id = f"{session_id}:{point.id}:{capture_index}"
+                    self._stage("CAPTURING", point)
+                    capture = await self._retry_capture(point, capture_index, request_id)
+                    if self._cancel_requested:
+                        return self._finish_canceled(task, session_id, root)
                     if not capture.success:
-                        error_code = (
-                            self.ERROR_CANCELED
-                            if capture.error_code == self.ERROR_CANCELED
-                            else self.ERROR_CAPTURE
-                        )
                         return self._finish(
-                            task, session_id, root, False, error_code,
+                            task,
+                            session_id,
+                            root,
+                            False,
+                            InspectionErrorCode.CAPTURE,
                             capture.message or "capture failed",
                         )
 
-                    request_id = f"{session_id}:{point.id}:{capture_index}"
-                    vision = await self._retry_vision(point, capture)
-                    if not vision.success or vision.primary_confidence < point.vision.minimum_confidence:
-                        error_code = (
-                            self.ERROR_CANCELED
-                            if vision.error_code == self.ERROR_CANCELED
-                            else self.ERROR_INFERENCE
-                        )
+                    self._stage("INFERENCING", point)
+                    vision = await self._retry_vision(point, capture, request_id)
+                    if self._cancel_requested:
+                        return self._finish_canceled(task, session_id, root)
+                    if (
+                        not vision.success
+                        or vision.primary_confidence < point.vision.minimum_confidence
+                    ):
                         return self._finish(
-                            task, session_id, root, False, error_code,
-                            vision.message or "vision inference failed or below confidence threshold",
+                            task,
+                            session_id,
+                            root,
+                            False,
+                            InspectionErrorCode.INFERENCE,
+                            vision.message
+                            or "vision inference failed or below confidence threshold",
                         )
 
+                    self._stage("SAVING_RESULT", point)
                     self._evidence.persist_capture(
                         task, point, capture_index, request_id, capture, vision
                     )
-                    self._stage_callback("persist")
 
                     if capture_index + 1 < point.camera.capture_count:
-                        await self._sleep(point.camera.capture_interval_s)
+                        if not await self._sleep_cancelable(point.camera.capture_interval_s):
+                            return self._finish_canceled(task, session_id, root)
 
-            return self._finish(task, session_id, root, True, self.ERROR_NONE, "inspection completed")
-        except Exception as exc:  # execution boundary must fail closed
-            return self._finish(task, session_id, root, False, self.ERROR_INTERNAL, str(exc))
+            return self._finish(
+                task,
+                session_id,
+                root,
+                True,
+                InspectionErrorCode.NONE,
+                "inspection completed",
+            )
+        except Exception as exc:
+            return self._finish(
+                task,
+                session_id,
+                root,
+                False,
+                InspectionErrorCode.INTERNAL,
+                str(exc),
+            )
         finally:
             self._active_child = ""
+
+    def _stage(self, stage: str, point: InspectionPoint) -> None:
+        self._stage_callback(stage, point.id)
+
+    def _finish_canceled(
+        self, task: InspectionTask, session_id: str, root: str
+    ) -> InspectionResult:
+        return self._finish(
+            task,
+            session_id,
+            root,
+            False,
+            InspectionErrorCode.CANCELED,
+            "canceled",
+            canceled=True,
+        )
 
     def _finish(
         self,
@@ -233,56 +308,114 @@ class InspectionExecutor:
         success: bool,
         error_code: int,
         message: str,
+        *,
+        canceled: bool = False,
     ) -> InspectionResult:
-        self._evidence.finish_session(task, session_id, success, error_code, message)
-        return InspectionResult(success, error_code, message, root)
+        try:
+            self._evidence.finish_session(
+                task, session_id, success, int(error_code), message, canceled=canceled
+            )
+        except TypeError:
+            # Compatibility with simple test doubles implementing the original protocol.
+            self._evidence.finish_session(
+                task, session_id, success, int(error_code), message
+            )
+        return InspectionResult(success, int(error_code), message, root, canceled)
 
-    async def _retry_child(self, name: str, retries: int, operation) -> ChildResult:
-        last = ChildResult(False, self.ERROR_INTERNAL, f"{name} not attempted")
+    async def _retry_cancelable(
+        self,
+        name: str,
+        retries: int,
+        operation: Callable[[], Awaitable[ChildResult]],
+        cancel_operation: Callable[[], Awaitable[bool]],
+    ) -> ChildResult:
+        last = ChildResult(False, int(InspectionErrorCode.INTERNAL), f"{name} not attempted")
         for _ in range(int(retries) + 1):
             if self._cancel_requested:
-                return ChildResult(False, self.ERROR_CANCELED, "canceled")
+                return ChildResult(
+                    False,
+                    int(InspectionErrorCode.CANCELED),
+                    "canceled",
+                    canceled=True,
+                    cancel_confirmed=True,
+                )
             self._active_child = name
-            self._stage_callback(name)
-            last = await operation()
+            task = asyncio.create_task(operation())
+            while not task.done():
+                if self._cancel_requested:
+                    confirmed = bool(await cancel_operation())
+                    result = await task
+                    self._active_child = ""
+                    return ChildResult(
+                        False,
+                        int(InspectionErrorCode.CANCELED),
+                        result.message or "canceled",
+                        canceled=True,
+                        cancel_confirmed=confirmed,
+                    )
+                await asyncio.sleep(0)
+            last = await task
             self._active_child = ""
             if last.success:
                 return last
         return last
 
-    async def _retry_capture(self, point: InspectionPoint, capture_index: int) -> CaptureResult:
-        last = CaptureResult(False, self.ERROR_CAPTURE, message="capture not attempted")
+    async def _retry_capture(
+        self, point: InspectionPoint, capture_index: int, request_id: str
+    ) -> CaptureResult:
+        last = CaptureResult(
+            False, int(InspectionErrorCode.CAPTURE), message="capture not attempted"
+        )
         for _ in range(point.retry.capture + 1):
             if self._cancel_requested:
-                return CaptureResult(False, self.ERROR_CANCELED, message="canceled")
-            self._stage_callback("capture")
-            last = await self._camera.capture(point, capture_index)
+                return CaptureResult(
+                    False, int(InspectionErrorCode.CANCELED), message="canceled"
+                )
+            last = await self._camera.capture(point, capture_index, request_id)
             if last.success:
                 return last
         return last
 
-    async def _retry_vision(self, point: InspectionPoint, capture: CaptureResult) -> VisionResult:
-        last = VisionResult(False, self.ERROR_INFERENCE, message="inference not attempted")
+    async def _retry_vision(
+        self, point: InspectionPoint, capture: CaptureResult, request_id: str
+    ) -> VisionResult:
+        last = VisionResult(
+            False, int(InspectionErrorCode.INFERENCE), message="inference not attempted"
+        )
         for _ in range(point.retry.inference + 1):
             if self._cancel_requested:
-                return VisionResult(False, self.ERROR_CANCELED, message="canceled")
+                return VisionResult(
+                    False, int(InspectionErrorCode.CANCELED), message="canceled"
+                )
             self._active_child = "vision"
-            self._stage_callback("vision")
-            last = await self._vision.inspect(point, capture)
+            task = asyncio.create_task(self._vision.inspect(point, capture, request_id))
+            while not task.done():
+                if self._cancel_requested:
+                    await self._vision.cancel()
+                    await task
+                    self._active_child = ""
+                    return VisionResult(
+                        False, int(InspectionErrorCode.CANCELED), message="canceled"
+                    )
+                await asyncio.sleep(0)
+            last = await task
             self._active_child = ""
-            if last.success and last.primary_confidence >= point.vision.minimum_confidence:
+            if (
+                last.success
+                and last.primary_confidence >= point.vision.minimum_confidence
+            ):
                 return last
         return last
 
     async def _wait_stationary(self, point: InspectionPoint) -> bool:
         deadline = self._monotonic() + point.stabilization.timeout_s
-        stable_since = None
+        stable_since: float | None = None
         while self._monotonic() <= deadline:
             if self._cancel_requested:
                 return False
             now = self._monotonic()
             stamp, linear_x, angular_z = self._stationary.sample()
-            fresh = 0.0 <= now - stamp <= self._stationary_sample_max_age_s
+            fresh = 0.0 <= now - stamp <= self._stationary_freshness_s
             under_limits = (
                 abs(linear_x) <= point.stabilization.linear_velocity_max_mps
                 and abs(angular_z) <= point.stabilization.angular_velocity_max_radps
@@ -291,9 +424,25 @@ class InspectionExecutor:
                 if stable_since is None:
                     stable_since = now
                 if now - stable_since >= point.stabilization.stable_duration_s:
-                    self._stage_callback("stationary")
                     return True
             else:
                 stable_since = None
-            await self._sleep(self._stationary_poll_s)
+            await self._sleep(self._poll_period_s)
         return False
+
+    async def _sleep_cancelable(self, duration: float) -> bool:
+        deadline = self._monotonic() + max(float(duration), 0.0)
+        while self._monotonic() < deadline:
+            if self._cancel_requested:
+                return False
+            await self._sleep(min(self._poll_period_s, deadline - self._monotonic()))
+        return not self._cancel_requested
+
+    async def _cancel_active_child(self) -> bool:
+        if self._active_child == "navigation":
+            return bool(await self._navigation.cancel())
+        if self._active_child == "gimbal":
+            return bool(await self._gimbal.cancel())
+        if self._active_child == "vision":
+            return bool(await self._vision.cancel())
+        return True
