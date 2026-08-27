@@ -7,11 +7,13 @@ import time
 import uuid
 
 import rclpy
+from action_msgs.msg import GoalStatus
 from nav_msgs.msg import Odometry
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from sensor_msgs.msg import Image
 
 from agt_interfaces.action import (
     ExecuteInspectionTask,
@@ -37,6 +39,10 @@ async def _wait_future(future, poll_s: float = 0.01):
     while not future.done():
         await asyncio.sleep(poll_s)
     return future.result()
+
+
+def _cancel_confirmed(status: int) -> bool:
+    return int(status) == int(GoalStatus.STATUS_CANCELED)
 
 
 class WaypointTaskRunner:
@@ -73,10 +79,13 @@ class WaypointTaskRunner:
             return ChildResult(False, message="waypoint task goal rejected")
         wrapped = await _wait_future(self._goal_handle.get_result_async())
         result = wrapped.result
+        canceled = _cancel_confirmed(wrapped.status)
         return ChildResult(
-            bool(result.success),
-            int(result.error_code),
-            str(result.message),
+            success=bool(result.success),
+            error_code=int(result.error_code),
+            message=str(result.message),
+            canceled=canceled,
+            cancel_confirmed=canceled,
         )
 
     async def cancel(self) -> bool:
@@ -110,10 +119,13 @@ class GimbalRunner:
             return ChildResult(False, message="gimbal goal rejected")
         wrapped = await _wait_future(self._goal_handle.get_result_async())
         result = wrapped.result
+        canceled = _cancel_confirmed(wrapped.status)
         return ChildResult(
-            bool(result.success),
-            int(result.error_code),
-            str(result.message),
+            success=bool(result.success),
+            error_code=int(result.error_code),
+            message=str(result.message),
+            canceled=canceled,
+            cancel_confirmed=canceled,
         )
 
     async def cancel(self) -> bool:
@@ -124,7 +136,8 @@ class GimbalRunner:
 
 
 class CameraRunner:
-    def __init__(self, node: Node) -> None:
+    def __init__(self, node: Node, image_cache: dict[str, Image]) -> None:
+        self._image_cache = image_cache
         self._client = node.create_client(
             CaptureImage,
             "/agt/camera/capture",
@@ -141,18 +154,20 @@ class CameraRunner:
         response = await _wait_future(self._client.call_async(request))
         if response is None:
             return CaptureResult(False, message="camera service returned no response")
-        image = response.image
+        if response.success:
+            self._image_cache[request_id] = response.image
         return CaptureResult(
-            bool(response.success),
-            int(response.error_code),
-            bytes(image.data),
-            str(response.image_uri),
-            str(response.message),
+            success=bool(response.success),
+            error_code=int(response.error_code),
+            message=str(response.message),
+            image_bytes=bytes(response.image.data),
+            image_uri=str(response.image_uri),
         )
 
 
 class VisionRunner:
-    def __init__(self, node: Node) -> None:
+    def __init__(self, node: Node, image_cache: dict[str, Image]) -> None:
+        self._image_cache = image_cache
         self._client = ActionClient(
             node,
             InspectImage,
@@ -162,39 +177,38 @@ class VisionRunner:
         self._goal_handle = None
 
     async def inspect(self, point, capture: CaptureResult, request_id: str) -> VisionResult:
+        del capture
         if not self._client.wait_for_server(timeout_sec=2.0):
             return VisionResult(False, message="vision action unavailable")
+        image = self._image_cache.get(request_id)
+        if image is None:
+            return VisionResult(False, message="captured ROS Image is unavailable")
+
         goal = InspectImage.Goal()
         goal.request_id = request_id
         goal.task_id = point.vision.task_id
         goal.model_profile = point.vision.model_profile
         goal.camera_id = point.camera.camera_id
-        goal.metadata_json = "{}"
-        # The ROS camera adapter owns the real Image message. Evidence core keeps
-        # encoded bytes only, so reconstruct a deterministic rgb8 carrier here.
-        from sensor_msgs.msg import Image
-
-        image = Image()
-        image.height = 16
-        image.width = 16
-        image.encoding = "rgb8"
-        image.step = 48
-        image.data = capture.image_bytes
         goal.image = image
+        goal.metadata_json = "{}"
         self._goal_handle = await _wait_future(self._client.send_goal_async(goal))
         if self._goal_handle is None or not self._goal_handle.accepted:
             return VisionResult(False, message="vision goal rejected")
         wrapped = await _wait_future(self._goal_handle.get_result_async())
         result = wrapped.result
+        canceled = _cancel_confirmed(wrapped.status)
+        self._image_cache.pop(request_id, None)
         return VisionResult(
-            bool(result.success),
-            int(result.error_code),
-            str(result.model_id),
-            str(result.model_version),
-            float(result.inference_time_ms),
-            float(result.primary_confidence),
-            str(result.result_json),
-            str(result.message),
+            success=bool(result.success),
+            error_code=int(result.error_code),
+            message=str(result.message),
+            model_id=str(result.model_id),
+            model_version=str(result.model_version),
+            inference_time_ms=float(result.inference_time_ms),
+            primary_confidence=float(result.primary_confidence),
+            result_json=str(result.result_json),
+            canceled=canceled,
+            cancel_confirmed=canceled,
         )
 
     async def cancel(self) -> bool:
@@ -209,7 +223,7 @@ class ChassisStationaryProvider:
         self._stamp = float("-inf")
         self._linear = 0.0
         self._angular = 0.0
-        node.create_subscription(
+        self._subscription = node.create_subscription(
             Odometry,
             "/agt/chassis/odometry",
             self._callback,
@@ -235,10 +249,11 @@ class InspectionTaskServer(Node):
         self._evidence_root = str(
             self.declare_parameter("evidence_root", "runtime/inspections").value
         )
+        image_cache: dict[str, Image] = {}
         self._navigation = WaypointTaskRunner(self)
         self._gimbal = GimbalRunner(self)
-        self._camera = CameraRunner(self)
-        self._vision = VisionRunner(self)
+        self._camera = CameraRunner(self, image_cache)
+        self._vision = VisionRunner(self, image_cache)
         self._stationary = ChassisStationaryProvider(self)
         self._active_executor: InspectionExecutor | None = None
         self._active_goal = None
@@ -262,7 +277,11 @@ class InspectionTaskServer(Node):
             request.expected_content_sha256,
             request.client_request_id,
         )
-        if self._active_executor is not None or not all(required) or request.task_revision == 0:
+        if (
+            self._active_executor is not None
+            or not all(required)
+            or request.task_revision == 0
+        ):
             return GoalResponse.REJECT
         return GoalResponse.ACCEPT
 
@@ -279,7 +298,11 @@ class InspectionTaskServer(Node):
         feedback = ExecuteInspectionTask.Feedback()
         feedback.state = "RUNNING"
         feedback.current_point = next(
-            (index for index, point in enumerate(task.points, start=1) if point.id == point_id),
+            (
+                index
+                for index, point in enumerate(task.points, start=1)
+                if point.id == point_id
+            ),
             0,
         )
         feedback.total_points = len(task.points)
@@ -340,7 +363,6 @@ class InspectionTaskServer(Node):
                 expected_content_sha256=request.expected_content_sha256,
             )
             self._active_task = task
-
             self._navigation.bind(
                 request.map_id, request.map_version_id, self._active_session_id
             )
@@ -356,7 +378,7 @@ class InspectionTaskServer(Node):
                 stage_callback=self._publish_stage,
             )
             execution = await self._active_executor.execute(
-                task, self._active_session_id
+                task, session_id=self._active_session_id
             )
             result.success = execution.success
             result.error_code = execution.error_code
@@ -387,13 +409,18 @@ class InspectionTaskServer(Node):
             return result
         except InspectionTaskError as exc:
             goal_handle.abort()
+            code = (
+                InspectionErrorCode.MAP_MISMATCH
+                if "map binding" in str(exc)
+                else InspectionErrorCode.INVALID_TASK
+            )
             result.success = False
-            result.error_code = int(InspectionErrorCode.INVALID_TASK)
+            result.error_code = int(code)
             result.session_id = self._active_session_id
             result.message = str(exc)
             result.final_status = self._status(
                 InspectionStatus.STATE_FAILED,
-                error_code=int(InspectionErrorCode.INVALID_TASK),
+                error_code=int(code),
                 message=str(exc),
             )
             return result
