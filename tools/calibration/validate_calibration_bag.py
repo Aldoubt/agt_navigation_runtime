@@ -19,9 +19,9 @@ REQUIRED_TOPICS = (
     "/agt/chassis/status",
     "/agt/mapping/odometry",
     "/agt/mapping/registered_points",
-    "/agt/navigation/cmd_vel",
     "/diagnostics",
 )
+COMMAND_TOPIC = "/agt/navigation/cmd_vel"
 GNSS_TOPIC = "/agt/sensors/gnss/fix"
 
 
