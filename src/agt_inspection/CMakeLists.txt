@@ -35,6 +35,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_inspection_ros_contract test/test_ros_contract.py)
   ament_add_pytest_test(test_multiview_evidence test/test_multiview_evidence.py)
   ament_add_pytest_test(test_multiview_ros_contract test/test_multiview_ros_contract.py)
+  ament_add_pytest_test(test_multiview_v2_ros_contract test/test_multiview_v2_ros_contract.py)
 endif()
 
 ament_package()
