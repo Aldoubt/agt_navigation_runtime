@@ -58,6 +58,28 @@ def test_runtime_bringup_sources_do_not_reference_v2_workspace():
             assert token not in text, f"{path}: forbidden runtime dependency {token}"
 
 
+def test_runtime_source_tree_has_no_v2_workspace_dependency_hints():
+    forbidden_tokens = (
+        "agt_navigation_v2/install",
+        "agt_navigation_v2/src",
+    )
+    runtime_src = ROOT / "src"
+    for path in runtime_src.rglob("*"):
+        if not path.is_file() or path.suffix not in {
+            ".py",
+            ".xml",
+            ".txt",
+            ".md",
+            ".yaml",
+            ".yml",
+            ".launch",
+        }:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for token in forbidden_tokens:
+            assert token not in text, f"{path}: forbidden V2 workspace hint {token}"
+
+
 def test_system_launch_composes_only_runtime_packages_and_is_motion_safe_by_default():
     launch_path = PACKAGE / "launch" / "system.launch.py"
     source = launch_path.read_text(encoding="utf-8")
