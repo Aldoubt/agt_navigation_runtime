@@ -20,3 +20,12 @@
     lidar_roll: 0.0064
     lidar_pitch: 0.4045
     lidar_yaw: 0.0
+    # GNSS antenna extrinsic placeholders. These zeros are not a measured
+    # antenna pose; keep calibration_verified=false until the antenna datum is
+    # physically measured and independently checked.
+    gps_x: 0.0
+    gps_y: 0.0
+    gps_z: 0.0
+    gps_roll: 0.0
+    gps_pitch: 0.0
+    gps_yaw: 0.0
