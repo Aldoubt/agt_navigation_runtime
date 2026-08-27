@@ -12,11 +12,17 @@ install(PROGRAMS
   scripts/mock_camera_server.py
   scripts/mock_vision_server.py
   scripts/mock_view_aggregator_server.py
+  scripts/mock_runtime_context.py
+  scripts/mock_waypoint_task_server.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
+)
+
+install(DIRECTORY test/fixtures/
+  DESTINATION share/${PROJECT_NAME}/fixtures
 )
 
 if(BUILD_TESTING)
