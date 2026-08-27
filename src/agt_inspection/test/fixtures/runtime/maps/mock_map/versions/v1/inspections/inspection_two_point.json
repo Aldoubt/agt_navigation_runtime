@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "inspection_task_id": "inspection_two_point",
+  "name": "Two point mock inspection",
+  "description": "Hardware-free stop-and-inspect fixture.",
+  "revision": 1,
+  "content_sha256": "sha256:34e40ca59f7440ba2ec7f70311aba2558fd90caf452015ec246b473b6d99e0ce",
+  "map_binding": {
+    "map_id": "mock_map",
+    "map_version_id": "v1",
+    "manifest_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "points": [
+    {
+      "id": "P001",
+      "navigation": {
+        "task_group_id": "nav_point_001",
+        "task_revision": 1,
+        "expected_content_sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "stabilization": {
+        "linear_velocity_max_mps": 0.02,
+        "angular_velocity_max_radps": 0.03,
+        "stable_duration_s": 0.1,
+        "timeout_s": 1.0
+      },
+      "gimbal": {
+        "pan_rad": 0.2,
+        "tilt_rad": -0.1,
+        "timeout_s": 1.0,
+        "settle_duration_s": 0.05
+      },
+      "camera": {
+        "camera_id": "mock_camera",
+        "capture_count": 1,
+        "capture_interval_s": 0.0
+      },
+      "vision": {
+        "task_id": "test_detection",
+        "model_profile": "default",
+        "minimum_confidence": 0.7,
+        "timeout_s": 1.0
+      },
+      "retry": {
+        "navigation": 0,
+        "gimbal": 0,
+        "capture": 0,
+        "inference": 0
+      }
+    },
+    {
+      "id": "P002",
+      "navigation": {
+        "task_group_id": "nav_point_002",
+        "task_revision": 1,
+        "expected_content_sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "stabilization": {
+        "linear_velocity_max_mps": 0.02,
+        "angular_velocity_max_radps": 0.03,
+        "stable_duration_s": 0.1,
+        "timeout_s": 1.0
+      },
+      "gimbal": {
+        "pan_rad": -0.2,
+        "tilt_rad": -0.15,
+        "timeout_s": 1.0,
+        "settle_duration_s": 0.05
+      },
+      "camera": {
+        "camera_id": "mock_camera",
+        "capture_count": 1,
+        "capture_interval_s": 0.0
+      },
+      "vision": {
+        "task_id": "test_detection",
+        "model_profile": "default",
+        "minimum_confidence": 0.7,
+        "timeout_s": 1.0
+      },
+      "retry": {
+        "navigation": 0,
+        "gimbal": 0,
+        "capture": 0,
+        "inference": 0
+      }
+    }
+  ]
+}
