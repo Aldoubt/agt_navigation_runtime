@@ -29,6 +29,13 @@ def _validate(context):
     if start_navigation and not start_localization:
         raise RuntimeError("navigation requires start_localization:=true")
 
+    if _enabled(context, "start_gnss"):
+        input_topic = LaunchConfiguration("gnss_input_topic").perform(context).strip()
+        if not input_topic.startswith("/"):
+            raise RuntimeError("start_gnss requires an absolute gnss_input_topic")
+        if input_topic == "/agt/sensors/gnss/fix":
+            raise RuntimeError("gnss_input_topic must not equal canonical GNSS output")
+
     required_files = []
     if start_localization:
         required_files.extend(["global_map_pcd", "global_map_processing_record"])
@@ -60,6 +67,8 @@ def generate_launch_description():
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("start_sensor", default_value="true"),
             DeclareLaunchArgument("start_sensor_monitor", default_value="true"),
+            DeclareLaunchArgument("start_gnss", default_value="false"),
+            DeclareLaunchArgument("gnss_input_topic", default_value=""),
             DeclareLaunchArgument("start_odometry", default_value="true"),
             DeclareLaunchArgument("start_perception", default_value="true"),
             DeclareLaunchArgument("start_localization", default_value="false"),
@@ -90,9 +99,24 @@ def generate_launch_description():
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
+                    str(sensor_share / "launch" / "gnss_navsat.launch.py")
+                ),
+                launch_arguments={
+                    "input_topic": LaunchConfiguration("gnss_input_topic"),
+                    "output_topic": "/agt/sensors/gnss/fix",
+                    "frame_id": "gps_link",
+                    "use_sim_time": use_sim_time,
+                }.items(),
+                condition=IfCondition(LaunchConfiguration("start_gnss")),
+            ),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
                     str(monitor_share / "launch" / "sensor_monitor.launch.py")
                 ),
-                launch_arguments={"use_sim_time": use_sim_time}.items(),
+                launch_arguments={
+                    "use_sim_time": use_sim_time,
+                    "gnss_enabled": LaunchConfiguration("start_gnss"),
+                }.items(),
                 condition=IfCondition(LaunchConfiguration("start_sensor_monitor")),
             ),
             IncludeLaunchDescription(
