@@ -7,11 +7,11 @@ Spec: `docs/superpowers/specs/2026-08-27-bunker-rtabmap-slope-nav-design.md`
 
 ## Status
 
-**CODE_LANDED / ROS_BUILD_PENDING**
+**CODE_LANDED / LOCAL_VERIFICATION_ROUND_2_REQUIRED**
 
-P0 production code, contract tests, and operator documentation have been written to the feature branch. This environment cannot execute the ROS 2 Humble/colcon acceptance commands because `/opt/ros` and `colcon` are unavailable, and its local container cannot clone GitHub due DNS/network restrictions. Therefore this report does not claim that the Runtime workspace builds or that ROS launch tests pass.
+P0 production code, contract tests, and operator documentation are on the feature branch. A first real ROS 2 Humble verification run was executed on the Runtime machine and exposed two independent blockers: three P0 contract-test defects and a missing external BehaviorTree.CPP dependency. The P0 test defects have been corrected in the branch; the build dependency must be installed/resolved locally before the clean build can be repeated.
 
-The P0 exit gate remains open until the commands in `Local verification required` complete successfully on the Runtime machine.
+P0 is not DONE until the round-two commands below complete successfully.
 
 ## Implemented boundary
 
@@ -24,7 +24,37 @@ The P0 exit gate remains open until the commands in `Local verification required
 - Kept FAST-LIVO2 runtime PCD saving disabled through `save_pcd=false`.
 - Removed the reverse `agt_navigation -> agt_bringup` launch dependency; `agt_bringup` now owns the gate node while `agt_navigation` remains the Nav2 package.
 - Removed the remaining V2 workspace source hint from the real-bag validation script.
-- Added source-tree contract coverage preventing `agt_navigation_v2/install` and `agt_navigation_v2/src` hints from re-entering Runtime source.
+- Added source-tree contract coverage preventing V2 install/source hints from re-entering Runtime source.
+- Added dependency-bootstrap guidance to the root README.
+
+## Verification round 1 findings
+
+### P0 contract tests
+
+Observed result: `3 failed, 10 passed`.
+
+Root causes:
+
+1. The source-tree guard test embedded the exact forbidden V2 path literals in its own Python source and therefore detected itself.
+2. The same self-match occurred in the whole-`src/` guard.
+3. The launch contract test searched for expanded messages such as `navigation_map must be a file`, while `system.launch.py` deliberately generates that message from `f"{name} must be a file: {path}"`.
+
+Correction:
+
+- Forbidden path strings are now assembled at runtime so the scanner can validate the source tree without containing its own forbidden literal.
+- The launch contract now checks the actual required-file registration and generic fail-closed error path rather than a compile-time string that does not exist in the implementation.
+
+### Full Runtime build
+
+The first failing build package was `agt_bt_executor`:
+
+```text
+find_package(behaviortree_cpp REQUIRED)
+```
+
+could not resolve `behaviortree_cppConfig.cmake`. The package manifest already declares `<depend>behaviortree_cpp</depend>`, so this is an environment/bootstrap dependency rather than a P0 bringup-code dependency. On ROS 2 Humble the matching binary dependency is `ros-humble-behaviortree-cpp` (BehaviorTree.CPP v4 package).
+
+Because `agt_bt_executor` failed first, downstream packages were aborted and `agt_bringup` was never installed. The later `Package 'agt_bringup' not found` and `Has this package been built before?` errors are therefore secondary evidence, not separate root causes.
 
 ## Review rulings
 
@@ -44,18 +74,22 @@ GitHub content writes may store Python sources as mode `0644`. `agt_bringup/CMak
 
 `agt_bringup/system.launch.py` forces FAST-LIVO2 `save_pcd=false`. Direct FAST-LIVO2 PCD saving is a commissioning/debug path only. Versioned READY map/semantic/task asset production remains outside Runtime.
 
-## Static evidence available in this environment
-
-The feature branch diff from the P0 plan baseline contains the new `agt_bringup` package plus the narrowly scoped Runtime integration changes. GitHub branch inspection also confirms the real-bag validation hint now points to `source install/setup.bash`, not a V2 install space.
-
-These checks are not substitutes for ROS build/test evidence.
-
-## Local verification required
+## Local verification round 2
 
 Run from a clean shell in `agt_navigation_runtime` on ROS 2 Humble. Do **not** source V2 first.
 
 ```bash
+cd ~/agt_navigation_runtime
+git checkout feat/bunker-rtabmap-slope-nav
+git pull
+
 source /opt/ros/humble/setup.bash
+rosdep update
+rosdep install --from-paths src third_party --ignore-src -r -y
+
+# If rosdep still reports behaviortree_cpp unresolved:
+sudo apt update
+sudo apt install ros-humble-behaviortree-cpp
 
 rm -rf build install log
 colcon build --symlink-install
