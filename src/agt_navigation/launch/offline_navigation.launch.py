@@ -58,7 +58,6 @@ def generate_launch_description():
                     "params_file": str(nav_share / "config" / "nav2_bunker.yaml"),
                     "use_sim_time": "false",
                     "autostart": "true",
-                    "enable_localization_gate": "false",
                 }.items(),
             ),
         ]
