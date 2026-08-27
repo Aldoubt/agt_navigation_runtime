@@ -1,5 +1,4 @@
 from pathlib import Path
-import hashlib
 import importlib.util
 import json
 import yaml
@@ -41,12 +40,21 @@ def test_validation_rviz_is_valid_yaml():
     assert rviz["Visualization Manager"]["Fixed Frame"] == "map"
 
 
-def test_processing_record_is_ready_and_hash_bound():
-    asset = Path(__file__).parents[3] / "runtime/localization_validation/handheld_20260719"
-    record = yaml.safe_load((asset / "processing_record.yaml").read_text())
-    digest = hashlib.sha256((asset / "localization_map.pcd").read_bytes()).hexdigest()
-    assert record["state"] == "ready"
-    assert record["pcd_sha256"] == "sha256:" + digest
+def test_preflight_requires_ready_hash_bound_map_assets():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert 'record_data.get("state") == "ready"' in source
+    assert 'record_data.get("map_id") == args.map_id' in source
+    assert 'record_data.get("pcd_sha256") == actual_hash == args.map_hash' in source
+    assert 'candidate_data.get("map_id") == args.map_id' in source
+    assert 'candidate_data.get("map_hash") == args.map_hash' in source
+    assert 'FAILURE_CODES["map_hash"]' in source
+    assert 'FAILURE_CODES["candidate"]' in source
+
+
+def test_package_contract_does_not_require_ignored_runtime_assets():
+    source = Path(__file__).read_text(encoding="utf-8")
+    runtime_asset_root = "runtime" + "/localization_validation"
+    assert runtime_asset_root not in source
 
 
 def test_fresh_cloud_barrier_accepts_new_fresh_stamp():
