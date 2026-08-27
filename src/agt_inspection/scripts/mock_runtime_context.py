@@ -57,6 +57,12 @@ class MockRuntimeContext(Node):
         localization.status_stale = False
         localization.error_code = LocalizationStatus.ERROR_NONE
         localization.map_id = MAP_ID
+        localization.global_pose.header.stamp = stamp
+        localization.global_pose.header.frame_id = "map"
+        localization.global_pose.pose.pose.position.x = 12.3
+        localization.global_pose.pose.pose.position.y = 4.8
+        localization.global_pose.pose.pose.position.z = 0.0
+        localization.global_pose.pose.pose.orientation.w = 1.0
         localization.message = "mock localization tracking"
         self._localization_pub.publish(localization)
 
