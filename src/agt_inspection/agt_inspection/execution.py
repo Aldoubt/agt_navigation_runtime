@@ -110,6 +110,7 @@ class InspectionExecutor:
         evidence: EvidenceWriter,
         monotonic: Callable[[], float],
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        stage_callback: Callable[[str], None] | None = None,
         stationary_poll_s: float = 0.05,
         stationary_sample_max_age_s: float = 0.5,
     ) -> None:
@@ -121,6 +122,7 @@ class InspectionExecutor:
         self._evidence = evidence
         self._monotonic = monotonic
         self._sleep = sleep
+        self._stage_callback = stage_callback or (lambda _stage: None)
         self._stationary_poll_s = max(float(stationary_poll_s), 0.01)
         self._stationary_sample_max_age_s = max(float(stationary_sample_max_age_s), 0.01)
         self._cancel_requested = False
@@ -148,8 +150,13 @@ class InspectionExecutor:
                     "navigation", point.retry.navigation, lambda: self._navigation.run(point)
                 )
                 if not navigation.success:
+                    error_code = (
+                        self.ERROR_CANCELED
+                        if navigation.error_code == self.ERROR_CANCELED
+                        else self.ERROR_NAVIGATION
+                    )
                     return self._finish(
-                        task, session_id, root, False, self.ERROR_NAVIGATION,
+                        task, session_id, root, False, error_code,
                         navigation.message or "navigation failed",
                     )
 
@@ -165,34 +172,49 @@ class InspectionExecutor:
                     "gimbal", point.retry.gimbal, lambda: self._gimbal.move(point)
                 )
                 if not gimbal.success:
+                    error_code = (
+                        self.ERROR_CANCELED
+                        if gimbal.error_code == self.ERROR_CANCELED
+                        else self.ERROR_GIMBAL
+                    )
                     return self._finish(
-                        task, session_id, root, False, self.ERROR_GIMBAL,
+                        task, session_id, root, False, error_code,
                         gimbal.message or "gimbal move failed",
                     )
 
                 await self._sleep(point.gimbal.settle_duration_s)
-                self._stage_marker("gimbal_settle")
+                self._stage_callback("gimbal_settle")
 
                 for capture_index in range(point.camera.capture_count):
                     capture = await self._retry_capture(point, capture_index)
                     if not capture.success:
+                        error_code = (
+                            self.ERROR_CANCELED
+                            if capture.error_code == self.ERROR_CANCELED
+                            else self.ERROR_CAPTURE
+                        )
                         return self._finish(
-                            task, session_id, root, False, self.ERROR_CAPTURE,
+                            task, session_id, root, False, error_code,
                             capture.message or "capture failed",
                         )
 
                     request_id = f"{session_id}:{point.id}:{capture_index}"
                     vision = await self._retry_vision(point, capture)
                     if not vision.success or vision.primary_confidence < point.vision.minimum_confidence:
+                        error_code = (
+                            self.ERROR_CANCELED
+                            if vision.error_code == self.ERROR_CANCELED
+                            else self.ERROR_INFERENCE
+                        )
                         return self._finish(
-                            task, session_id, root, False, self.ERROR_INFERENCE,
+                            task, session_id, root, False, error_code,
                             vision.message or "vision inference failed or below confidence threshold",
                         )
 
                     self._evidence.persist_capture(
                         task, point, capture_index, request_id, capture, vision
                     )
-                    self._stage_marker("persist")
+                    self._stage_callback("persist")
 
                     if capture_index + 1 < point.camera.capture_count:
                         await self._sleep(point.camera.capture_interval_s)
@@ -221,6 +243,7 @@ class InspectionExecutor:
             if self._cancel_requested:
                 return ChildResult(False, self.ERROR_CANCELED, "canceled")
             self._active_child = name
+            self._stage_callback(name)
             last = await operation()
             self._active_child = ""
             if last.success:
@@ -232,8 +255,8 @@ class InspectionExecutor:
         for _ in range(point.retry.capture + 1):
             if self._cancel_requested:
                 return CaptureResult(False, self.ERROR_CANCELED, message="canceled")
+            self._stage_callback("capture")
             last = await self._camera.capture(point, capture_index)
-            self._stage_marker("capture")
             if last.success:
                 return last
         return last
@@ -244,9 +267,9 @@ class InspectionExecutor:
             if self._cancel_requested:
                 return VisionResult(False, self.ERROR_CANCELED, message="canceled")
             self._active_child = "vision"
+            self._stage_callback("vision")
             last = await self._vision.inspect(point, capture)
             self._active_child = ""
-            self._stage_marker("vision")
             if last.success and last.primary_confidence >= point.vision.minimum_confidence:
                 return last
         return last
@@ -268,25 +291,9 @@ class InspectionExecutor:
                 if stable_since is None:
                     stable_since = now
                 if now - stable_since >= point.stabilization.stable_duration_s:
-                    self._stage_marker("stationary")
+                    self._stage_callback("stationary")
                     return True
             else:
                 stable_since = None
             await self._sleep(self._stationary_poll_s)
         return False
-
-    def _stage_marker(self, stage: str) -> None:
-        # Pure-core tests may inject runners/evidence objects exposing an `events` list.
-        for candidate in (
-            self._navigation,
-            self._gimbal,
-            self._camera,
-            self._vision,
-            self._evidence,
-        ):
-            events = getattr(candidate, "events", None)
-            if isinstance(events, list):
-                # Avoid duplicating runner-owned stage markers.
-                if stage not in {"capture", "vision", "persist"}:
-                    events.append(stage)
-                return
