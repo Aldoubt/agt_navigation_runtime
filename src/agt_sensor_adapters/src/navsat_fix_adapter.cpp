@@ -21,7 +21,10 @@ public:
       "output_topic", "/agt/sensors/gnss/fix");
     frame_id_ = declare_parameter<std::string>("frame_id", "gps_link");
 
-    validate_configuration();
+    validateNavSatTopics(input_topic_, output_topic_);
+    if (frame_id_.empty()) {
+      throw std::invalid_argument("frame_id must not be empty");
+    }
 
     const auto qos = rclcpp::SensorDataQoS();
     publisher_ = create_publisher<sensor_msgs::msg::NavSatFix>(output_topic_, qos);
@@ -37,22 +40,6 @@ public:
   }
 
 private:
-  void validate_configuration() const
-  {
-    if (input_topic_.empty() || input_topic_.front() != '/') {
-      throw std::invalid_argument("input_topic must be a non-empty absolute topic");
-    }
-    if (output_topic_.empty() || output_topic_.front() != '/') {
-      throw std::invalid_argument("output_topic must be a non-empty absolute topic");
-    }
-    if (input_topic_ == output_topic_) {
-      throw std::invalid_argument("input_topic must not equal output_topic");
-    }
-    if (frame_id_.empty()) {
-      throw std::invalid_argument("frame_id must not be empty");
-    }
-  }
-
   std::string input_topic_;
   std::string output_topic_;
   std::string frame_id_;
