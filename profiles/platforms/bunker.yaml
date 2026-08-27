@@ -17,9 +17,11 @@ platform:
   sensors:
     lidar:
       frame: lidar_link
+      driver_frame: livox_frame
       topic: /agt/sensors/lidar/custom
     imu:
       frame: imu_link
+      driver_frame: livox_frame
       topic: /agt/sensors/imu/data
     gnss:
       frame: gps_link
