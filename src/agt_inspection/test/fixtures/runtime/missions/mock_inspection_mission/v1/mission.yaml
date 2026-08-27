@@ -1,0 +1,14 @@
+schema_version: 1
+mission_id: mock_inspection_mission
+mission_version: v1
+content_sha256: sha256:935c9ba98eada470530ef348d157254bca52eb6814e4703fbab27f819084aeca
+map_binding:
+  map_id: mock_map
+  map_version_id: v1
+  manifest_sha256: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+steps:
+  - id: inspect
+    type: INSPECTION_TASK
+    inspection_task_id: inspection_two_point
+    inspection_task_revision: 1
+    expected_content_sha256: sha256:34e40ca59f7440ba2ec7f70311aba2558fd90caf452015ec246b473b6d99e0ce
