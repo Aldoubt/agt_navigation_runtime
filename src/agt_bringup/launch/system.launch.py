@@ -6,6 +6,8 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def _enabled(context, name: str) -> bool:
@@ -71,6 +73,7 @@ def generate_launch_description():
             DeclareLaunchArgument("map_id", default_value=""),
             DeclareLaunchArgument("map_hash", default_value=""),
             DeclareLaunchArgument("localization_backend", default_value="ndt"),
+            DeclareLaunchArgument("localization_status_timeout", default_value="10.0"),
             DeclareLaunchArgument("navigation_autostart", default_value="false"),
             OpaqueFunction(function=_validate),
             IncludeLaunchDescription(
@@ -134,10 +137,27 @@ def generate_launch_description():
                     "map": LaunchConfiguration("navigation_map"),
                     "map_id": LaunchConfiguration("map_id"),
                     "current_localization_pcd_sha256": LaunchConfiguration("map_hash"),
+                    "localization_status_timeout": LaunchConfiguration(
+                        "localization_status_timeout"
+                    ),
                     "use_sim_time": use_sim_time,
                     "autostart": LaunchConfiguration("navigation_autostart"),
-                    "enable_localization_gate": "true",
                 }.items(),
+                condition=IfCondition(LaunchConfiguration("start_navigation")),
+            ),
+            Node(
+                package="agt_bringup",
+                executable="localization_navigation_gate.py",
+                name="agt_localization_navigation_gate",
+                output="screen",
+                parameters=[
+                    {
+                        "localization_status_timeout": ParameterValue(
+                            LaunchConfiguration("localization_status_timeout"),
+                            value_type=float,
+                        )
+                    }
+                ],
                 condition=IfCondition(LaunchConfiguration("start_navigation")),
             ),
             IncludeLaunchDescription(
