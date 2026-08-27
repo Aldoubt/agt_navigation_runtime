@@ -9,14 +9,15 @@ Spec: `docs/superpowers/specs/2026-08-27-bunker-rtabmap-slope-nav-design.md`
 
 ```text
 CODE_LANDED: PASS
-LOCAL_BUILD: pending
+LOCAL_BUILD: PASS (user Runtime evidence: 24/24 packages)
+SOFTWARE_TESTS: rerun pending after sensor-monitor contract fix
 HARDWARE_TOPICS: pending
-TF_CONTRACT: pending
+TF_CONTRACT: pending hardware echo
 CALIBRATION_BAG: pending
-BAG_METADATA_GATE: pending
+BAG_METADATA_GATE: pending real bag
 ```
 
-`CODE_LANDED` means the P1/P2 implementation is present on the feature branch and has completed branch-level static review. It does not claim a ROS 2 build or hardware result. Do not promote any local/hardware state to PASS without fresh evidence from the Runtime machine.
+`CODE_LANDED` means the P1/P2 implementation is present on the feature branch and has completed branch-level static review. `LOCAL_BUILD` is based on fresh user Runtime evidence showing `Summary: 24 packages finished`. Hardware and real-bag states remain pending until measured on the robot.
 
 ## Implemented scope
 
@@ -28,6 +29,7 @@ BAG_METADATA_GATE: pending
 - Added `tools/calibration/validate_calibration_bag.py` as a metadata-only structural gate.
 - Added `calibration_capture.launch.py` with fixed MID360/sensor-monitor/FAST-LIVO2/BUNKER-monitor composition and no Nav2/localization/perception/control-mode override.
 - Added operator workflow and hardware acceptance commands to `src/agt_bringup/README.md`.
+- Repaired the sensor-monitor contract test so it checks the current readiness consumer (`agt_safety`) rather than the removed `agt_system_manager` package.
 
 ## Execution rulings
 
@@ -51,9 +53,38 @@ The plan listed `/agt/navigation/cmd_vel` in the calibration recording profile a
 
 The existing Livox launch supplies a single `frame_id=livox_frame` to the driver for both LiDAR and built-in IMU messages, while the robot description also exposes identity-linked `lidar_link` and `imu_link`. The BUNKER profile now records both the physical frame and `driver_frame: livox_frame`. Hardware acceptance must still record the actual message header and TF chain before a later phase promotes a different IMU frame convention. P1/P2 does not silently rewrite MID360 IMU measurements.
 
-## Required local regression
+### Sensor-monitor readiness ownership
 
-Run from a clean Runtime shell without sourcing V2:
+The old `test_sensor_monitor_contract.py` still tried to read `agt_system_manager/config/health_contracts.yaml` and `agt_system_manager/readiness.py`, but `agt_system_manager` is no longer part of this Runtime tree. The current production consumer is `agt_safety`: `bunker_safety.yaml` requires sensor input readiness from `/diagnostics` using summary `agt_sensor_monitor/summary`, and `tracked_safety_controller.py` interprets `required_streams_healthy` and fails closed with `sensor_input_unhealthy`. The test now checks that real path instead of depending on a removed package.
+
+### `launch --show-args` interpretation
+
+ROS 2 recursively displays arguments declared by included launch descriptions. Therefore `calibration_capture.launch.py --show-args` legitimately shows arguments from `system.launch.py`, description, mapping, localization, navigation and chassis sub-launches. This is not evidence that the calibration entry exposes those values as top-level overrides. The safety contract is verified from `calibration_capture.launch.py` itself: it fixes `start_perception=false`, `start_localization=false`, `start_navigation=false`, `start_chassis=true`, and `chassis_operation_mode=monitor` when including the Runtime system launch.
+
+## User Runtime verification round
+
+Observed before the sensor-monitor test repair:
+
+```text
+Summary: 24 packages finished
+agt_bringup pytest: 17 passed
+calibration validator pytest: 7 passed
+colcon selected packages: one logical failure in agt_sensor_monitor
+```
+
+The failing test attempted to open the removed path:
+
+```text
+src/agt_system_manager/config/health_contracts.yaml
+```
+
+That test has now been repaired on the feature branch. A focused rerun is required before hardware deployment.
+
+The build also printed stale `AMENT_PREFIX_PATH` / `CMAKE_PREFIX_PATH` warnings because the shell still contained paths from an earlier Runtime `install/` tree after a clean rebuild. These warnings did not prevent the 24-package build. For future clean builds, open a fresh shell, source only `/opt/ros/humble/setup.bash`, build, then source the newly generated `install/setup.bash`.
+
+## Required pre-deployment regression
+
+From a fresh shell:
 
 ```bash
 cd ~/agt_navigation_runtime
@@ -61,21 +92,17 @@ git checkout feat/bunker-rtabmap-slope-nav
 git pull
 source /opt/ros/humble/setup.bash
 
-colcon build --symlink-install
+# Existing build is sufficient for this test-only change; no full rebuild is required.
+python3 -m pytest src/agt_sensor_monitor/test/test_sensor_monitor_contract.py -q
+
 source install/setup.bash
-
-python3 -m pytest src/agt_bringup/test -q
-python3 -m pytest tools/calibration/test_validate_calibration_bag.py -q
-
 colcon test --packages-select \
-  agt_description agt_sensor_adapters agt_sensor_monitor \
+  agt_sensor_monitor agt_description agt_sensor_adapters \
   agt_chassis agt_bringup agt_experiment_manager
 colcon test-result --verbose
-
-ros2 launch agt_bringup calibration_capture.launch.py --show-args
 ```
 
-Expected before hardware acceptance: zero build/test failures, and the calibration launch must expose only acquisition knobs (`use_sim_time`, `can_interface`, `start_gnss`, `gnss_input_topic`, `runtime_dir`) rather than a navigation/control-mode enable path.
+Expected before hardware deployment: zero test failures.
 
 ## Hardware gate
 
@@ -92,4 +119,4 @@ Use `--require-gnss` only for a run whose acceptance explicitly requires GNSS.
 
 ## P1/P2 exit condition
 
-P1/P2 remains open until the Runtime machine supplies fresh clean-build/test evidence plus one usable hardware calibration bag whose required canonical topics and TF evidence pass the metadata/preflight gates. Extrinsic estimation, wheel scale estimation, wheel/LIO time-offset estimation, RTAB-Map, GNSS global correction, slope perception, and Nav2 field acceptance are not part of this phase.
+P1/P2 remains open until the repaired software test suite is green plus one usable hardware calibration bag whose required canonical topics and TF evidence pass the metadata/preflight gates. Extrinsic estimation, wheel scale estimation, wheel/LIO time-offset estimation, RTAB-Map, GNSS global correction, slope perception, and Nav2 field acceptance are not part of this phase.
