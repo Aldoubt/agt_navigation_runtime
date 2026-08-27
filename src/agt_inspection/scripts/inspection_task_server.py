@@ -31,7 +31,10 @@ from agt_inspection.execution import (
     InspectionExecutor,
     VisionResult,
 )
+from agt_inspection.multiview_evidence import InspectionEvidenceStore
+from agt_inspection.multiview_execution import MultiviewInspectionExecutor
 from agt_inspection.repository import InspectionRepository
+from agt_inspection.ros_multiview import RosViewAggregatorRunner, RosViewContextProvider
 from agt_inspection.schema import InspectionTaskError
 
 
@@ -104,9 +107,13 @@ class GimbalRunner:
             callback_group=ReentrantCallbackGroup(),
         )
         self._goal_handle = None
+        self._last_feedback: tuple[float, float] | None = None
         self.session_id = ""
 
     async def move(self, point) -> ChildResult:
+        self._last_feedback = None
+        if point.gimbal is None:
+            return ChildResult(False, message="gimbal pose is missing")
         if not self._client.wait_for_server(timeout_sec=2.0):
             return ChildResult(False, message="gimbal action unavailable")
         goal = MoveGimbal.Goal()
@@ -120,6 +127,11 @@ class GimbalRunner:
         wrapped = await _wait_future(self._goal_handle.get_result_async())
         result = wrapped.result
         canceled = _cancel_confirmed(wrapped.status)
+        if bool(result.success):
+            self._last_feedback = (
+                float(result.final_pan_rad),
+                float(result.final_tilt_rad),
+            )
         return ChildResult(
             success=bool(result.success),
             error_code=int(result.error_code),
@@ -127,6 +139,9 @@ class GimbalRunner:
             canceled=canceled,
             cancel_confirmed=canceled,
         )
+
+    def last_feedback(self) -> tuple[float, float] | None:
+        return self._last_feedback
 
     async def cancel(self) -> bool:
         if self._goal_handle is None:
@@ -138,6 +153,7 @@ class GimbalRunner:
 class CameraRunner:
     def __init__(self, node: Node, image_cache: dict[str, Image]) -> None:
         self._image_cache = image_cache
+        self._capture_stamps = {}
         self._client = node.create_client(
             CaptureImage,
             "/agt/camera/capture",
@@ -156,6 +172,7 @@ class CameraRunner:
             return CaptureResult(False, message="camera service returned no response")
         if response.success:
             self._image_cache[request_id] = response.image
+            self._capture_stamps[request_id] = response.image.header.stamp
         return CaptureResult(
             success=bool(response.success),
             error_code=int(response.error_code),
@@ -163,6 +180,9 @@ class CameraRunner:
             image_bytes=bytes(response.image.data),
             image_uri=str(response.image_uri),
         )
+
+    def capture_stamp(self, request_id: str):
+        return self._capture_stamps.pop(request_id, None)
 
 
 class VisionRunner:
@@ -249,13 +269,32 @@ class InspectionTaskServer(Node):
         self._evidence_root = str(
             self.declare_parameter("evidence_root", "runtime/inspections").value
         )
+        camera_calibration_id = str(
+            self.declare_parameter("camera_calibration_id", "").value
+        )
+        camera_calibration_sha256 = str(
+            self.declare_parameter("camera_calibration_sha256", "").value
+        )
+        localization_timeout_s = float(
+            self.declare_parameter("capture_localization_timeout_s", 2.0).value
+        )
+
         image_cache: dict[str, Image] = {}
         self._navigation = WaypointTaskRunner(self)
         self._gimbal = GimbalRunner(self)
         self._camera = CameraRunner(self, image_cache)
         self._vision = VisionRunner(self, image_cache)
         self._stationary = ChassisStationaryProvider(self)
-        self._active_executor: InspectionExecutor | None = None
+        self._view_aggregator = RosViewAggregatorRunner(self)
+        self._view_context = RosViewContextProvider(
+            self,
+            camera_runner=self._camera,
+            gimbal_runner=self._gimbal,
+            camera_calibration_id=camera_calibration_id,
+            camera_calibration_sha256=camera_calibration_sha256,
+            localization_timeout_s=localization_timeout_s,
+        )
+        self._active_executor = None
         self._active_goal = None
         self._active_task = None
         self._active_session_id = ""
@@ -367,16 +406,33 @@ class InspectionTaskServer(Node):
                 request.map_id, request.map_version_id, self._active_session_id
             )
             self._gimbal.session_id = self._active_session_id
-            self._active_executor = InspectionExecutor(
-                navigation=self._navigation,
-                gimbal=self._gimbal,
-                camera=self._camera,
-                vision=self._vision,
-                stationary=self._stationary,
-                evidence=EvidenceWriter(self._evidence_root),
-                monotonic=time.monotonic,
-                stage_callback=self._publish_stage,
-            )
+            self._view_aggregator.session_id = self._active_session_id
+
+            if task.schema_version == 2:
+                self._active_executor = MultiviewInspectionExecutor(
+                    navigation=self._navigation,
+                    gimbal=self._gimbal,
+                    camera=self._camera,
+                    vision=self._vision,
+                    stationary=self._stationary,
+                    evidence_store=InspectionEvidenceStore(self._evidence_root),
+                    aggregator=self._view_aggregator,
+                    context_provider=self._view_context,
+                    monotonic=time.monotonic,
+                    stage_callback=self._publish_stage,
+                )
+            else:
+                self._active_executor = InspectionExecutor(
+                    navigation=self._navigation,
+                    gimbal=self._gimbal,
+                    camera=self._camera,
+                    vision=self._vision,
+                    stationary=self._stationary,
+                    evidence=EvidenceWriter(self._evidence_root),
+                    monotonic=time.monotonic,
+                    stage_callback=self._publish_stage,
+                )
+
             execution = await self._active_executor.execute(
                 task, session_id=self._active_session_id
             )
