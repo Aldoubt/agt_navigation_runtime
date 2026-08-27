@@ -27,6 +27,18 @@ async def _wait_future(future, poll_s: float = 0.01):
     return future.result()
 
 
+async def _wait_future_timeout(future, timeout_s: float, poll_s: float = 0.01):
+    deadline = time.monotonic() + max(float(timeout_s), 0.01)
+    while not future.done():
+        if time.monotonic() >= deadline:
+            raise asyncio.TimeoutError
+        await asyncio.sleep(poll_s)
+    exception = future.exception()
+    if exception is not None:
+        raise exception
+    return future.result()
+
+
 def _yaw_from_quaternion(quaternion) -> float:
     siny_cosp = 2.0 * (
         float(quaternion.w) * float(quaternion.z)
@@ -157,7 +169,14 @@ class RosViewContextProvider:
 
 
 class RosViewAggregatorRunner:
-    def __init__(self, node, *, server_wait_timeout_s: float = 2.0) -> None:
+    def __init__(
+        self,
+        node,
+        *,
+        server_wait_timeout_s: float = 2.0,
+        result_timeout_s: float = 10.0,
+        cancel_timeout_s: float = 1.0,
+    ) -> None:
         self._node = node
         self._client = ActionClient(
             node,
@@ -166,6 +185,8 @@ class RosViewAggregatorRunner:
             callback_group=ReentrantCallbackGroup(),
         )
         self._server_wait_timeout_s = max(float(server_wait_timeout_s), 0.1)
+        self._result_timeout_s = max(float(result_timeout_s), 0.1)
+        self._cancel_timeout_s = max(float(cancel_timeout_s), 0.1)
         self._goal_handle = None
         self.session_id = ""
 
@@ -267,12 +288,32 @@ class RosViewAggregatorRunner:
         goal.aggregation_profile = point.aggregation.aggregation_profile
         goal.views = [self._observation_message(task, point, item) for item in observations]
 
-        handle = await _wait_future(self._client.send_goal_async(goal))
+        try:
+            handle = await _wait_future_timeout(
+                self._client.send_goal_async(goal), self._server_wait_timeout_s
+            )
+        except asyncio.TimeoutError:
+            return AggregationResult(False, error_code=1, message="view aggregator goal response timed out")
         if handle is None or not handle.accepted:
             return AggregationResult(False, error_code=1, message="view aggregator goal rejected")
         self._goal_handle = handle
         try:
-            wrapped = await _wait_future(handle.get_result_async())
+            try:
+                wrapped = await _wait_future_timeout(
+                    handle.get_result_async(), self._result_timeout_s
+                )
+            except asyncio.TimeoutError:
+                try:
+                    await _wait_future_timeout(
+                        handle.cancel_goal_async(), self._cancel_timeout_s
+                    )
+                except asyncio.TimeoutError:
+                    pass
+                return AggregationResult(
+                    False,
+                    error_code=5,
+                    message="view aggregator timed out; Level-1 evidence remains authoritative",
+                )
             result = wrapped.result
             canceled = int(wrapped.status) == int(GoalStatus.STATUS_CANCELED)
             return AggregationResult(
@@ -296,5 +337,10 @@ class RosViewAggregatorRunner:
         handle = self._goal_handle
         if handle is None:
             return True
-        response = await _wait_future(handle.cancel_goal_async())
+        try:
+            response = await _wait_future_timeout(
+                handle.cancel_goal_async(), self._cancel_timeout_s
+            )
+        except asyncio.TimeoutError:
+            return False
         return bool(response.goals_canceling)
