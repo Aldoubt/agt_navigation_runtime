@@ -303,7 +303,7 @@ def preflight(args):
         result["checks"]["interface_typesupport"] = "PASS"
     except Exception as error:
         return result, failure("preflight", FAILURE_CODES["interface"], str(error), {
-            "source_hint": ["source /opt/ros/humble/setup.bash", "source ~/agt_navigation_v2/install/setup.bash"]
+            "source_hint": ["source /opt/ros/humble/setup.bash", "source install/setup.bash"]
         })
     conflicts = {"fast_livo2_backend", "agt_mapping_fast_livo2_adapter", "agt_relocalization", "agt_global_correction_manager", "agt_recovery_trigger_manager", "reference_map_publisher"}
     result["checks"]["process_diagnostics"] = process_diagnostics()
