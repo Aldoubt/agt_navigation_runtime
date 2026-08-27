@@ -36,16 +36,10 @@ def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
 
 
 class EvidenceWriter:
-    """Persist inspection evidence below one caller-owned inspection root.
-
-    ``root`` is normally ``runtime/inspections``. Session and point paths are
-    derived only from schema-validated portable ids. The executor owns the
-    active session; model/camera responses never choose filesystem paths.
-    """
+    """Persist inspection evidence below one caller-owned inspection root."""
 
     def __init__(self, root: str | Path = "runtime/inspections") -> None:
         self.root = Path(root).expanduser().resolve()
-        self._active_session_id: str | None = None
 
     def _session_path(self, task: InspectionTask, session_id: str) -> Path:
         task_id = _safe_component(task.inspection_task_id, "inspection_task_id")
@@ -55,7 +49,6 @@ class EvidenceWriter:
     def start_session(self, task: InspectionTask, session_id: str) -> str:
         session_root = self._session_path(task, session_id)
         session_root.mkdir(parents=True, exist_ok=False)
-        self._active_session_id = session_id
         _atomic_json(
             session_root / "session.json",
             {
@@ -77,26 +70,19 @@ class EvidenceWriter:
     def persist_capture(
         self,
         task: InspectionTask,
+        session_id: str,
         point: InspectionPoint,
         capture_index: int,
         request_id: str,
         capture,
         vision,
     ) -> str:
-        if self._active_session_id is None:
-            raise RuntimeError("inspection evidence session has not started")
-        if capture_index < 0:
-            raise ValueError("capture_index must be non-negative")
-
+        if capture_index <= 0:
+            raise ValueError("capture_index must be positive")
         point_id = _safe_component(point.id, "point_id")
-        point_root = (
-            self._session_path(task, self._active_session_id) / point_id
-        )
+        point_root = self._session_path(task, session_id) / point_id
         point_root.mkdir(parents=True, exist_ok=True)
-
-        # Executor indexes captures from zero; evidence names are human-facing 1-based.
-        ordinal = capture_index + 1
-        stem = f"capture_{ordinal:04d}"
+        stem = f"capture_{capture_index:04d}"
 
         image_path = ""
         image_bytes = bytes(getattr(capture, "image_bytes", b"") or b"")
@@ -115,28 +101,22 @@ class EvidenceWriter:
                 "map_id": task.map_binding.map_id,
                 "map_version_id": task.map_binding.map_version_id,
                 "point_id": point.id,
-                "capture_index": ordinal,
+                "capture_index": capture_index,
                 "request_id": request_id,
                 "camera_id": point.camera.camera_id,
                 "vision_task_id": point.vision.task_id,
                 "model_profile": point.vision.model_profile,
-                "capture_image_uri": str(
-                    getattr(capture, "image_uri", "") or ""
-                ),
+                "capture_image_uri": str(getattr(capture, "image_uri", "") or ""),
                 "capture_image_path": image_path,
                 "model_id": str(getattr(vision, "model_id", "") or ""),
-                "model_version": str(
-                    getattr(vision, "model_version", "") or ""
-                ),
+                "model_version": str(getattr(vision, "model_version", "") or ""),
                 "inference_time_ms": float(
                     getattr(vision, "inference_time_ms", 0.0) or 0.0
                 ),
                 "primary_confidence": float(
                     getattr(vision, "primary_confidence", 0.0) or 0.0
                 ),
-                "result_json": str(
-                    getattr(vision, "result_json", "") or ""
-                ),
+                "result_json": str(getattr(vision, "result_json", "") or ""),
                 "message": str(getattr(vision, "message", "") or ""),
             },
         )
@@ -146,6 +126,7 @@ class EvidenceWriter:
         self,
         task: InspectionTask,
         session_id: str,
+        *,
         success: bool,
         error_code: int,
         message: str,
@@ -165,11 +146,7 @@ class EvidenceWriter:
             }
         value.update(
             {
-                "state": (
-                    "CANCELED"
-                    if canceled
-                    else ("SUCCEEDED" if success else "FAILED")
-                ),
+                "state": "CANCELED" if canceled else ("SUCCEEDED" if success else "FAILED"),
                 "success": bool(success),
                 "canceled": bool(canceled),
                 "error_code": int(error_code),
@@ -177,8 +154,6 @@ class EvidenceWriter:
             }
         )
         _atomic_json(session_file, value)
-        if self._active_session_id == session_id:
-            self._active_session_id = None
 
 
 RuntimeEvidenceWriter = EvidenceWriter
