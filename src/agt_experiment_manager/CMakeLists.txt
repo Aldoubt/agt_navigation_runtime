@@ -18,6 +18,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_experiment_manager_node test/test_experiment_manager_node.py
   )
+  ament_add_pytest_test(
+    test_calibration_bag_profile test/test_calibration_bag_profile.py
+  )
 endif()
 
 ament_package()
