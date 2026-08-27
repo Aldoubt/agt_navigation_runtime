@@ -15,6 +15,15 @@ def generate_launch_description():
     safety_share = Path(get_package_share_directory("agt_safety"))
 
     use_sim_time = LaunchConfiguration("use_sim_time")
+    driver_command_topic = PythonExpression(
+        [
+            "'",
+            LaunchConfiguration("operation_mode"),
+            "' == 'control' and '",
+            LaunchConfiguration("command_topic"),
+            "' or '/agt/chassis/monitor_only_cmd_vel_disabled'",
+        ]
+    )
     return LaunchDescription(
         [
             DeclareLaunchArgument("use_sim_time", default_value="false"),
@@ -110,7 +119,7 @@ def generate_launch_description():
                     }
                 ],
                 remappings=[
-                    ("/cmd_vel", LaunchConfiguration("command_topic")),
+                    ("/cmd_vel", driver_command_topic),
                     ("/bunker_status", "/agt/chassis/status/raw"),
                     ("/bunker_rc_state", "/agt/chassis/rc_state"),
                 ],
