@@ -56,6 +56,17 @@ def test_required_topic_with_zero_messages_is_rejected():
     assert result["empty_topics"] == ["/agt/mapping/odometry"]
 
 
+def test_missing_command_topic_is_valid_for_command_inert_monitor_capture():
+    counts = {
+        topic: 1
+        for topic in REQUIRED
+        if topic != "/agt/navigation/cmd_vel"
+    }
+    result = validator.validate_metadata(_metadata(counts))
+    assert result["accepted"] is True
+    assert "/agt/navigation/cmd_vel" not in result["missing_topics"]
+
+
 def test_missing_gnss_is_optional_by_default_and_required_on_request():
     metadata = _metadata({topic: 1 for topic in REQUIRED})
     assert validator.validate_metadata(metadata)["accepted"] is True
