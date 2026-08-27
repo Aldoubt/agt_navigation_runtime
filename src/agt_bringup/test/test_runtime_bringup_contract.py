@@ -79,7 +79,28 @@ def test_system_launch_composes_only_runtime_packages_and_is_motion_safe_by_defa
     assert 'DeclareLaunchArgument("start_navigation", default_value="false")' in source
     assert 'DeclareLaunchArgument("start_chassis", default_value="false")' in source
     assert '"publish_driver_odom_tf": "false"' in source
+    assert 'package="agt_bringup"' in source
+    assert 'executable="localization_navigation_gate.py"' in source
     assert "agt_navigation_v2" not in source
+
+
+def test_navigation_package_does_not_depend_back_on_bringup():
+    navigation_launch = (
+        ROOT / "src" / "agt_navigation" / "launch" / "navigation.launch.py"
+    ).read_text(encoding="utf-8")
+    navigation_manifest = (
+        ROOT / "src" / "agt_navigation" / "package.xml"
+    ).read_text(encoding="utf-8")
+    assert 'package="agt_bringup"' not in navigation_launch
+    assert "<exec_depend>agt_bringup</exec_depend>" not in navigation_manifest
+
+
+def test_bringup_installs_gate_with_executable_permissions_under_symlink_builds():
+    cmake = (PACKAGE / "CMakeLists.txt").read_text(encoding="utf-8")
+    assert "AGT_BRINGUP_GENERATED_SCRIPT_DIR" in cmake
+    assert "OWNER_EXECUTE" in cmake
+    assert "GROUP_EXECUTE" in cmake
+    assert "WORLD_EXECUTE" in cmake
 
 
 def test_navigation_requires_localization_in_p0_launch_contract():
