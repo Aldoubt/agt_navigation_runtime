@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 import json
 import math
 from pathlib import Path
@@ -38,6 +39,10 @@ def _yaw_from_quaternion(quaternion) -> float:
     return math.atan2(siny_cosp, cosy_cosp)
 
 
+def _stamp_ns(stamp) -> int:
+    return int(stamp.sec) * 1_000_000_000 + int(stamp.nanosec)
+
+
 class RosViewContextProvider:
     """Capture-time map pose + gimbal/camera calibration context for evidence."""
 
@@ -57,7 +62,7 @@ class RosViewContextProvider:
         self._camera_calibration_id = str(camera_calibration_id)
         self._camera_calibration_sha256 = str(camera_calibration_sha256)
         self._localization_timeout_s = max(float(localization_timeout_s), 0.1)
-        self._localization = None
+        self._history = deque(maxlen=200)
         self._localization_seen = float("-inf")
         self._subscription = node.create_subscription(
             LocalizationStatus,
@@ -68,32 +73,49 @@ class RosViewContextProvider:
         )
 
     def _localization_callback(self, message: LocalizationStatus) -> None:
-        self._localization = message
+        stamp = message.global_pose.header.stamp
+        if _stamp_ns(stamp) == 0:
+            stamp = message.header.stamp
+        self._history.append((_stamp_ns(stamp), message))
         self._localization_seen = time.monotonic()
 
-    def _accepted_localization(self):
-        message = self._localization
-        fresh = time.monotonic() - self._localization_seen <= self._localization_timeout_s
-        if not (
-            fresh
-            and message is not None
-            and message.state == LocalizationStatus.STATE_TRACKING
+    @staticmethod
+    def _accepted(message: LocalizationStatus) -> bool:
+        return bool(
+            message.state == LocalizationStatus.STATE_TRACKING
             and message.pose_valid
             and message.localization_accepted
             and message.error_code == LocalizationStatus.ERROR_NONE
             and not message.status_stale
-        ):
-            raise ValueError("capture-time accepted localization pose is unavailable or stale")
+        )
+
+    def _accepted_localization(self, capture_stamp):
+        if time.monotonic() - self._localization_seen > self._localization_timeout_s:
+            raise ValueError("capture-time localization stream is stale")
+        capture_ns = _stamp_ns(capture_stamp)
+        candidates = [item for item in self._history if self._accepted(item[1])]
+        if not candidates:
+            raise ValueError("capture-time accepted localization pose is unavailable")
+        stamp_ns, message = min(candidates, key=lambda item: abs(item[0] - capture_ns))
+        if capture_ns > 0 and stamp_ns > 0:
+            delta_s = abs(stamp_ns - capture_ns) * 1.0e-9
+            if delta_s > self._localization_timeout_s:
+                raise ValueError(
+                    "nearest accepted localization pose is too far from capture timestamp"
+                )
         return message
 
     def snapshot(self, task, point, view, request_id: str) -> Mapping[str, Any]:
-        localization = self._accepted_localization()
-        pose_message = localization.global_pose
-        pose = pose_message.pose.pose
-        covariance = list(pose_message.pose.covariance)
         stamp = self._camera_runner.capture_stamp(request_id)
         if stamp is None:
             stamp = self._node.get_clock().now().to_msg()
+        localization = self._accepted_localization(stamp)
+        if localization.map_id and localization.map_id != task.map_binding.map_id:
+            raise ValueError("capture-time localization map does not match inspection map")
+
+        pose_message = localization.global_pose
+        pose = pose_message.pose.pose
+        covariance = list(pose_message.pose.covariance)
 
         gimbal = self._gimbal_runner.last_feedback()
         if gimbal is None:
@@ -179,7 +201,8 @@ class RosViewAggregatorRunner:
 
         pose = dict(value.get("robot_pose_map", {}))
         message.robot_pose_map.header.frame_id = str(pose.get("frame_id", "map"))
-        message.robot_pose_map.header.stamp = message.capture_stamp
+        message.robot_pose_map.header.stamp.sec = sec
+        message.robot_pose_map.header.stamp.nanosec = nanosec
         message.robot_pose_map.pose.pose.position.x = float(pose.get("x", 0.0))
         message.robot_pose_map.pose.pose.position.y = float(pose.get("y", 0.0))
         message.robot_pose_map.pose.pose.position.z = float(pose.get("z", 0.0))
@@ -194,7 +217,8 @@ class RosViewAggregatorRunner:
         if message.camera_pose_valid:
             camera_pose = dict(value.get("camera_pose_map", {}))
             message.camera_pose_map.header.frame_id = str(camera_pose.get("frame_id", "map"))
-            message.camera_pose_map.header.stamp = message.capture_stamp
+            message.camera_pose_map.header.stamp.sec = sec
+            message.camera_pose_map.header.stamp.nanosec = nanosec
             message.camera_pose_map.pose.position.x = float(camera_pose.get("x", 0.0))
             message.camera_pose_map.pose.position.y = float(camera_pose.get("y", 0.0))
             message.camera_pose_map.pose.position.z = float(camera_pose.get("z", 0.0))
