@@ -1,0 +1,24 @@
+# Run one model-specific inspection over one captured image.
+string request_id
+string task_id
+string model_profile
+string camera_id
+sensor_msgs/Image image
+string metadata_json
+---
+uint16 ERROR_NONE=0
+uint16 ERROR_INVALID_REQUEST=1
+uint16 ERROR_MODEL_UNAVAILABLE=2
+uint16 ERROR_INFERENCE_FAILED=3
+uint16 ERROR_CANCELED=4
+bool success
+uint16 error_code
+string model_id
+string model_version
+float64 inference_time_ms
+float64 primary_confidence
+string result_json
+string message
+---
+string stage
+float32 progress
