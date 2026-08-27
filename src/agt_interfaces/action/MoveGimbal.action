@@ -1,0 +1,20 @@
+# Move a gimbal to one desired pan/tilt orientation.
+string request_id
+float64 pan_rad
+float64 tilt_rad
+float64 timeout_s
+---
+uint16 ERROR_NONE=0
+uint16 ERROR_INVALID_REQUEST=1
+uint16 ERROR_TIMEOUT=2
+uint16 ERROR_HARDWARE=3
+uint16 ERROR_CANCELED=4
+bool success
+uint16 error_code
+float64 final_pan_rad
+float64 final_tilt_rad
+string message
+---
+string state
+float64 current_pan_rad
+float64 current_tilt_rad
