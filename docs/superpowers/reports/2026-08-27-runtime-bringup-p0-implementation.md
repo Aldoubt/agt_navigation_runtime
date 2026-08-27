@@ -7,11 +7,11 @@ Spec: `docs/superpowers/specs/2026-08-27-bunker-rtabmap-slope-nav-design.md`
 
 ## Status
 
-**CODE_LANDED / LOCAL_VERIFICATION_ROUND_2_REQUIRED**
+**CODE_LANDED / LOCAL_VERIFICATION_ROUND_3_REQUIRED**
 
-P0 production code, contract tests, and operator documentation are on the feature branch. A first real ROS 2 Humble verification run was executed on the Runtime machine and exposed two independent blockers: three P0 contract-test defects and a missing external BehaviorTree.CPP dependency. The P0 test defects have been corrected in the branch; the build dependency must be installed/resolved locally before the clean build can be repeated.
+P0 production code, contract tests, and operator documentation are on the feature branch. Verification round two completed a full 24-package Runtime build and the focused `agt_bringup` pytest suite passed 13/13. The remaining package-test failure was traced to an `agt_localization` CTest that incorrectly required a machine-local file under the gitignored `runtime/` directory. That package-test defect has now been corrected in the branch.
 
-P0 is not DONE until the round-two commands below complete successfully.
+P0 is not DONE until the round-three package tests and launch safety gates below have fresh passing evidence.
 
 ## Implemented boundary
 
@@ -26,6 +26,7 @@ P0 is not DONE until the round-two commands below complete successfully.
 - Removed the remaining V2 workspace source hint from the real-bag validation script.
 - Added source-tree contract coverage preventing V2 install/source hints from re-entering Runtime source.
 - Added dependency-bootstrap guidance to the root README.
+- Removed package-test dependence on ignored `runtime/localization_validation/...` assets; real-data asset validation remains in the real-bag validation path.
 
 ## Verification round 1 findings
 
@@ -44,17 +45,61 @@ Correction:
 - Forbidden path strings are now assembled at runtime so the scanner can validate the source tree without containing its own forbidden literal.
 - The launch contract now checks the actual required-file registration and generic fail-closed error path rather than a compile-time string that does not exist in the implementation.
 
-### Full Runtime build
+### Initial Runtime build blocker
 
-The first failing build package was `agt_bt_executor`:
+The first failing build package was `agt_bt_executor` because the ROS 2 Humble BehaviorTree.CPP package was missing or not resolvable. The package manifest already declares `<depend>behaviortree_cpp</depend>`.
+
+The Runtime machine later installed `ros-humble-behaviortree-cpp`. Its shared library is installed at:
 
 ```text
-find_package(behaviortree_cpp REQUIRED)
+/opt/ros/humble/lib/x86_64-linux-gnu/libbehaviortree_cpp.so
 ```
 
-could not resolve `behaviortree_cppConfig.cmake`. The package manifest already declares `<depend>behaviortree_cpp</depend>`, so this is an environment/bootstrap dependency rather than a P0 bringup-code dependency. On ROS 2 Humble the matching binary dependency is `ros-humble-behaviortree-cpp` (BehaviorTree.CPP v4 package).
+A local compatibility link was used so the exported Humble CMake metadata could resolve the library. Verification round two then completed the full workspace build.
 
-Because `agt_bt_executor` failed first, downstream packages were aborted and `agt_bringup` was never installed. The later `Package 'agt_bringup' not found` and `Has this package been built before?` errors are therefore secondary evidence, not separate root causes.
+## Verification round 2 findings
+
+### Full Runtime build
+
+Observed result:
+
+```text
+Summary: 24 packages finished
+```
+
+Only developer/warning stderr remained from existing third-party packages; there was no package build failure in this round.
+
+### Focused P0 tests
+
+Observed result:
+
+```text
+13 passed
+```
+
+The Runtime `agt_bringup` package was installed and `ros2 pkg executables agt_bringup` exposed `localization_navigation_gate.py`. `ros2 launch agt_bringup system.launch.py --show-args` also parsed successfully and showed the intended motion-safe defaults.
+
+### Remaining package-test failure
+
+`agt_localization` reported one failed CTest:
+
+```text
+test_processing_record_is_ready_and_hash_bound
+```
+
+The failing test tried to read:
+
+```text
+runtime/localization_validation/handheld_20260719/processing_record.yaml
+```
+
+but repository `.gitignore` intentionally excludes all of `runtime/`. Therefore a clean clone cannot guarantee this file exists, and a normal package CTest must not require it.
+
+Correction:
+
+- Replaced the machine-local asset assertion with a contract assertion that the real-bag validation preflight enforces `state == ready`, matching `map_id`, exact PCD SHA-256 binding, and candidate map identity.
+- Added a guard asserting this package contract does not re-introduce a dependency on `runtime/localization_validation`.
+- Real handheld PCD/processing-record validation remains a real-data acceptance responsibility, not a source package unit-test prerequisite.
 
 ## Review rulings
 
@@ -74,9 +119,13 @@ GitHub content writes may store Python sources as mode `0644`. `agt_bringup/CMak
 
 `agt_bringup/system.launch.py` forces FAST-LIVO2 `save_pcd=false`. Direct FAST-LIVO2 PCD saving is a commissioning/debug path only. Versioned READY map/semantic/task asset production remains outside Runtime.
 
-## Local verification round 2
+### Source tests versus real-data acceptance
 
-Run from a clean shell in `agt_navigation_runtime` on ROS 2 Humble. Do **not** source V2 first.
+Package CTests must be reproducible from a clean repository plus declared dependencies. Files below gitignored `runtime/` are execution/validation artifacts and may be required by explicit real-data validation commands, but they cannot be unconditional package-test inputs.
+
+## Local verification round 3
+
+The full build already passed in round two. Pull the test correction and rerun only the affected package tests first:
 
 ```bash
 cd ~/agt_navigation_runtime
@@ -84,29 +133,24 @@ git checkout feat/bunker-rtabmap-slope-nav
 git pull
 
 source /opt/ros/humble/setup.bash
-rosdep update
-rosdep install --from-paths src third_party --ignore-src -r -y
-
-# If rosdep still reports behaviortree_cpp unresolved:
-sudo apt update
-sudo apt install ros-humble-behaviortree-cpp
-
-rm -rf build install log
-colcon build --symlink-install
 source install/setup.bash
-
-python3 -m pytest src/agt_bringup/test -q
 
 colcon test --packages-select \
   agt_bringup agt_navigation agt_mapping \
   agt_localization agt_safety agt_chassis
 colcon test-result --verbose
-
-ros2 pkg executables agt_bringup | grep localization_navigation_gate.py
-ros2 launch agt_bringup system.launch.py --show-args
 ```
 
-Then perform the hardware-free safe-default parse:
+If the previous `install/` was removed or the branch update changes build inputs in a way that invalidates the workspace, rebuild first:
+
+```bash
+rm -rf build install log
+source /opt/ros/humble/setup.bash
+colcon build --symlink-install
+source install/setup.bash
+```
+
+Then perform the hardware-free safe-default launch:
 
 ```bash
 ros2 launch agt_bringup system.launch.py \
@@ -119,7 +163,7 @@ ros2 launch agt_bringup system.launch.py \
   start_chassis:=false
 ```
 
-The following nodes must not be present in that mode:
+While it is running, these nodes must not appear:
 
 ```text
 agt_bunker_base
@@ -133,8 +177,13 @@ Finally verify fail-closed composition:
 
 ```bash
 ros2 launch agt_bringup system.launch.py \
+  start_sensor:=false \
+  start_sensor_monitor:=false \
+  start_odometry:=false \
+  start_perception:=false \
   start_navigation:=true \
-  start_localization:=false
+  start_localization:=false \
+  start_chassis:=false
 ```
 
 Expected launch error:
@@ -145,4 +194,4 @@ navigation requires start_localization:=true
 
 ## P0 exit condition
 
-Do not mark P0 DONE until the clean Runtime build, focused tests, package tests, safe-default launch, and illegal-navigation rejection above all have fresh passing evidence.
+Do not mark P0 DONE until the corrected package tests, safe-default launch, and illegal-navigation rejection above all have fresh passing evidence.
