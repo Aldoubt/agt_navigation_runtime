@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>agt_bringup</name>
+  <version>0.1.0</version>
+  <description>Runtime-only system composition and Nav2 localization gating.</description>
+  <maintainer email="yangxuan@example.com">yangxuan</maintainer>
+  <license>Apache-2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>agt_chassis</exec_depend>
+  <exec_depend>agt_description</exec_depend>
+  <exec_depend>agt_interfaces</exec_depend>
+  <exec_depend>agt_localization</exec_depend>
+  <exec_depend>agt_mapping</exec_depend>
+  <exec_depend>agt_navigation</exec_depend>
+  <exec_depend>agt_perception</exec_depend>
+  <exec_depend>agt_safety</exec_depend>
+  <exec_depend>agt_sensor_adapters</exec_depend>
+  <exec_depend>agt_sensor_monitor</exec_depend>
+  <exec_depend>nav2_msgs</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
