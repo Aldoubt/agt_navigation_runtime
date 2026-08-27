@@ -11,6 +11,7 @@ install(PROGRAMS
   scripts/mock_gimbal_server.py
   scripts/mock_camera_server.py
   scripts/mock_vision_server.py
+  scripts/mock_view_aggregator_server.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -25,6 +26,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_inspection_execution test/test_execution.py)
   ament_add_pytest_test(test_inspection_ros_contract test/test_ros_contract.py)
   ament_add_pytest_test(test_multiview_evidence test/test_multiview_evidence.py)
+  ament_add_pytest_test(test_multiview_ros_contract test/test_multiview_ros_contract.py)
 endif()
 
 ament_package()
