@@ -57,9 +57,9 @@ agt_navigation_runtime
 
 ## Current Status
 
-Current milestone: **V3-00 Runtime Extraction Baseline**
+Current milestone: **V3 Runtime Bringup Integration**
 
-The extracted ROS 2 Humble workspace has completed an independent local build with 23 packages finished successfully
+The extracted ROS 2 Humble workspace previously completed an independent local build with 23 packages. The current BUNKER runtime branch adds the Runtime-owned `agt_bringup` package; that package must pass the P0 independent-build gate before this branch is treated as runtime-validated.
 
 Current migrated runtime capabilities include
 
@@ -74,11 +74,13 @@ Current migrated runtime capabilities include
 - BehaviorTree capability layer
 - Mission manager
 - Experiment manager
+- Runtime-owned unified bringup
 
 ## Current Runtime Packages
 
 ```text
 src/
+├── agt_bringup
 ├── agt_bt_executor
 ├── agt_chassis
 ├── agt_description
@@ -136,6 +138,32 @@ source install/setup.bash
 ```
 
 A valid V3 workspace must build without sourcing `agt_navigation_v2/install/setup.bash`
+
+## Unified Runtime Bringup
+
+P0 introduces a Runtime-owned system entry point. The safe default starts no Nav2,
+localization, or chassis driver:
+
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 launch agt_bringup system.launch.py platform:=bunker
+```
+
+For real navigation, provide the READY map/PCD inputs explicitly and enable each layer:
+
+```bash
+ros2 launch agt_bringup system.launch.py \
+  platform:=bunker \
+  start_localization:=true \
+  start_navigation:=true \
+  navigation_map:=/absolute/path/to/site.yaml \
+  global_map_pcd:=/absolute/path/to/localization_map.pcd \
+  global_map_processing_record:=/absolute/path/to/localization_map.processing.yaml
+```
+
+`start_chassis:=true` is a separate explicit action and does not bypass `agt_safety`.
+The outer Runtime launch fixes the BUNKER driver's `publish_driver_odom_tf` to `false`, so FAST-LIVO2 remains the only `odom -> base_footprint` publisher.
 
 ## Core Design Rule
 
