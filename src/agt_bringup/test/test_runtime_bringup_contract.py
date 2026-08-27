@@ -88,3 +88,18 @@ def test_navigation_requires_localization_in_p0_launch_contract():
     assert "navigation_map must be a file" in source
     assert "global_map_pcd must be a file" in source
     assert "global_map_processing_record must be a file" in source
+
+
+def test_root_readme_declares_runtime_bringup_and_no_v2_overlay_requirement():
+    root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "agt_bringup" in root_readme
+    assert "ros2 launch agt_bringup system.launch.py" in root_readme
+    assert "must build without sourcing `agt_navigation_v2/install/setup.bash`" in root_readme
+
+
+def test_mapping_readme_uses_runtime_bringup_as_runtime_owner():
+    mapping_readme = (ROOT / "src" / "agt_mapping" / "README.md").read_text(
+        encoding="utf-8"
+    )
+    assert "ros2 launch agt_bringup system.launch.py" in mapping_readme
+    assert "V2.5 默认" not in mapping_readme
