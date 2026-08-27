@@ -79,6 +79,8 @@ def test_system_launch_composes_only_runtime_packages_and_is_motion_safe_by_defa
     assert 'DeclareLaunchArgument("start_navigation", default_value="false")' in source
     assert 'DeclareLaunchArgument("start_chassis", default_value="false")' in source
     assert '"publish_driver_odom_tf": "false"' in source
+    assert '"autostart": "false"' in source
+    assert "navigation_autostart" not in source
     assert 'package="agt_bringup"' in source
     assert 'executable="localization_navigation_gate.py"' in source
     assert "agt_navigation_v2" not in source
