@@ -8,7 +8,7 @@ Spec: `docs/superpowers/specs/2026-08-27-bunker-rtabmap-slope-nav-design.md`
 ## Status
 
 ```text
-CODE_LANDED: pending
+CODE_LANDED: PASS
 LOCAL_BUILD: pending
 HARDWARE_TOPICS: pending
 TF_CONTRACT: pending
@@ -16,7 +16,7 @@ CALIBRATION_BAG: pending
 BAG_METADATA_GATE: pending
 ```
 
-Do not promote any local/hardware state to PASS without fresh evidence from the Runtime machine.
+`CODE_LANDED` means the P1/P2 implementation is present on the feature branch and has completed branch-level static review. It does not claim a ROS 2 build or hardware result. Do not promote any local/hardware state to PASS without fresh evidence from the Runtime machine.
 
 ## Implemented scope
 
@@ -49,7 +49,7 @@ The plan listed `/agt/navigation/cmd_vel` in the calibration recording profile a
 
 ### MID360 IMU frame naming
 
-The existing Livox launch supplies a single `frame_id=livox_frame` to the driver for both LiDAR and built-in IMU messages, while the robot description also exposes identity-linked `lidar_link` and `imu_link`. Hardware acceptance must record the actual message header and TF chain before a later phase promotes a different IMU frame convention. P1/P2 does not silently rewrite MID360 IMU measurements.
+The existing Livox launch supplies a single `frame_id=livox_frame` to the driver for both LiDAR and built-in IMU messages, while the robot description also exposes identity-linked `lidar_link` and `imu_link`. The BUNKER profile now records both the physical frame and `driver_frame: livox_frame`. Hardware acceptance must still record the actual message header and TF chain before a later phase promotes a different IMU frame convention. P1/P2 does not silently rewrite MID360 IMU measurements.
 
 ## Required local regression
 
