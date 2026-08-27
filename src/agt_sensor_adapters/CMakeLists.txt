@@ -35,12 +35,17 @@ ament_target_dependencies(livox_custom_self_filter
 )
 target_link_libraries(livox_custom_self_filter agt_sensor_filter_geometry)
 
+add_executable(navsat_fix_adapter src/navsat_fix_adapter.cpp)
+target_compile_features(navsat_fix_adapter PRIVATE cxx_std_17)
+target_include_directories(navsat_fix_adapter PRIVATE include)
+ament_target_dependencies(navsat_fix_adapter rclcpp sensor_msgs)
+
 install(TARGETS agt_sensor_filter_geometry
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
-install(TARGETS livox_custom_self_filter DESTINATION lib/${PROJECT_NAME})
+install(TARGETS livox_custom_self_filter navsat_fix_adapter DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY include/ DESTINATION include)
 
 install(DIRECTORY launch config
@@ -57,6 +62,10 @@ if(BUILD_TESTING)
   ament_add_gtest(test_urdf_self_filter_geometry test/test_urdf_self_filter_geometry.cpp)
   ament_target_dependencies(test_urdf_self_filter_geometry urdf)
   target_link_libraries(test_urdf_self_filter_geometry agt_sensor_filter_geometry)
+
+  ament_add_gtest(test_navsat_fix_adapter_core test/test_navsat_fix_adapter_core.cpp)
+  target_include_directories(test_navsat_fix_adapter_core PRIVATE include)
+  ament_target_dependencies(test_navsat_fix_adapter_core sensor_msgs)
 endif()
 
 ament_package()
