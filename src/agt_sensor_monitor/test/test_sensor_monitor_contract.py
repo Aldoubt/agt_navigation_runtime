@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -33,11 +35,22 @@ def test_node_only_publishes_diagnostics_supports_laserscan_and_has_strict_requi
     assert "<depend>livox_ros_driver2</depend>" not in package
 
 
-def test_bringup_and_readiness_contracts_consume_monitor_evidence():
+def test_bringup_and_safety_consume_monitor_evidence():
     bringup = (ROOT.parent / "agt_bringup" / "launch" / "system.launch.py").read_text()
-    health = (ROOT.parent / "agt_system_manager" / "config" / "health_contracts.yaml").read_text()
-    readiness = (ROOT.parent / "agt_system_manager" / "agt_system_manager" / "readiness.py").read_text()
+    safety_config = yaml.safe_load(
+        (ROOT.parent / "agt_safety" / "config" / "bunker_safety.yaml").read_text()
+    )["agt_tracked_safety_controller"]["ros__parameters"]
+    safety_controller = (
+        ROOT.parent / "agt_safety" / "scripts" / "tracked_safety_controller.py"
+    ).read_text()
+
     assert "start_sensor_monitor" in bringup
     assert "agt_sensor_monitor" in bringup
-    assert "component_id: sensor_input" in health
-    assert "SENSOR_INPUT_UNHEALTHY" in readiness
+
+    assert safety_config["require_sensor_input_ready"] is True
+    assert safety_config["sensor_diagnostics_topic"] == "/diagnostics"
+    assert safety_config["sensor_summary_name"] == "agt_sensor_monitor/summary"
+
+    assert "required_streams_healthy" in safety_controller
+    assert "sensor_summary_is_ready" in safety_controller
+    assert "sensor_input_unhealthy" in safety_controller
