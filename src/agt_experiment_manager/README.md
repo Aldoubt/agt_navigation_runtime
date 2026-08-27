@@ -6,24 +6,29 @@ and localization-result streams, explicit rosbag profiles, summary JSON and
 Markdown reports. A `RUNNING` session discovered after restart is marked
 `INTERRUPTED`; it is never silently completed.
 
-`bag_record.launch.py` remains the compatible entrypoint and selects
-`minimal`, `mapping`, `localization`, `navigation`, `teach_repeat`, or `full_experiment` from
-`config/bag_profiles.yaml`. The list is explicit and never uses `record -a`.
+`experiment_manager_node.py` is the sole Runtime owner of record/playback processes. It loads
+explicit profiles from `config/bag_profiles.yaml`; recording never uses `ros2 bag record -a`.
+The service boundary is `/agt/data/bags/manage`, with `/agt/data/bags/list` for discovery and the
+reliable transient-local `/agt/data/bags/status` for current state. The same service creates,
+starts, completes, interrupts, and invalidates experiments and snapshots mission, map, platform,
+calibration, and Nav2 bindings.
 
-`experiment_manager_node.py` is the sole runtime owner of record/playback processes. It exposes
-`/agt/data/bags/list`, `/agt/data/bags/manage`, and the reliable transient-local
-`/agt/data/bags/status`. The service also creates/completes/interrupts experiments and snapshots
-mission, map, platform, calibration, and Nav2 bindings. Unexpected recorder/player exits publish
-`ERROR`; restart recovery marks a persisted `RUNNING` experiment `INTERRUPTED`.
+The `calibration` profile is the P1/P2 BUNKER wheel/LIO capture contract. It explicitly requests
+TF, MID360, IMU, wheel odometry, chassis status, FAST-LIVO2 odometry/registered cloud, the project
+navigation command topic, diagnostics, and optional canonical GNSS. A command-inert monitor-mode
+capture may legitimately contain zero `/agt/navigation/cmd_vel` messages; the offline calibration
+metadata gate therefore requires sensor/odom/TF/status evidence to be non-empty while treating
+command and GNSS evidence as optional unless GNSS is explicitly required.
 
-The managed mapping Action automatically creates an experiment and starts the explicit `mapping`
-profile through this service. The launch recorder remains only for legacy direct-launch callers.
+Unexpected recorder/player exits publish `ERROR`; restart recovery marks a persisted `RUNNING`
+experiment `INTERRUPTED`. A managed mapping Action may create an experiment and start an explicit
+profile through the same service, but no second recorder ownership boundary is introduced.
 
 `record_teach_repeat_result()` attaches one demo/run result with teach manifest,
 path/map hashes, repeatability metrics, localization summary, execution result,
 repository snapshot, and config snapshot references. `record_failure_case()`
 appends an fsynced failure-case JSONL record. Both require an existing RUNNING
-experiment and do not create a second experiment ownership boundary.
+experiment.
 
 职责：合并实验配置、生成有效参数快照、记录版本和实验产物。
 
