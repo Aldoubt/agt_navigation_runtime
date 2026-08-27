@@ -6,11 +6,24 @@ find_package(ament_cmake_python REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
 
+install(PROGRAMS
+  scripts/inspection_task_server.py
+  scripts/mock_gimbal_server.py
+  scripts/mock_camera_server.py
+  scripts/mock_vision_server.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_inspection_schema test/test_schema.py)
   ament_add_pytest_test(test_inspection_repository test/test_repository.py)
   ament_add_pytest_test(test_inspection_execution test/test_execution.py)
+  ament_add_pytest_test(test_inspection_ros_contract test/test_ros_contract.py)
 endif()
 
 ament_package()
