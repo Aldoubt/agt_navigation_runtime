@@ -1,6 +1,6 @@
 # Inspection Multi-View / Evidence v1 Implementation Report
 
-Status: **CODE_LANDED / LOCAL_VERIFICATION_REQUIRED**
+Status: **CODE_LANDED / LOCAL_VERIFICATION_RERUN_REQUIRED**
 
 Branch: `feat/inspection-multiview-evidence`
 
@@ -26,6 +26,16 @@ Branch: `feat/inspection-multiview-evidence`
 - Static/pure-Python regression contracts added for interfaces, evidence layout and mock ROS boundary.
 - Interface/evidence design frozen in `docs/interfaces/inspection-multiview-v1.md`.
 
+## Verification round 1 findings
+
+The Runtime machine successfully built `agt_interfaces` and `agt_inspection`, and `ros2 interface show` expanded both new multi-view interfaces. Two failures were traced to verification/test-contract defects rather than production interface generation:
+
+1. The first direct source pytest was run before `agt_inspection` had been built and sourced, so Python could not import the package. Verification order is now build -> source -> pytest.
+2. `test_ros_contract.py` scanned its own test sources for forbidden navigation tokens, so the literal `nav2_msgs` assertion self-matched. The scan is now restricted to production package/scripts.
+3. The same contract test required the exact XML tag `<exec_depend>`, although ROS package `<depend>` also satisfies runtime dependency semantics. The contract now accepts either valid declaration.
+
+These fixes require a fresh local rerun before this milestone can be marked DONE.
+
 ## Deliberately not changed in this round
 
 The existing inspection task schema/executor still represents one gimbal pose plus captures. It is not silently reinterpreted as a true multi-view route. A later task must explicitly add a versioned `views[]` inspection-point schema and then invoke `AggregateInspectionViews` after all Level-1 views for that point have been persisted.
@@ -34,21 +44,34 @@ This separation keeps the already-tested I0-I6 single-view execution path stable
 
 ## Required local verification
 
+Use a fresh shell and build/source before package-importing pytest:
+
 ```bash
+cd ~/agt_navigation_runtime
+git checkout feat/inspection-multiview-evidence
+git pull
+
 source /opt/ros/humble/setup.bash
+
+colcon build --packages-select agt_interfaces agt_inspection --symlink-install
+source install/setup.bash
 
 python3 -m pytest \
   src/agt_interfaces/test/test_multiview_interfaces.py \
   src/agt_inspection/test/test_multiview_evidence.py \
-  src/agt_inspection/test/test_multiview_ros_contract.py -q
+  src/agt_inspection/test/test_multiview_ros_contract.py \
+  src/agt_inspection/test/test_ros_contract.py -q
 
-colcon build --packages-select agt_interfaces agt_inspection --symlink-install
-source install/setup.bash
 colcon test --packages-select agt_interfaces agt_inspection
 colcon test-result --verbose
 
 ros2 interface show agt_interfaces/msg/InspectionViewObservation
 ros2 interface show agt_interfaces/action/AggregateInspectionViews
+```
+
+Optional mock server smoke test:
+
+```bash
 ros2 run agt_inspection mock_view_aggregator_server.py
 ```
 
