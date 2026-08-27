@@ -6,6 +6,15 @@ ROOT = Path(__file__).resolve().parents[3]
 PACKAGE = ROOT / "src" / "agt_bringup"
 
 
+def _forbidden_runtime_paths():
+    v2_root = "agt_navigation_v2"
+    return (
+        v2_root + "/install",
+        v2_root + "/src",
+        "/home/" + "yangxuan",
+    )
+
+
 def test_runtime_bringup_package_exists_and_is_runtime_only():
     package_xml = PACKAGE / "package.xml"
     assert package_xml.is_file()
@@ -45,11 +54,7 @@ def test_runtime_bringup_package_exists_and_is_runtime_only():
 
 
 def test_runtime_bringup_sources_do_not_reference_v2_workspace():
-    forbidden_tokens = (
-        "agt_navigation_v2/install",
-        "agt_navigation_v2/src",
-        "/home/yangxuan",
-    )
+    forbidden_tokens = _forbidden_runtime_paths()
     for path in PACKAGE.rglob("*"):
         if not path.is_file() or path.suffix not in {".py", ".xml", ".txt", ".md"}:
             continue
@@ -59,10 +64,7 @@ def test_runtime_bringup_sources_do_not_reference_v2_workspace():
 
 
 def test_runtime_source_tree_has_no_v2_workspace_dependency_hints():
-    forbidden_tokens = (
-        "agt_navigation_v2/install",
-        "agt_navigation_v2/src",
-    )
+    forbidden_tokens = _forbidden_runtime_paths()[:2]
     runtime_src = ROOT / "src"
     for path in runtime_src.rglob("*"):
         if not path.is_file() or path.suffix not in {
@@ -130,16 +132,17 @@ def test_bringup_installs_gate_with_executable_permissions_under_symlink_builds(
 def test_navigation_requires_localization_in_p0_launch_contract():
     source = (PACKAGE / "launch" / "system.launch.py").read_text(encoding="utf-8")
     assert "navigation requires start_localization:=true" in source
-    assert "navigation_map must be a file" in source
-    assert "global_map_pcd must be a file" in source
-    assert "global_map_processing_record must be a file" in source
+    assert 'required_files.append("navigation_map")' in source
+    assert '"global_map_pcd", "global_map_processing_record"' in source
+    assert 'raise RuntimeError(f"{name} must be a file: {path}")' in source
 
 
 def test_root_readme_declares_runtime_bringup_and_no_v2_overlay_requirement():
     root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "agt_bringup" in root_readme
     assert "ros2 launch agt_bringup system.launch.py" in root_readme
-    assert "must build without sourcing `agt_navigation_v2/install/setup.bash`" in root_readme
+    v2_install_setup = "agt_navigation_v2" + "/install/setup.bash"
+    assert f"must build without sourcing `{v2_install_setup}`" in root_readme
 
 
 def test_mapping_readme_uses_runtime_bringup_as_runtime_owner():
