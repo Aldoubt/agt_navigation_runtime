@@ -7,11 +7,11 @@ Spec: `docs/superpowers/specs/2026-08-27-bunker-rtabmap-slope-nav-design.md`
 
 ## Status
 
-**CODE_LANDED / LOCAL_VERIFICATION_ROUND_3_REQUIRED**
+**P0 USER-ACCEPTED / LOCAL GATES REPORTED PASSING**
 
-P0 production code, contract tests, and operator documentation are on the feature branch. Verification round two completed a full 24-package Runtime build and the focused `agt_bringup` pytest suite passed 13/13. The remaining package-test failure was traced to an `agt_localization` CTest that incorrectly required a machine-local file under the gitignored `runtime/` directory. That package-test defect has now been corrected in the branch.
+P0 production code, contract tests, and operator documentation are on the feature branch. The Runtime machine completed a full 24-package build during verification round two, the focused `agt_bringup` pytest suite passed 13/13, and the user reports that the corrected package tests plus the safe-default launch gate also passed in verification round three. The final fail-closed gate output was provided directly and rejected `start_navigation:=true` with `start_localization:=false` using the expected error `navigation requires start_localization:=true`.
 
-P0 is not DONE until the round-three package tests and launch safety gates below have fresh passing evidence.
+Evidence boundary: these ROS 2/colcon commands were executed on the user's Runtime machine, not inside the assistant execution environment. This report records local acceptance evidence without claiming independent assistant-side execution.
 
 ## Implemented boundary
 
@@ -42,8 +42,10 @@ Root causes:
 
 Correction:
 
-- Forbidden path strings are now assembled at runtime so the scanner can validate the source tree without containing its own forbidden literal.
-- The launch contract now checks the actual required-file registration and generic fail-closed error path rather than a compile-time string that does not exist in the implementation.
+- Forbidden path strings are assembled at runtime so the scanner can validate the source tree without containing its own forbidden literal.
+- The launch contract checks the actual required-file registration and generic fail-closed error path rather than a compile-time string that does not exist in the implementation.
+
+## Verification round 2 findings
 
 ### Initial Runtime build blocker
 
@@ -56,8 +58,6 @@ The Runtime machine later installed `ros-humble-behaviortree-cpp`. Its shared li
 ```
 
 A local compatibility link was used so the exported Humble CMake metadata could resolve the library. Verification round two then completed the full workspace build.
-
-## Verification round 2 findings
 
 ### Full Runtime build
 
@@ -77,23 +77,11 @@ Observed result:
 13 passed
 ```
 
-The Runtime `agt_bringup` package was installed and `ros2 pkg executables agt_bringup` exposed `localization_navigation_gate.py`. `ros2 launch agt_bringup system.launch.py --show-args` also parsed successfully and showed the intended motion-safe defaults.
+The Runtime `agt_bringup` package was installed and `ros2 pkg executables agt_bringup` exposed `localization_navigation_gate.py`. `ros2 launch agt_bringup system.launch.py --show-args` parsed successfully and showed the intended motion-safe defaults.
 
 ### Remaining package-test failure
 
-`agt_localization` reported one failed CTest:
-
-```text
-test_processing_record_is_ready_and_hash_bound
-```
-
-The failing test tried to read:
-
-```text
-runtime/localization_validation/handheld_20260719/processing_record.yaml
-```
-
-but repository `.gitignore` intentionally excludes all of `runtime/`. Therefore a clean clone cannot guarantee this file exists, and a normal package CTest must not require it.
+`agt_localization` initially reported one failed CTest because `test_processing_record_is_ready_and_hash_bound` tried to read a machine-local file under gitignored `runtime/localization_validation/...`.
 
 Correction:
 
@@ -101,79 +89,9 @@ Correction:
 - Added a guard asserting this package contract does not re-introduce a dependency on `runtime/localization_validation`.
 - Real handheld PCD/processing-record validation remains a real-data acceptance responsibility, not a source package unit-test prerequisite.
 
-## Review rulings
+## Verification round 3 findings
 
-### Gate ownership
-
-An initial implementation left `navigation.launch.py` starting a node from `agt_bringup`, while `agt_bringup` depends on `agt_navigation`. This created a hidden runtime package dependency cycle. The final design starts the localization gate only from `agt_bringup/system.launch.py`.
-
-### Nav2 lifecycle authority
-
-The Runtime system entry does not expose an autostart override. It passes `autostart=false` to `agt_navigation/navigation.launch.py`; the localization gate issues STARTUP/PAUSE/RESUME/RESET. The standalone offline navigation launch remains allowed to use Nav2 autostart for its simulator-only path.
-
-### Script executable permissions
-
-GitHub content writes may store Python sources as mode `0644`. `agt_bringup/CMakeLists.txt` therefore follows the existing Runtime `agt_navigation` pattern: it copies the gate into the build tree with explicit executable permissions before installing it, including under `colcon --symlink-install`.
-
-### Runtime versus asset production
-
-`agt_bringup/system.launch.py` forces FAST-LIVO2 `save_pcd=false`. Direct FAST-LIVO2 PCD saving is a commissioning/debug path only. Versioned READY map/semantic/task asset production remains outside Runtime.
-
-### Source tests versus real-data acceptance
-
-Package CTests must be reproducible from a clean repository plus declared dependencies. Files below gitignored `runtime/` are execution/validation artifacts and may be required by explicit real-data validation commands, but they cannot be unconditional package-test inputs.
-
-## Local verification round 3
-
-The full build already passed in round two. Pull the test correction and rerun only the affected package tests first:
-
-```bash
-cd ~/agt_navigation_runtime
-git checkout feat/bunker-rtabmap-slope-nav
-git pull
-
-source /opt/ros/humble/setup.bash
-source install/setup.bash
-
-colcon test --packages-select \
-  agt_bringup agt_navigation agt_mapping \
-  agt_localization agt_safety agt_chassis
-colcon test-result --verbose
-```
-
-If the previous `install/` was removed or the branch update changes build inputs in a way that invalidates the workspace, rebuild first:
-
-```bash
-rm -rf build install log
-source /opt/ros/humble/setup.bash
-colcon build --symlink-install
-source install/setup.bash
-```
-
-Then perform the hardware-free safe-default launch:
-
-```bash
-ros2 launch agt_bringup system.launch.py \
-  start_sensor:=false \
-  start_sensor_monitor:=false \
-  start_odometry:=false \
-  start_perception:=false \
-  start_localization:=false \
-  start_navigation:=false \
-  start_chassis:=false
-```
-
-While it is running, these nodes must not appear:
-
-```text
-agt_bunker_base
-controller_server
-bt_navigator
-agt_relocalization
-agt_global_correction_manager
-```
-
-Finally verify fail-closed composition:
+The user reports that the corrected package tests and hardware-free safe-default launch completed successfully. The final illegal composition was provided directly:
 
 ```bash
 ros2 launch agt_bringup system.launch.py \
@@ -186,12 +104,32 @@ ros2 launch agt_bringup system.launch.py \
   start_chassis:=false
 ```
 
-Expected launch error:
+Observed fail-closed result:
 
 ```text
-navigation requires start_localization:=true
+[ERROR] [launch]: Caught exception in launch (see debug for traceback): navigation requires start_localization:=true
 ```
 
-## P0 exit condition
+This is the expected P0 lifecycle-authority rejection.
 
-Do not mark P0 DONE until the corrected package tests, safe-default launch, and illegal-navigation rejection above all have fresh passing evidence.
+## Review rulings
+
+### Gate ownership
+
+`agt_bringup/system.launch.py` is the owner of the localization-to-Nav2 lifecycle gate. `agt_navigation` does not depend back on `agt_bringup`.
+
+### Nav2 lifecycle authority
+
+The Runtime system entry passes `autostart=false` to `agt_navigation/navigation.launch.py`; the localization gate issues STARTUP/PAUSE/RESUME/RESET. The standalone offline navigation launch remains allowed to use Nav2 autostart for its simulator-only path.
+
+### Runtime versus asset production
+
+`agt_bringup/system.launch.py` forces FAST-LIVO2 `save_pcd=false`. Direct FAST-LIVO2 PCD saving is a commissioning/debug path only. Versioned READY map/semantic/task asset production remains outside Runtime.
+
+### Source tests versus real-data acceptance
+
+Package CTests must be reproducible from a clean repository plus declared dependencies. Files below gitignored `runtime/` are execution/validation artifacts and may be required by explicit real-data validation commands, but they cannot be unconditional package-test inputs.
+
+## P0 exit decision
+
+P0 is accepted from the user's Runtime-machine verification evidence. Subsequent work may proceed to the P1/P2 hardware-interface and calibration-capture scope while preserving all P0 safety and ownership constraints.
