@@ -1,86 +1,101 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 import json
 import os
 from pathlib import Path
 import tempfile
-from typing import Any
+from typing import Any, Mapping
 
-from .execution import CaptureResult, VisionResult
 from .model import InspectionPoint, InspectionTask
+from .schema import InspectionTaskError, SAFE_COMPONENT_RE
 
 
-def _atomic_json(path: Path, value: dict[str, Any]) -> None:
+def _safe_component(value: str, name: str) -> str:
+    if not isinstance(value, str) or not SAFE_COMPONENT_RE.fullmatch(value):
+        raise InspectionTaskError(f"{name} must be a portable identifier")
+    return value
+
+
+def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temporary = tempfile.mkstemp(prefix=path.name + ".", dir=str(path.parent))
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temporary_path = Path(temporary)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(value, stream, indent=2, ensure_ascii=False, sort_keys=True)
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        os.replace(temporary_path, path)
     finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+        if temporary_path.exists():
+            temporary_path.unlink()
 
 
-class RuntimeEvidenceWriter:
-    """Persist inspection evidence under one Runtime-owned root.
+class EvidenceWriter:
+    """Persist inspection evidence below one caller-owned inspection root.
 
-    Paths are derived only from already-validated portable ids supplied by the
-    inspection schema/repository; callers do not pass arbitrary evidence paths.
+    ``root`` is normally ``runtime/inspections``. All path components below it
+    come from already validated portable ids; no arbitrary output path is
+    accepted from an Action goal or model result.
     """
 
-    def __init__(self, runtime_root: str | Path = "runtime") -> None:
-        self._root = Path(runtime_root).expanduser().resolve() / "inspections"
-        self._session_root: Path | None = None
+    def __init__(self, root: str | Path = "runtime/inspections") -> None:
+        self.root = Path(root).expanduser().resolve()
+
+    def _session_path(self, task: InspectionTask, session_id: str) -> Path:
+        task_id = _safe_component(task.inspection_task_id, "inspection_task_id")
+        session = _safe_component(session_id, "session_id")
+        return self.root / task_id / session
 
     def start_session(self, task: InspectionTask, session_id: str) -> str:
-        if not session_id or "/" in session_id or "\\" in session_id or session_id in {".", ".."}:
-            raise ValueError("session_id must be one portable path component")
-        root = self._root / task.map_binding.map_id / task.inspection_task_id / session_id
-        root.mkdir(parents=True, exist_ok=False)
-        self._session_root = root
+        session_root = self._session_path(task, session_id)
+        session_root.mkdir(parents=True, exist_ok=False)
         _atomic_json(
-            root / "session.json",
+            session_root / "session.json",
             {
                 "schema_version": 1,
                 "session_id": session_id,
                 "inspection_task_id": task.inspection_task_id,
                 "task_revision": task.revision,
                 "content_sha256": task.content_sha256,
-                "map_id": task.map_binding.map_id,
-                "map_version_id": task.map_binding.map_version_id,
-                "map_manifest_sha256": task.map_binding.manifest_sha256,
+                "map_binding": asdict(task.map_binding),
                 "state": "RUNNING",
                 "success": False,
                 "error_code": 0,
-                "message": "",
+                "message": "inspection session running",
             },
         )
-        return str(root)
+        return str(session_root)
 
     def persist_capture(
         self,
         task: InspectionTask,
+        session_id: str,
         point: InspectionPoint,
         capture_index: int,
         request_id: str,
-        capture: CaptureResult,
-        vision: VisionResult,
-    ) -> None:
-        root = self._require_session()
-        point_root = root / point.id
+        capture,
+        vision,
+    ) -> str:
+        if capture_index <= 0:
+            raise ValueError("capture_index must be positive")
+        point_id = _safe_component(point.id, "point_id")
+        point_root = self._session_path(task, session_id) / point_id
         point_root.mkdir(parents=True, exist_ok=True)
-        stem = f"capture_{capture_index:03d}"
-        image_uri = capture.image_uri
-        if capture.image_payload:
-            image_path = point_root / f"{stem}.bin"
-            image_path.write_bytes(capture.image_payload)
-            image_uri = str(image_path)
+        stem = f"capture_{capture_index:04d}"
+
+        image_path = ""
+        image_bytes = bytes(getattr(capture, "image_bytes", b"") or b"")
+        if image_bytes:
+            target = point_root / f"{stem}.bin"
+            target.write_bytes(image_bytes)
+            image_path = str(target)
+
+        result_path = point_root / f"{stem}.result.json"
         _atomic_json(
-            point_root / f"{stem}.json",
+            result_path,
             {
                 "schema_version": 1,
                 "inspection_task_id": task.inspection_task_id,
@@ -90,29 +105,43 @@ class RuntimeEvidenceWriter:
                 "camera_id": point.camera.camera_id,
                 "vision_task_id": point.vision.task_id,
                 "model_profile": point.vision.model_profile,
-                "image_uri": image_uri,
-                "model_id": vision.model_id,
-                "model_version": vision.model_version,
-                "inference_time_ms": vision.inference_time_ms,
-                "primary_confidence": vision.primary_confidence,
-                "result_json": vision.result_json,
+                "capture_image_uri": str(getattr(capture, "image_uri", "") or ""),
+                "capture_image_path": image_path,
+                "model_id": str(getattr(vision, "model_id", "") or ""),
+                "model_version": str(getattr(vision, "model_version", "") or ""),
+                "inference_time_ms": float(getattr(vision, "inference_time_ms", 0.0) or 0.0),
+                "primary_confidence": float(getattr(vision, "primary_confidence", 0.0) or 0.0),
+                "result_json": str(getattr(vision, "result_json", "") or ""),
+                "message": str(getattr(vision, "message", "") or ""),
             },
         )
+        return str(result_path)
 
     def finish_session(
         self,
         task: InspectionTask,
         session_id: str,
+        *,
         success: bool,
         error_code: int,
         message: str,
+        canceled: bool = False,
     ) -> None:
-        root = self._require_session()
-        session_file = root / "session.json"
-        value = json.loads(session_file.read_text(encoding="utf-8"))
+        session_file = self._session_path(task, session_id) / "session.json"
+        try:
+            value = json.loads(session_file.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            value = {
+                "schema_version": 1,
+                "session_id": session_id,
+                "inspection_task_id": task.inspection_task_id,
+                "task_revision": task.revision,
+                "content_sha256": task.content_sha256,
+                "map_binding": asdict(task.map_binding),
+            }
         value.update(
             {
-                "state": "SUCCEEDED" if success else "FAILED",
+                "state": "CANCELED" if canceled else ("SUCCEEDED" if success else "FAILED"),
                 "success": bool(success),
                 "error_code": int(error_code),
                 "message": str(message),
@@ -120,7 +149,6 @@ class RuntimeEvidenceWriter:
         )
         _atomic_json(session_file, value)
 
-    def _require_session(self) -> Path:
-        if self._session_root is None:
-            raise RuntimeError("inspection evidence session has not started")
-        return self._session_root
+
+# Compatibility name for early callers on this feature branch.
+RuntimeEvidenceWriter = EvidenceWriter
