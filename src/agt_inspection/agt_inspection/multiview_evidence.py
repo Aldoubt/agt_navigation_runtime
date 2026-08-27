@@ -139,6 +139,11 @@ class InspectionEvidenceStore:
         value.update(
             {
                 "state": "RUNNING",
+                "success": False,
+                "canceled": False,
+                "error_code": 0,
+                "message": "inspection session running",
+                "report_uri": "",
                 "count_levels": ["VIEW_RAW", "POINT_DEDUP"],
             }
         )
@@ -243,6 +248,52 @@ class InspectionEvidenceStore:
         _atomic_json(result_path, value)
         return str(result_path)
 
+    def write_aggregation_failure(
+        self, point_id: str, *, error_code: int, message: str
+    ) -> str:
+        session, session_root = self._require_session()
+        point = _component(point_id, "point_id")
+        aggregation_root = session_root / "points" / point / "aggregation"
+        aggregation_root.mkdir(parents=True, exist_ok=True)
+        value = {
+            "schema_version": 1,
+            "aggregation_scope": "POINT_LOCAL",
+            "session_id": session["session_id"],
+            "inspection_task_id": session["inspection_task_id"],
+            "map_id": session["map_id"],
+            "map_version_id": session["map_version_id"],
+            "point_id": point,
+            "success": False,
+            "error_code": int(error_code),
+            "message": str(message),
+            "nonblocking": True,
+        }
+        path = aggregation_root / "failure.json"
+        _atomic_json(path, value)
+        return str(path)
+
+    def finish_session(
+        self,
+        *,
+        success: bool,
+        error_code: int,
+        message: str,
+        canceled: bool = False,
+        report_uri: str = "",
+    ) -> None:
+        session, session_root = self._require_session()
+        session.update(
+            {
+                "state": "CANCELED" if canceled else ("SUCCEEDED" if success else "FAILED"),
+                "success": bool(success),
+                "canceled": bool(canceled),
+                "error_code": int(error_code),
+                "message": str(message),
+                "report_uri": str(report_uri),
+            }
+        )
+        _atomic_json(session_root / "session.json", session)
+
     def build_report(self) -> str:
         session, session_root = self._require_session()
         point_rows: list[dict[str, Any]] = []
@@ -288,7 +339,9 @@ class InspectionEvidenceStore:
 
             raw_from_views = sum(int(_mapping(item.get("vision", {}), "vision").get("raw_count", 0)) for item in views)
             aggregation_path = point_root / "aggregation" / "result.json"
+            aggregation_failure_path = point_root / "aggregation" / "failure.json"
             aggregation = None
+            aggregation_failure = None
             if aggregation_path.is_file():
                 aggregation = json.loads(aggregation_path.read_text(encoding="utf-8"))
                 aggregated_points += 1
@@ -314,6 +367,10 @@ class InspectionEvidenceStore:
                 raw_count = raw_from_views
                 unique_count = ""
                 ambiguous_count = ""
+                if aggregation_failure_path.is_file():
+                    aggregation_failure = json.loads(
+                        aggregation_failure_path.read_text(encoding="utf-8")
+                    )
 
             total_raw += int(raw_count)
             point_rows.append(
@@ -333,6 +390,7 @@ class InspectionEvidenceStore:
                     "unique_instance_count": unique_count if unique_count != "" else None,
                     "ambiguous_instance_count": ambiguous_count if ambiguous_count != "" else None,
                     "aggregation": aggregation,
+                    "aggregation_failure": aggregation_failure,
                 }
             )
 
