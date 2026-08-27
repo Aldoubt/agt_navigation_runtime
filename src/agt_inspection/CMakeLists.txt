@@ -10,6 +10,7 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_inspection_schema test/test_schema.py)
   ament_add_pytest_test(test_inspection_repository test/test_repository.py)
+  ament_add_pytest_test(test_inspection_execution test/test_execution.py)
 endif()
 
 ament_package()
