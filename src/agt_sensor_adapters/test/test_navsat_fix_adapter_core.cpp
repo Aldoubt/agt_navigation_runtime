@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <array>
+#include <stdexcept>
 
 #include "agt_sensor_adapters/navsat_fix_adapter_core.hpp"
 
@@ -36,4 +36,26 @@ TEST(NavSatFixAdapterCore, PreservesFixAndOnlyNormalizesFrame)
   EXPECT_DOUBLE_EQ(output.altitude, input.altitude);
   EXPECT_EQ(output.position_covariance, input.position_covariance);
   EXPECT_EQ(output.position_covariance_type, input.position_covariance_type);
+}
+
+TEST(NavSatFixAdapterCore, RejectsMalformedOrSelfLoopingTopics)
+{
+  EXPECT_NO_THROW(
+    agt_sensor_adapters::validateNavSatTopics(
+      "/receiver/navsat_fix", "/agt/sensors/gnss/fix"));
+  EXPECT_THROW(
+    agt_sensor_adapters::validateNavSatTopics("", "/agt/sensors/gnss/fix"),
+    std::invalid_argument);
+  EXPECT_THROW(
+    agt_sensor_adapters::validateNavSatTopics(
+      "receiver/navsat_fix", "/agt/sensors/gnss/fix"),
+    std::invalid_argument);
+  EXPECT_THROW(
+    agt_sensor_adapters::validateNavSatTopics(
+      "/receiver/navsat_fix", "agt/sensors/gnss/fix"),
+    std::invalid_argument);
+  EXPECT_THROW(
+    agt_sensor_adapters::validateNavSatTopics(
+      "/agt/sensors/gnss/fix", "/agt/sensors/gnss/fix"),
+    std::invalid_argument);
 }
