@@ -67,6 +67,14 @@ def test_extrinsics_are_launch_overridable():
     }.issubset(argument_names)
 
 
+def test_description_launch_propagates_all_gnss_extrinsics_to_xacro():
+    launch_source = (
+        Path(__file__).parents[1] / "launch" / "description.launch.py"
+    ).read_text(encoding="utf-8")
+    for name in ("gps_x", "gps_y", "gps_z", "gps_roll", "gps_pitch", "gps_yaw"):
+        assert f'("{name}",' in launch_source
+
+
 def test_gps_link_is_unique_and_fixed_to_base_link():
     root = _model_root()
     links = [link.attrib["name"] for link in root.findall("link")]
