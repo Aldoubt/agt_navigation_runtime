@@ -8,17 +8,33 @@ def _read(relative: str) -> str:
     return (PACKAGE / relative).read_text(encoding="utf-8")
 
 
+def _production_python() -> str:
+    roots = (PACKAGE / "agt_inspection", PACKAGE / "scripts")
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for root in roots
+        for path in root.rglob("*.py")
+    )
+
+
+def _has_runtime_dependency(manifest: str, dependency: str) -> bool:
+    return (
+        f"<depend>{dependency}</depend>" in manifest
+        or f"<exec_depend>{dependency}</exec_depend>" in manifest
+    )
+
+
 def test_inspection_ros_nodes_use_only_project_navigation_boundary():
     server = _read("scripts/inspection_task_server.py")
-    all_python = "\n".join(path.read_text(encoding="utf-8") for path in PACKAGE.rglob("*.py"))
+    production_python = _production_python()
 
     assert "ExecuteWaypointTask" in server
     assert '"/agt/navigation/execute_waypoint_task"' in server
     assert "/agt/chassis/odometry" in server
     assert "InspectionRepository" in server
-    assert "nav2_msgs" not in all_python
-    assert "NavigateToPose" not in all_python
-    assert "FollowWaypoints" not in all_python
+    assert "nav2_msgs" not in production_python
+    assert "NavigateToPose" not in production_python
+    assert "FollowWaypoints" not in production_python
 
     for token in (
         "goal.map_id = self.map_id",
@@ -80,4 +96,4 @@ def test_package_installs_ros_scripts_launch_and_runtime_dependencies():
         "rclpy",
         "sensor_msgs",
     ):
-        assert f"<exec_depend>{dependency}</exec_depend>" in manifest
+        assert _has_runtime_dependency(manifest, dependency)
