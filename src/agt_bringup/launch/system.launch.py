@@ -74,7 +74,6 @@ def generate_launch_description():
             DeclareLaunchArgument("map_hash", default_value=""),
             DeclareLaunchArgument("localization_backend", default_value="ndt"),
             DeclareLaunchArgument("localization_status_timeout", default_value="10.0"),
-            DeclareLaunchArgument("navigation_autostart", default_value="false"),
             OpaqueFunction(function=_validate),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -141,7 +140,7 @@ def generate_launch_description():
                         "localization_status_timeout"
                     ),
                     "use_sim_time": use_sim_time,
-                    "autostart": LaunchConfiguration("navigation_autostart"),
+                    "autostart": "false",
                 }.items(),
                 condition=IfCondition(LaunchConfiguration("start_navigation")),
             ),
