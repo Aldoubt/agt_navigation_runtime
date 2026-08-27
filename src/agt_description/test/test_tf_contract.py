@@ -1,5 +1,4 @@
 from pathlib import Path
-import math
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -12,6 +11,7 @@ EXPECTED_PARENTS = {
     "lidar_link": "base_link",
     "livox_frame": "lidar_link",
     "imu_link": "lidar_link",
+    "gps_link": "base_link",
 }
 
 
@@ -58,7 +58,29 @@ def test_extrinsics_are_launch_overridable():
         "lidar_roll",
         "lidar_pitch",
         "lidar_yaw",
+        "gps_x",
+        "gps_y",
+        "gps_z",
+        "gps_roll",
+        "gps_pitch",
+        "gps_yaw",
     }.issubset(argument_names)
+
+
+def test_gps_link_is_unique_and_fixed_to_base_link():
+    root = _model_root()
+    links = [link.attrib["name"] for link in root.findall("link")]
+    assert links.count("gps_link") == 1
+    joints = [
+        joint
+        for joint in root.findall("joint")
+        if joint.attrib.get("name") == "base_link_to_gps_link"
+    ]
+    assert len(joints) == 1
+    joint = joints[0]
+    assert joint.attrib["type"] == "fixed"
+    assert joint.find("parent").attrib["link"] == "base_link"
+    assert joint.find("child").attrib["link"] == "gps_link"
 
 
 def test_bunker_bag_derived_mid360_candidate_matches_static_ground_estimate():
@@ -72,7 +94,20 @@ def test_bunker_bag_derived_mid360_candidate_matches_static_ground_estimate():
         parameters["base_length"] / 2.0 - 0.250
     )
     assert parameters["lidar_y"] == pytest.approx(0.0)
-    assert parameters["base_link_z"] + parameters["lidar_z"] == pytest.approx(0.607, abs=0.005)
+    assert parameters["base_link_z"] + parameters["lidar_z"] == pytest.approx(
+        0.607, abs=0.005
+    )
     assert parameters["lidar_roll"] == pytest.approx(0.0064, abs=0.002)
     assert parameters["lidar_pitch"] == pytest.approx(0.4045, abs=0.01)
     assert parameters["lidar_yaw"] == pytest.approx(0.0)
+
+
+def test_gnss_extrinsic_is_explicitly_provisional():
+    config = Path(__file__).parents[1] / "config" / "bunker_mid360.yaml"
+    parameters = yaml.safe_load(config.read_text(encoding="utf-8"))["/**"][
+        "ros__parameters"
+    ]
+
+    assert parameters["calibration_verified"] is False
+    for name in ("gps_x", "gps_y", "gps_z", "gps_roll", "gps_pitch", "gps_yaw"):
+        assert parameters[name] == pytest.approx(0.0)
