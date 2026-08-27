@@ -13,7 +13,20 @@ ros2 launch agt_sensor_adapters mid360.launch.py
   `offset_time/line/tag` 的原始输入，供自滤除和历史 bag 回放使用；
 - `/agt/sensors/lidar/custom_filtered`：同类型的前置自身点云滤除输出，供
   FAST-LIVO2 使用；通过点仍保持原始 Livox 坐标、顺序和逐点字段，原始 topic 不会被覆盖；
-- `/agt/sensors/imu/data`：MID360 内置 IMU，frame 为 `livox_frame`。
+- `/agt/sensors/imu/data`：MID360 内置 IMU，frame 为 `livox_frame`；
+- `/agt/sensors/gnss/fix`：可选的标准 `sensor_msgs/msg/NavSatFix` GNSS 接口，frame 统一为
+  `gps_link`。
+
+GNSS 适配器不绑定具体接收机或串口驱动。上游必须先提供标准 `NavSatFix` topic，然后显式
+指定输入；适配器只规范 topic/frame，不修改时间戳、fix status、经纬高、协方差或协方差类型：
+
+```bash
+ros2 launch agt_sensor_adapters gnss_navsat.launch.py \
+  input_topic:=/receiver/navsat_fix
+```
+
+`input_topic` 必须是非空绝对 topic，且不能和 `/agt/sensors/gnss/fix` 自环。GNSS 在 Runtime
+中保持可选；没有 GNSS 时 MID360 + IMU + FAST-LIVO2 链路应继续独立工作。
 
 `agt_livox_self_filter` 在 FAST-LIVO2 launch 中默认启动，真实驱动和历史 bag 回放共用
 同一节点。V2.5 默认 `geometry_source:=urdf`：机器人主体过滤几何读取
@@ -65,4 +78,4 @@ ros2 launch agt_sensor_adapters mid360.launch.py \
 `/agt/sensors/imu/data` 正在发布。
 
 离线只能验证构建、launch、URDF/profile 合同和配置格式。实机后需检查 topic、QoS、
-点云/IMU 频率、时间戳、丢包、frame、自滤除误删/漏删，再将结果记录到正式实验/验收文档。
+点云/IMU/GNSS 频率、时间戳、丢包、frame、自滤除误删/漏删，再将结果记录到正式实验/验收文档。
