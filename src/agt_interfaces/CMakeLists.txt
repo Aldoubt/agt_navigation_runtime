@@ -16,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MissionStatus.msg"
   "msg/MissionEvent.msg"
   "msg/InspectionStatus.msg"
+  "msg/InspectionViewObservation.msg"
   "msg/MapVersionSummary.msg"
   "msg/NavigationSessionStatus.msg"
   "msg/BagSessionSummary.msg"
@@ -53,6 +54,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/ExecuteInspectionTask.action"
   "action/MoveGimbal.action"
   "action/InspectImage.action"
+  "action/AggregateInspectionViews.action"
   DEPENDENCIES action_msgs builtin_interfaces std_msgs geometry_msgs nav_msgs sensor_msgs
 )
 
@@ -85,6 +87,10 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_inspection_interfaces
     test/test_inspection_interfaces.py
+  )
+  ament_add_pytest_test(
+    test_multiview_interfaces
+    test/test_multiview_interfaces.py
   )
   ament_add_gtest(
     test_execute_coverage_task_cpp
