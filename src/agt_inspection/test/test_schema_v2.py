@@ -9,6 +9,63 @@ HASH_A = "sha256:" + "1" * 64
 HASH_B = "sha256:" + "2" * 64
 
 
+def valid_v1_document():
+    value = {
+        "schema_version": 1,
+        "inspection_task_id": "legacy_route_01",
+        "name": "Legacy route",
+        "description": "Schema v1 compatibility fixture",
+        "revision": 1,
+        "content_sha256": HASH_A,
+        "map_binding": {
+            "map_id": "orchard_01",
+            "map_version_id": "v1",
+            "manifest_sha256": HASH_B,
+        },
+        "points": [
+            {
+                "id": "P001",
+                "navigation": {
+                    "task_group_id": "inspection-P001-nav",
+                    "task_revision": 1,
+                    "expected_content_sha256": HASH_A,
+                },
+                "stabilization": {
+                    "linear_velocity_max_mps": 0.02,
+                    "angular_velocity_max_radps": 0.03,
+                    "stable_duration_s": 0.8,
+                    "timeout_s": 5.0,
+                },
+                "gimbal": {
+                    "pan_rad": 0.0,
+                    "tilt_rad": -0.1,
+                    "timeout_s": 5.0,
+                    "settle_duration_s": 0.5,
+                },
+                "camera": {
+                    "camera_id": "inspection_camera",
+                    "capture_count": 1,
+                    "capture_interval_s": 0.0,
+                },
+                "vision": {
+                    "task_id": "legacy_single_view",
+                    "model_profile": "default",
+                    "minimum_confidence": 0.6,
+                    "timeout_s": 10.0,
+                },
+                "retry": {
+                    "navigation": 1,
+                    "gimbal": 1,
+                    "capture": 1,
+                    "inference": 1,
+                },
+            }
+        ],
+    }
+    value["content_sha256"] = canonical_hash(value)
+    return value
+
+
 def valid_v2_document():
     value = {
         "schema_version": 2,
@@ -109,9 +166,7 @@ def test_schema_v2_parses_ordered_views_without_reinterpreting_capture_count():
 
 
 def test_schema_v1_remains_supported_as_a_distinct_legacy_shape():
-    from test_schema import valid_document
-
-    task = parse_inspection_task(valid_document())
+    task = parse_inspection_task(valid_v1_document())
     assert task.schema_version == 1
     assert task.count_target == ""
     assert task.points[0].gimbal is not None
