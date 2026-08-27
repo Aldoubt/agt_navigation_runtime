@@ -30,6 +30,7 @@ def test_runtime_bringup_package_exists_and_is_runtime_only():
         "ament_cmake",
         "agt_chassis",
         "agt_description",
+        "agt_experiment_manager",
         "agt_interfaces",
         "agt_localization",
         "agt_mapping",
@@ -137,6 +138,32 @@ def test_sensor_monitor_keeps_gnss_optional_when_enabled():
     assert 'DeclareLaunchArgument("gnss_enabled", default_value="false")' in source
     assert '"gnss.enabled"' in source
     assert '"gnss.required": False' in source
+
+
+def test_calibration_capture_is_fixed_to_motion_safe_monitor_composition():
+    source = (PACKAGE / "launch" / "calibration_capture.launch.py").read_text(
+        encoding="utf-8"
+    )
+    for literal in (
+        '"start_sensor": "true"',
+        '"start_sensor_monitor": "true"',
+        '"start_odometry": "true"',
+        '"start_perception": "false"',
+        '"start_localization": "false"',
+        '"start_navigation": "false"',
+        '"start_chassis": "true"',
+        '"chassis_operation_mode": "monitor"',
+    ):
+        assert literal in source
+    assert "system.launch.py" in source
+    assert "experiment_manager.launch.py" in source
+    assert 'DeclareLaunchArgument("start_gnss", default_value="false")' in source
+    assert 'DeclareLaunchArgument("gnss_input_topic", default_value="")' in source
+    assert 'DeclareLaunchArgument("runtime_dir", default_value="runtime")' in source
+    assert "start_navigation" not in source.replace('"start_navigation": "false"', "")
+    assert "chassis_operation_mode" not in source.replace(
+        '"chassis_operation_mode": "monitor"', ""
+    )
 
 
 def test_navigation_package_does_not_depend_back_on_bringup():
