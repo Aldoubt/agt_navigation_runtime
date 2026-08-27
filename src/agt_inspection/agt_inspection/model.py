@@ -34,6 +34,12 @@ class GimbalPose:
 
 
 @dataclass(frozen=True)
+class InspectionView:
+    id: str
+    gimbal: GimbalPose
+
+
+@dataclass(frozen=True)
 class CameraPolicy:
     camera_id: str
     capture_count: int
@@ -57,14 +63,22 @@ class RetryPolicy:
 
 
 @dataclass(frozen=True)
+class AggregationPolicy:
+    enabled: bool
+    aggregation_profile: str
+
+
+@dataclass(frozen=True)
 class InspectionPoint:
     id: str
     navigation: NavigationBinding
     stabilization: StabilizationPolicy
-    gimbal: GimbalPose
+    gimbal: GimbalPose | None
     camera: CameraPolicy
     vision: VisionPolicy
     retry: RetryPolicy
+    views: tuple[InspectionView, ...] = ()
+    aggregation: AggregationPolicy | None = None
 
 
 @dataclass(frozen=True)
@@ -76,4 +90,5 @@ class InspectionTask:
     content_sha256: str
     map_binding: MapBinding
     points: tuple[InspectionPoint, ...]
+    count_target: str = ""
     schema_version: int = 1
