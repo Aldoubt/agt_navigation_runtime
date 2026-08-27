@@ -8,21 +8,25 @@
   将其标准化后只对外发布 `/agt/mapping/registered_points`。
 
 FAST-LIVO2 的正常 MID360 输入为 `/agt/sensors/lidar/custom_filtered`。该 topic 由
-`agt_livox_self_filter` 从保留的原始 `/agt/sensors/lidar/custom` 生成。V2.5 默认
+`agt_livox_self_filter` 从保留的原始 `/agt/sensors/lidar/custom` 生成。Runtime 默认
 `geometry_source:=urdf`：过滤器读取当前 `robot_description` 的 collision geometry，在
 `base_link`/collision link 中临时判断自身返回，但保留通过点的原始 Livox 坐标与逐点字段后再送入
 FAST-LIVO2。profile 模式保留为 A/B 回归，后置 `agt_perception/local_obstacle_filter` 仍继续保护
 Nav2 障碍输入。
 
 URDF 模式要求 `robot_description` 与当前平台严格匹配。BUNKER 不得先启动通用
-`description.launch.py` 的默认 MK-mini 几何再运行 BUNKER mapping；应由 `agt_bringup` 统一启动，
-或者显式使用平台专用 description：
+`description.launch.py` 的默认 MK-mini 几何再运行 BUNKER odometry；应由 Runtime `agt_bringup`
+统一启动，或者显式使用平台专用 description：
 
 ```bash
-# 推荐：由 bringup 统一保证平台描述、self-filter 和 mapping 参数一致
-ros2 launch agt_bringup system.launch.py mode:=mapping start_lidar_self_filter:=true
+# 推荐：Runtime 统一保证平台描述、self-filter 和 FAST-LIVO2 参数一致；P0 强制关闭 PCD 保存
+ros2 launch agt_bringup system.launch.py \
+  platform:=bunker \
+  start_navigation:=false \
+  start_localization:=false \
+  start_chassis:=false
 
-# 仅做 mapping 模块调试时，BUNKER 必须先加载 BUNKER description
+# 仅做 FAST-LIVO2 模块调试时，BUNKER 必须先加载 BUNKER description
 ros2 launch agt_description bunker_description.launch.py
 source install/setup.bash
 ros2 launch agt_mapping fast_livo2_mapping.launch.py \
@@ -45,13 +49,17 @@ ros2 launch agt_mapping fast_livo2_mapping.launch.py \
 
 `odom -> base_footprint` 由当前连续里程计唯一发布。
 
-建图模式由 `agt_bringup` 覆盖 `pcd_save.pcd_save_en=true`。LIO-only 模式在运行中使用
-带符号 64 位稀疏体素键累计质心，正常退出时直接输出 `localization_map.pcd` 和
-`localization_map.processing.yaml`，不再为关机降采样保留完整原始点云。Bunker 基线体素为
-`0.25 m`，绝对坐标保护上限为 `10000 m`；非有限点和越界点会被拒绝并写入处理记录。
-只有处理记录为 `state: ready` 的 PCD 才能交给重定位。导航模式明确覆盖保存为 false，
-只提供连续里程计和当前帧点云。应通过
-`agt_bringup/system.launch.py` 切换模式，不要直接修改基础 YAML，避免导航时覆盖地图。
+Runtime 的 `agt_bringup/system.launch.py` 在 P0 中固定传入 `save_pcd:=false`，因此正式运行链只提供
+连续里程计和注册点云，不承担 READY 地图资产生产。若需调试 FAST-LIVO2 的 PCD 保存能力，可直接
+启动 `fast_livo2_mapping.launch.py` 并显式设置 `save_pcd:=true`；由这条调试链生成的 PCD 仍只是
+commissioning/raw asset，正式地图处理、语义、版本与 READY Site Package 由
+`agt_navigation_v2` 离线侧完成后再交给 Runtime 消费。不要通过修改基础 YAML 让导航运行时写图。
+
+LIO-only 保存实现使用带符号 64 位稀疏体素键累计质心，正常退出时可输出
+`localization_map.pcd` 和 `localization_map.processing.yaml`。Bunker 基线体素为 `0.25 m`，
+绝对坐标保护上限为 `10000 m`；非有限点和越界点会被拒绝并写入处理记录。只有处理记录为
+`state: ready` 的 PCD 才可作为后续离线处理或定位验证候选；Runtime 正式导航仍应消费已验收的
+READY 资产。
 
 x86 构建固定使用通用 `x86-64` 指令集并仅以 `-mtune=native` 调优，保持 Eigen 与系统
 PCL 的 16 字节对齐 ABI 一致。不要重新加入 `-march=native`，否则 PCL `VoxelGrid`
@@ -75,5 +83,5 @@ vendor 到 `third_party/rpg_vikit_ros2_fisheye`，全新工作区只需 source R
 注册点云保持 FAST-LIVO2 的 reliable QoS，以兼容 OctoMap 的 reliable 订阅。
 
 当前已完成接口隔离、位姿换算、本仓库算法编译和局部雷达帧点云回放基础。URDF self-filter 的
-代码/配置/单测已加入 V25-02，但完整 `raw/profile/urdf` 同 bag 轨迹、地图质量、误删/漏删和实机
-验收仍待执行，验收前不得把该 P0 能力标记为 vehicle-validated DONE。
+代码/配置/单测已迁入 Runtime，但完整 `raw/profile/urdf` 同 bag 轨迹、地图质量、误删/漏删和实机
+验收仍待执行；验收前不得把该能力标记为 vehicle-validated DONE。
