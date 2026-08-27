@@ -11,6 +11,12 @@
   <xacro:arg name="lidar_roll" default="0.0"/>
   <xacro:arg name="lidar_pitch" default="0.0"/>
   <xacro:arg name="lidar_yaw" default="0.0"/>
+  <xacro:arg name="gps_x" default="0.0"/>
+  <xacro:arg name="gps_y" default="0.0"/>
+  <xacro:arg name="gps_z" default="0.0"/>
+  <xacro:arg name="gps_roll" default="0.0"/>
+  <xacro:arg name="gps_pitch" default="0.0"/>
+  <xacro:arg name="gps_yaw" default="0.0"/>
 
   <material name="agt_green">
     <color rgba="0.18 0.42 0.25 1.0"/>
@@ -75,5 +81,15 @@
     <parent link="lidar_link"/>
     <child link="imu_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- GNSS antenna pose is deliberately provisional until physically measured. -->
+  <link name="gps_link"/>
+  <joint name="base_link_to_gps_link" type="fixed">
+    <parent link="base_link"/>
+    <child link="gps_link"/>
+    <origin
+      xyz="$(arg gps_x) $(arg gps_y) $(arg gps_z)"
+      rpy="$(arg gps_roll) $(arg gps_pitch) $(arg gps_yaw)"/>
   </joint>
 </robot>
