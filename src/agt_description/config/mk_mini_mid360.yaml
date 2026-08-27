@@ -12,3 +12,11 @@
     lidar_roll: 0.0
     lidar_pitch: 0.0
     lidar_yaw: 0.0
+    # Generic GNSS defaults for the shared robot description. These are not
+    # measured antenna extrinsics for mk_mini.
+    gps_x: 0.0
+    gps_y: 0.0
+    gps_z: 0.0
+    gps_roll: 0.0
+    gps_pitch: 0.0
+    gps_yaw: 0.0
