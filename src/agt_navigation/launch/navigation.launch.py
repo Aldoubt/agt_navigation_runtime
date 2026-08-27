@@ -45,7 +45,6 @@ def generate_launch_description():
             DeclareLaunchArgument("route_progress_checker_id", default_value="progress_checker"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("autostart", default_value="false"),
-            DeclareLaunchArgument("enable_localization_gate", default_value="true"),
             DeclareLaunchArgument("localization_status_timeout", default_value="10.0"),
             DeclareLaunchArgument(
                 "use_keepout_filter",
@@ -186,18 +185,6 @@ def generate_launch_description():
                     {"bond_timeout": 4.0},
                 ],
                 condition=IfCondition(LaunchConfiguration("use_keepout_filter")),
-            ),
-            Node(
-                package="agt_bringup",
-                executable="localization_navigation_gate.py",
-                name="agt_localization_navigation_gate",
-                output="screen",
-                parameters=[{
-                    "localization_status_timeout": ParameterValue(
-                        LaunchConfiguration("localization_status_timeout"), value_type=float
-                    )
-                }],
-                condition=IfCondition(LaunchConfiguration("enable_localization_gate")),
             ),
         ]
     )
