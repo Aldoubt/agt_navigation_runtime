@@ -28,13 +28,25 @@ Branch: `feat/inspection-multiview-evidence`
 
 ## Verification round 1 findings
 
-The Runtime machine successfully built `agt_interfaces` and `agt_inspection`, and `ros2 interface show` expanded both new multi-view interfaces. Two failures were traced to verification/test-contract defects rather than production interface generation:
+The Runtime machine successfully built `agt_interfaces` and `agt_inspection`, and `ros2 interface show` expanded both new multi-view interfaces. Three verification/test-contract defects were identified and corrected:
 
 1. The first direct source pytest was run before `agt_inspection` had been built and sourced, so Python could not import the package. Verification order is now build -> source -> pytest.
 2. `test_ros_contract.py` scanned its own test sources for forbidden navigation tokens, so the literal `nav2_msgs` assertion self-matched. The scan is now restricted to production package/scripts.
 3. The same contract test required the exact XML tag `<exec_depend>`, although ROS package `<depend>` also satisfies runtime dependency semantics. The contract now accepts either valid declaration.
 
-These fixes require a fresh local rerun before this milestone can be marked DONE.
+## Verification round 2 finding
+
+The Runtime machine then reached 9 passing direct tests with one remaining failure in `test_inspection_ros_nodes_use_only_project_navigation_boundary`. The failure was a stale contract assertion requiring the inspection adapter to explicitly assign the deprecated `ExecuteWaypointTask` compatibility inputs:
+
+```text
+goal.task_file = ""
+goal.poses = []
+goal.loop = False
+```
+
+The production adapter correctly never touches those fields; generated ROS messages already initialize them to their empty/false defaults. The formal Runtime path sets only the versioned Task Registry fields (`map_id`, `map_version_id`, `task_group_id`, `task_revision`, hash, loop_count and idempotency key). The test now asserts that assignments to deprecated compatibility fields are absent rather than requiring explicit empty assignments.
+
+A fresh local rerun is required before this milestone can be marked DONE.
 
 ## Deliberately not changed in this round
 
@@ -44,7 +56,7 @@ This separation keeps the already-tested I0-I6 single-view execution path stable
 
 ## Required local verification
 
-Use a fresh shell and build/source before package-importing pytest:
+The latest change is test-only, so after pulling it no rebuild is required if the existing `agt_interfaces` / `agt_inspection` build and install trees are still present:
 
 ```bash
 cd ~/agt_navigation_runtime
@@ -52,7 +64,17 @@ git checkout feat/inspection-multiview-evidence
 git pull
 
 source /opt/ros/humble/setup.bash
+source install/setup.bash
 
+python3 -m pytest src/agt_inspection/test/test_ros_contract.py -q
+
+colcon test --packages-select agt_inspection
+colcon test-result --verbose
+```
+
+For a clean full rerun, use:
+
+```bash
 colcon build --packages-select agt_interfaces agt_inspection --symlink-install
 source install/setup.bash
 
@@ -64,7 +86,11 @@ python3 -m pytest \
 
 colcon test --packages-select agt_interfaces agt_inspection
 colcon test-result --verbose
+```
 
+The Runtime machine has already shown that both interfaces are generated and discoverable:
+
+```bash
 ros2 interface show agt_interfaces/msg/InspectionViewObservation
 ros2 interface show agt_interfaces/action/AggregateInspectionViews
 ```
@@ -75,7 +101,7 @@ Optional mock server smoke test:
 ros2 run agt_inspection mock_view_aggregator_server.py
 ```
 
-Until these commands pass on the ROS 2 Humble Runtime machine, this milestone is not marked DONE.
+Until the test rerun reports zero failures on the ROS 2 Humble Runtime machine, this milestone is not marked DONE.
 
 ## Next task after GREEN
 
