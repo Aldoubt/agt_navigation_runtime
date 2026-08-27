@@ -109,15 +109,22 @@ def test_unknown_keys_and_duplicate_point_ids_are_rejected():
         (lambda value: value["points"].clear(), "points"),
         (lambda value: value["points"][0]["camera"].__setitem__("capture_count", 0), "capture_count"),
         (lambda value: value["points"][0]["vision"].__setitem__("minimum_confidence", 1.1), "minimum_confidence"),
-        (lambda value: value["points"][0]["gimbal"].__setitem__("pan_rad", math.inf), "pan_rad"),
         (lambda value: value["points"][0]["stabilization"].__setitem__("timeout_s", -1.0), "timeout_s"),
         (lambda value: value["points"][0]["retry"].__setitem__("capture", 11), "retry.capture"),
         (lambda value: value["points"][0]["navigation"].__setitem__("task_revision", 0), "task_revision"),
     ],
 )
-def test_invalid_numeric_or_bounded_values_are_rejected(mutate, pattern):
+def test_invalid_bounded_values_are_rejected(mutate, pattern):
     value = valid_document()
     mutate(value)
     value["content_sha256"] = canonical_hash(value)
     with pytest.raises(InspectionTaskError, match=pattern):
+        parse_inspection_task(value)
+
+
+def test_non_finite_json_number_is_rejected_before_execution():
+    value = valid_document()
+    value["points"][0]["gimbal"]["pan_rad"] = math.inf
+    value["content_sha256"] = HASH_A
+    with pytest.raises(InspectionTaskError, match="non-JSON"):
         parse_inspection_task(value)
