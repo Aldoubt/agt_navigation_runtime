@@ -56,3 +56,35 @@ def test_runtime_bringup_sources_do_not_reference_v2_workspace():
         text = path.read_text(encoding="utf-8")
         for token in forbidden_tokens:
             assert token not in text, f"{path}: forbidden runtime dependency {token}"
+
+
+def test_system_launch_composes_only_runtime_packages_and_is_motion_safe_by_default():
+    launch_path = PACKAGE / "launch" / "system.launch.py"
+    source = launch_path.read_text(encoding="utf-8")
+
+    for package in (
+        "agt_description",
+        "agt_sensor_adapters",
+        "agt_sensor_monitor",
+        "agt_mapping",
+        "agt_perception",
+        "agt_localization",
+        "agt_navigation",
+        "agt_chassis",
+    ):
+        assert f'get_package_share_directory("{package}")' in source
+
+    assert 'DeclareLaunchArgument("platform", default_value="bunker")' in source
+    assert 'DeclareLaunchArgument("start_localization", default_value="false")' in source
+    assert 'DeclareLaunchArgument("start_navigation", default_value="false")' in source
+    assert 'DeclareLaunchArgument("start_chassis", default_value="false")' in source
+    assert '"publish_driver_odom_tf": "false"' in source
+    assert "agt_navigation_v2" not in source
+
+
+def test_navigation_requires_localization_in_p0_launch_contract():
+    source = (PACKAGE / "launch" / "system.launch.py").read_text(encoding="utf-8")
+    assert "navigation requires start_localization:=true" in source
+    assert "navigation_map must be a file" in source
+    assert "global_map_pcd must be a file" in source
+    assert "global_map_processing_record must be a file" in source
