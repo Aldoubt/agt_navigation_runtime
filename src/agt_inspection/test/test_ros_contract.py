@@ -36,6 +36,9 @@ def test_inspection_ros_nodes_use_only_project_navigation_boundary():
     assert "NavigateToPose" not in production_python
     assert "FollowWaypoints" not in production_python
 
+    # Formal Runtime navigation goes only through the versioned Task Registry
+    # fields. Deprecated same-machine CLI/debug compatibility inputs are left at
+    # their generated ROS defaults and must not be assigned by inspection code.
     for token in (
         "goal.map_id = self.map_id",
         "goal.map_version_id = self.map_version_id",
@@ -43,11 +46,15 @@ def test_inspection_ros_nodes_use_only_project_navigation_boundary():
         "goal.task_revision = point.navigation.task_revision",
         "goal.expected_content_sha256 = point.navigation.expected_content_sha256",
         "goal.loop_count = 1",
-        'goal.task_file = ""',
-        "goal.poses = []",
-        "goal.loop = False",
     ):
         assert token in server
+
+    for deprecated_assignment in (
+        "goal.task_file =",
+        "goal.poses =",
+        "goal.loop =",
+    ):
+        assert deprecated_assignment not in server
 
 
 def test_mock_leaf_servers_freeze_endpoint_names_and_types():
