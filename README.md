@@ -131,11 +131,17 @@ V3-07  Ackermann greenhouse validation
 
 ## Build
 
+From a clean ROS 2 Humble shell, resolve declared system dependencies before building. `rosdep` should install the ROS 2 BehaviorTree.CPP package required by `agt_bt_executor` as well as the other non-vendored runtime dependencies.
+
 ```bash
 source /opt/ros/humble/setup.bash
+rosdep update
+rosdep install --from-paths src third_party --ignore-src -r -y
 colcon build --symlink-install
 source install/setup.bash
 ```
+
+If BehaviorTree.CPP is the only unresolved dependency, the matching Humble binary package is `ros-humble-behaviortree-cpp`.
 
 A valid V3 workspace must build without sourcing `agt_navigation_v2/install/setup.bash`
 
