@@ -102,12 +102,41 @@ def test_system_launch_composes_only_runtime_packages_and_is_motion_safe_by_defa
     assert 'DeclareLaunchArgument("start_localization", default_value="false")' in source
     assert 'DeclareLaunchArgument("start_navigation", default_value="false")' in source
     assert 'DeclareLaunchArgument("start_chassis", default_value="false")' in source
+    assert 'DeclareLaunchArgument("start_gnss", default_value="false")' in source
+    assert 'DeclareLaunchArgument("gnss_input_topic", default_value="")' in source
     assert '"publish_driver_odom_tf": "false"' in source
     assert '"autostart": "false"' in source
     assert "navigation_autostart" not in source
     assert 'package="agt_bringup"' in source
     assert 'executable="localization_navigation_gate.py"' in source
+    assert "gnss_navsat.launch.py" in source
     assert "agt_navigation_v2" not in source
+
+
+def test_gnss_is_opt_in_and_fail_closed_on_invalid_input_topic():
+    source = (PACKAGE / "launch" / "system.launch.py").read_text(encoding="utf-8")
+    assert 'if _enabled(context, "start_gnss"):' in source
+    assert "start_gnss requires an absolute gnss_input_topic" in source
+    assert "gnss_input_topic must not equal canonical GNSS output" in source
+    assert '"gnss_enabled": LaunchConfiguration("start_gnss")' in source
+
+
+def test_bunker_monitor_mode_is_command_inert_but_control_mode_keeps_command_topic():
+    source = (
+        ROOT / "src" / "agt_chassis" / "launch" / "bunker.launch.py"
+    ).read_text(encoding="utf-8")
+    assert "/agt/chassis/monitor_only_cmd_vel_disabled" in source
+    assert 'LaunchConfiguration("command_topic")' in source
+    assert 'LaunchConfiguration("operation_mode")' in source
+
+
+def test_sensor_monitor_keeps_gnss_optional_when_enabled():
+    source = (
+        ROOT / "src" / "agt_sensor_monitor" / "launch" / "sensor_monitor.launch.py"
+    ).read_text(encoding="utf-8")
+    assert 'DeclareLaunchArgument("gnss_enabled", default_value="false")' in source
+    assert '"gnss.enabled"' in source
+    assert '"gnss.required": False' in source
 
 
 def test_navigation_package_does_not_depend_back_on_bringup():
