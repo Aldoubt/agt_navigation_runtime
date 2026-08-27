@@ -20,6 +20,12 @@ XACRO_ARGUMENTS = (
     ("lidar_roll", "MID360 roll in radians"),
     ("lidar_pitch", "MID360 pitch in radians"),
     ("lidar_yaw", "MID360 yaw in radians"),
+    ("gps_x", "GNSS antenna x offset from base_link"),
+    ("gps_y", "GNSS antenna y offset from base_link"),
+    ("gps_z", "GNSS antenna z offset from base_link"),
+    ("gps_roll", "GNSS antenna roll in radians"),
+    ("gps_pitch", "GNSS antenna pitch in radians"),
+    ("gps_yaw", "GNSS antenna yaw in radians"),
 )
 
 
