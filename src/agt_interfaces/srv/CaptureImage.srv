@@ -1,0 +1,13 @@
+# Capture one image after the mission executor has admitted the capture stage.
+string request_id
+string camera_id
+---
+uint16 ERROR_NONE=0
+uint16 ERROR_INVALID_REQUEST=1
+uint16 ERROR_CAMERA_UNAVAILABLE=2
+uint16 ERROR_CAPTURE_FAILED=3
+bool success
+uint16 error_code
+sensor_msgs/Image image
+string image_uri
+string message
