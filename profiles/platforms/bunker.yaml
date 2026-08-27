@@ -14,6 +14,24 @@ platform:
       navigation experiments bind to this platform. Greenhouse aisle-route
       production binds profiles/platforms/mk_mini.yaml instead.
 
+  sensors:
+    lidar:
+      frame: lidar_link
+      topic: /agt/sensors/lidar/custom
+    imu:
+      frame: imu_link
+      topic: /agt/sensors/imu/data
+    gnss:
+      frame: gps_link
+      topic: /agt/sensors/gnss/fix
+      extrinsic_verified: false
+      driver_topic: configurable
+    wheel_odometry:
+      frame: bunker_odom
+      child_frame: base_footprint
+      topic: /agt/chassis/odometry
+      publish_tf: false
+
   geometry:
     # Overall dimensions taken from the supplied BUNKER product drawing.
     outer_dimensions_verified: true
