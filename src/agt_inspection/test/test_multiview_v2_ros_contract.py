@@ -33,6 +33,15 @@ def test_multiview_ros_adapter_uses_capture_stamp_and_accepted_localization_hist
     assert "InspectionViewObservation" in adapter
 
 
+def test_optional_aggregation_has_finite_result_and_cancel_timeouts():
+    adapter = _read("agt_inspection/ros_multiview.py")
+
+    assert "result_timeout_s: float = 10.0" in adapter
+    assert "cancel_timeout_s: float = 1.0" in adapter
+    assert "view aggregator timed out; Level-1 evidence remains authoritative" in adapter
+    assert "_wait_future_timeout" in adapter
+
+
 def test_mock_launch_is_hardware_free_and_uses_installed_fixture_assets():
     launch = _read("launch/mock_inspection.launch.py")
     cmake = _read("CMakeLists.txt")
