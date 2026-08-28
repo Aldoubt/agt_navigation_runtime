@@ -105,12 +105,15 @@ def test_store_persists_canonical_visual_file_names_and_records_them(tmp_path):
 def test_multiview_executor_and_ros_adapter_propagate_canonical_suffixes():
     executor = (PACKAGE / "agt_inspection" / "multiview_execution.py").read_text(encoding="utf-8")
     server = (PACKAGE / "scripts" / "inspection_task_server.py").read_text(encoding="utf-8")
+    compact_server = "".join(server.split())
 
     assert "image_suffix=capture.image_suffix" in executor
     assert "overlay_suffix=vision.overlay_suffix" in executor
     assert "mask_suffix=vision.mask_suffix" in executor
 
-    assert "image_bytes=encode_jpeg(response.image)" in server
+    # Verify behavior rather than source formatting: CameraRunner must JPEG-encode
+    # the captured ROS Image before declaring the .jpg media identity.
+    assert "image_bytes=encode_jpeg(response.image)" in compact_server
     assert 'image_suffix=".jpg"' in server
     assert 'overlay_suffix=".jpg"' in server
     assert 'mask_suffix=".png"' in server
