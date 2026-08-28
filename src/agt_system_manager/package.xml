@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>agt_system_manager</name>
+  <version>0.1.0</version>
+  <description>Authoritative runtime health, readiness, and robot-state aggregation.</description>
+  <maintainer email="xuanyang.robotics@gmail.com">Xuan Yang</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>agt_interfaces</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
