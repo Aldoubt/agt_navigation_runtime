@@ -63,7 +63,7 @@ def generate_launch_description():
             DeclareLaunchArgument("localization_status_timeout", default_value="10.0"),
             DeclareLaunchArgument("start_gnss", default_value="false"),
             DeclareLaunchArgument("gnss_input_topic", default_value=""),
-            DeclareLaunchArgument("start_chassis", default_value="true"),
+            DeclareLaunchArgument("start_chassis", default_value="false"),
             DeclareLaunchArgument("chassis_operation_mode", default_value="control"),
             DeclareLaunchArgument("can_interface", default_value="can0"),
             DeclareLaunchArgument("start_rviz", default_value="true"),
