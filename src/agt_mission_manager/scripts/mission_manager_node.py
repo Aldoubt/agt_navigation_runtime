@@ -50,7 +50,9 @@ from agt_mission_manager.mission_model import (
     MissionState,
     StepType,
 )
+from agt_mission_manager.mission_report import MissionReportWriter
 from agt_mission_manager.mission_storage import MissionStorage
+from agt_mission_manager.ros_task_group_runner import RosTaskGroupRunner
 
 
 class RosWaypointRunner:
@@ -269,6 +271,8 @@ class RosInspectionRunner:
             message=str(wrapped.result.message),
             canceled=canceled,
             cancel_confirmed=canceled,
+            session_id=str(wrapped.result.session_id),
+            evidence_root_uri=str(wrapped.result.evidence_root_uri),
         )
 
     async def cancel(self) -> bool:
@@ -295,6 +299,9 @@ class MissionManagerNode(Node):
         map_root_value = str(
             self.declare_parameter("map_root", "").value
         ).strip()
+        report_root_value = str(
+            self.declare_parameter("mission_report_root", "").value
+        ).strip()
         self._mission_root = (
             Path(mission_root_value).expanduser()
             if mission_root_value
@@ -304,6 +311,11 @@ class MissionManagerNode(Node):
             Path(map_root_value).expanduser()
             if map_root_value
             else runtime_dir / "maps"
+        ).resolve()
+        self._mission_report_root = (
+            Path(report_root_value).expanduser()
+            if report_root_value
+            else runtime_dir / "mission_reports"
         ).resolve()
         self._maximum_duration_s = float(
             self.declare_parameter("maximum_duration_s", 86400.0).value
@@ -421,15 +433,22 @@ class MissionManagerNode(Node):
             10,
             callback_group=callback_group,
         )
+        waypoint_action_name = str(
+            self.declare_parameter(
+                "waypoint_action_name",
+                "/agt/navigation/execute_waypoint_task",
+            ).value
+        )
         self._waypoint_runner = RosWaypointRunner(
             self,
             callback_group,
-            action_name=str(
-                self.declare_parameter(
-                    "waypoint_action_name",
-                    "/agt/navigation/execute_waypoint_task",
-                ).value
-            ),
+            action_name=waypoint_action_name,
+            server_wait_timeout_s=server_wait,
+        )
+        self._task_group_runner = RosTaskGroupRunner(
+            self,
+            callback_group,
+            action_name=waypoint_action_name,
             server_wait_timeout_s=server_wait,
         )
         self._inspection_runner = RosInspectionRunner(
@@ -472,6 +491,7 @@ class MissionManagerNode(Node):
     def destroy_node(self):
         self._server.destroy()
         self._waypoint_runner.destroy()
+        self._task_group_runner.destroy()
         self._inspection_runner.destroy()
         self._bt_runner.destroy()
         return super().destroy_node()
@@ -682,6 +702,7 @@ class MissionManagerNode(Node):
 
     def _execute(self, goal_handle):
         result = ExecuteMission.Result()
+        reporter = None
         with self._lock:
             self._active = True
         audit_path = (
@@ -720,11 +741,17 @@ class MissionManagerNode(Node):
                     )
                 ),
             )
+            reporter = MissionReportWriter(
+                self._mission_report_root,
+                run_id=uuid.uuid4().hex,
+            )
             executor = MissionExecutor(
                 storage=self._storage,
                 audit=AuditLog(audit_path),
                 waypoint_runner=self._waypoint_runner,
                 inspection_runner=self._inspection_runner,
+                task_group_runner=self._task_group_runner,
+                reporter=reporter,
                 gate_provider=self._gate_snapshot,
                 event_inbox=self._events,
                 wall_time=lambda: self.get_clock().now().nanoseconds
@@ -748,21 +775,22 @@ class MissionManagerNode(Node):
                         "BT_BACKEND_UNSUPPORTED_MISSION_SHAPE"
                     )
                 status = asyncio.run(
-                    executor.execute(
-                        mission, resolved_paths[mission.steps[0].id]
-                    )
+                    executor.execute(mission, resolved_paths[mission.steps[0].id])
                 )
             else:
                 status = asyncio.run(
-                    executor.execute(
-                        mission, lambda step: resolved_paths[step.id]
-                    )
+                    executor.execute(mission, lambda step: resolved_paths[step.id])
                 )
             final_message = self._to_message(status)
             result.success = status.state == MissionState.SUCCEEDED
             result.error_code = int(status.error_code)
             result.final_status = final_message
             result.audit_log_uri = str(audit_path)
+            result.report_uri = (
+                reporter.finish(status)
+                if self._execution_backend == "sequential"
+                else ""
+            )
             result.message = status.message
             if status.state == MissionState.SUCCEEDED:
                 goal_handle.succeed()
@@ -786,6 +814,7 @@ class MissionManagerNode(Node):
             result.error_code = MissionStatus.ERROR_INVALID_MISSION
             result.final_status = self._to_message(failed)
             result.audit_log_uri = str(audit_path)
+            result.report_uri = ""
             result.message = str(exc)
             AuditLog(audit_path).append(
                 "mission_rejected", {"message": str(exc)}
@@ -807,6 +836,7 @@ class MissionManagerNode(Node):
             result.error_code = MissionStatus.ERROR_INTERNAL
             result.final_status = self._to_message(failed)
             result.audit_log_uri = str(audit_path)
+            result.report_uri = ""
             result.message = str(exc)
             goal_handle.abort()
         finally:
