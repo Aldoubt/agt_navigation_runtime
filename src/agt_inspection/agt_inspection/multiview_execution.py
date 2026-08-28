@@ -150,13 +150,19 @@ class MultiviewInspectionExecutor(InspectionExecutor):
         }
 
     @staticmethod
-    def _level1_payload(vision: VisionResult) -> tuple[int, dict[str, Any]]:
+    def _level1_payload(
+        vision: VisionResult, *, expected_count_target: str
+    ) -> tuple[int, dict[str, Any]]:
         try:
             payload = json.loads(vision.result_json)
         except (TypeError, json.JSONDecodeError) as exc:
             raise ValueError(f"Level-1 result_json is not valid JSON: {exc}") from exc
         if not isinstance(payload, dict):
             raise ValueError("Level-1 result_json must contain a JSON object")
+        if payload.get("count_target") != expected_count_target:
+            raise ValueError(
+                "Level-1 result_json.count_target must match task count_target"
+            )
         raw_count = payload.get("raw_count")
         if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 0:
             raise ValueError("Level-1 result_json.raw_count must be a non-negative integer")
@@ -171,7 +177,9 @@ class MultiviewInspectionExecutor(InspectionExecutor):
         capture: CaptureResult,
         vision: VisionResult,
     ) -> dict[str, Any]:
-        raw_count, payload = self._level1_payload(vision)
+        raw_count, payload = self._level1_payload(
+            vision, expected_count_target=task.count_target
+        )
         context = dict(self._context_provider.snapshot(task, point, view, request_id))
         for key in ("capture_stamp", "robot_pose_map", "gimbal", "camera"):
             if key not in context:
