@@ -46,9 +46,12 @@ class VisionResult:
     message: str = ""
     model_id: str = ""
     model_version: str = ""
+    weights_sha256: str = ""
     inference_time_ms: float = 0.0
     primary_confidence: float = 0.0
     result_json: str = "{}"
+    overlay_bytes: bytes = b""
+    mask_bytes: bytes = b""
     canceled: bool = False
     cancel_confirmed: bool = False
 
