@@ -25,6 +25,13 @@ set(AGT_INSPECTION_GENERATED_SCRIPT_DIR
 file(MAKE_DIRECTORY "${AGT_INSPECTION_GENERATED_SCRIPT_DIR}")
 set(AGT_INSPECTION_GENERATED_SCRIPTS "")
 foreach(script_name IN LISTS AGT_INSPECTION_SCRIPT_NAMES)
+  # file(COPY ...) runs at configure time. Register each source script as a
+  # configure dependency so an incremental colcon build re-runs CMake and
+  # refreshes the executable build-tree copy whenever runtime source changes.
+  set_property(
+    DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/${script_name}"
+  )
   file(COPY
     "${CMAKE_CURRENT_SOURCE_DIR}/scripts/${script_name}"
     DESTINATION "${AGT_INSPECTION_GENERATED_SCRIPT_DIR}"
