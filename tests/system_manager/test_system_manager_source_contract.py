@@ -62,6 +62,8 @@ def test_system_manager_uses_project_interfaces_and_pure_readiness_core():
     ):
         assert interface in source
     assert "evaluate_navigation_readiness" in source
+    assert "authoritative_map_known" in source
+    assert "MapVersionSummary.STATE_UNKNOWN" in source
     assert '"agt_safety/controller"' in source
 
 
