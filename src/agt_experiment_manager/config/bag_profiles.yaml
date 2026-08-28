@@ -34,6 +34,43 @@ profiles:
       - /agt/mapping/registered_points
       - /agt/navigation/cmd_vel
       - /diagnostics
+  field_mapping_baseline:
+    topics:
+      - /tf
+      - /tf_static
+      - /agt/sensors/lidar/custom
+      - /agt/sensors/imu/data
+      - /agt/sensors/gnss/fix
+      - /agt/chassis/odometry
+      - /agt/chassis/status
+      - /agt/mapping/odometry
+      - /agt/mapping/registered_points
+      - /agt/navigation/cmd_vel
+      - /diagnostics
+  field_navigation_baseline:
+    topics:
+      - /tf
+      - /tf_static
+      - /agt/sensors/gnss/fix
+      - /agt/mapping/odometry
+      - /agt/mapping/registered_points
+      - /agt/localization/status
+      - /agt/localization/global_pose
+      - /agt/navigation/status
+      - /agt/navigation/cmd_vel_raw
+      - /agt/navigation/cmd_vel
+      - /agt/safety/cmd_vel
+      - /agt/safety/status
+      - /agt/chassis/odometry
+      - /agt/chassis/status
+      - /agt/chassis/connected
+      - /agt/map/global_occupancy
+      - /global_costmap/costmap
+      - /local_costmap/costmap
+      - /plan
+      - /initialpose
+      - /goal_pose
+      - /diagnostics
   localization:
     topics: [/clock, /tf, /tf_static, /agt/sensors/imu/data, /agt/mapping/registered_points, /agt/localization/status, /agt/localization/global_pose, /agt/localization/coarse_pose, /agt/localization/candidate_pose, /agt/localization/aligned_points, /initialpose]
   navigation:
