@@ -63,7 +63,7 @@ jobs:
       - name: Run runtime site-owner contracts
         run: |
           if [ -d src/agt_site_runtime/test ]; then
-            PYTHONPATH=src/agt_site_runtime:src/agt_runtime_contracts python -m pytest -q src/agt_site_runtime/test
+            PYTHONPATH=src/agt_site_runtime:src/agt_runtime_contracts python -m pytest -q src/agt_site_runtime/test tests/site_runtime
           elif [ -d tests/site_runtime ]; then
             PYTHONPATH=src/agt_site_runtime:src/agt_runtime_contracts python -m pytest -q tests/site_runtime
           else
