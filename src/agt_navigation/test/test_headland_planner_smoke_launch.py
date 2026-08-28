@@ -41,6 +41,7 @@ def test_headland_smoke_nav2_config_freezes_r020_and_unknown_blocking():
     assert planner["planner_plugins"] == ["GridBased"]
     assert planner["GridBased"]["plugin"] == "nav2_smac_planner/SmacPlanner2D"
     assert planner["GridBased"]["allow_unknown"] is False
+    assert planner["GridBased"]["tolerance"] == 0.0
 
     global_costmap = config["global_costmap"]["global_costmap"]["ros__parameters"]
     assert global_costmap["robot_radius"] == 0.20
