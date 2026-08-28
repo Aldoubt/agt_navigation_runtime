@@ -4,6 +4,8 @@ from pathlib import Path
 SRC_ROOT = Path(__file__).resolve().parents[2]
 SYSTEM = SRC_ROOT / "agt_bringup" / "launch" / "system.launch.py"
 FIELD_MAPPING = SRC_ROOT / "agt_bringup" / "launch" / "field_mapping.launch.py"
+FIELD_NAVIGATION = SRC_ROOT / "agt_bringup" / "launch" / "field_navigation.launch.py"
+BRINGUP_PACKAGE_XML = SRC_ROOT / "agt_bringup" / "package.xml"
 
 
 def _declares_argument(source: str, name: str, default: str) -> bool:
@@ -77,3 +79,68 @@ def test_field_mapping_fails_closed_on_bad_identity_gnss_or_output_reuse():
     assert '"commissioning"' in source
     assert '"mapping"' in source
     assert 'SetLaunchConfiguration("mapping_output_dir"' in source
+
+
+def test_system_forwards_rviz_goal_bridge_with_safe_default():
+    source = SYSTEM.read_text(encoding="utf-8")
+
+    assert _declares_argument(source, "enable_rviz_goal_bridge", "false")
+    assert (
+        '"enable_rviz_goal_bridge": LaunchConfiguration("enable_rviz_goal_bridge")'
+        in source
+    )
+
+
+def test_field_navigation_uses_frozen_assets_and_explicit_commissioning_goal_bridge():
+    assert FIELD_NAVIGATION.is_file(), "field_navigation.launch.py must exist"
+    source = FIELD_NAVIGATION.read_text(encoding="utf-8")
+
+    for name in (
+        "global_map_pcd",
+        "global_map_processing_record",
+        "navigation_map",
+        "map_id",
+        "map_hash",
+    ):
+        assert _declares_required_argument(source, name)
+
+    assert _declares_argument(source, "start_chassis", "true")
+    assert _declares_argument(source, "chassis_operation_mode", "control")
+    assert _declares_argument(source, "start_rviz", "true")
+
+    assert '"start_sensor": "true"' in source
+    assert '"start_sensor_monitor": "true"' in source
+    assert '"start_odometry": "true"' in source
+    assert '"mapping_save_pcd": "false"' in source
+    assert '"start_perception": "true"' in source
+    assert '"start_localization": "true"' in source
+    assert '"start_navigation": "true"' in source
+    assert '"enable_rviz_goal_bridge": "true"' in source
+    assert '"global_map_pcd": LaunchConfiguration("global_map_pcd")' in source
+    assert '"navigation_map": LaunchConfiguration("navigation_map")' in source
+    assert '"map_id": LaunchConfiguration("map_id")' in source
+    assert '"map_hash": LaunchConfiguration("map_hash")' in source
+
+    assert 'package="rviz2"' in source
+    assert 'executable="rviz2"' in source
+    assert 'field_navigation.rviz' in source
+    assert 'condition=IfCondition(LaunchConfiguration("start_rviz"))' in source
+    assert "rtab" not in source.lower()
+
+
+def test_field_navigation_fails_closed_on_asset_or_identity_mismatch():
+    assert FIELD_NAVIGATION.is_file(), "field_navigation.launch.py must exist"
+    source = FIELD_NAVIGATION.read_text(encoding="utf-8")
+
+    assert "OpaqueFunction" in source
+    assert "map_id must not be empty" in source
+    assert "global_map_pcd must be a file" in source
+    assert "global_map_processing_record must be a file" in source
+    assert "navigation_map must be a file" in source
+    assert "map_hash must match sha256:<64 lowercase hex>" in source
+
+
+def test_bringup_declares_rviz2_runtime_dependency():
+    package_xml = BRINGUP_PACKAGE_XML.read_text(encoding="utf-8")
+
+    assert "<exec_depend>rviz2</exec_depend>" in package_xml
