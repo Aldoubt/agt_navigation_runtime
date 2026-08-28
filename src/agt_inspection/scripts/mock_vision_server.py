@@ -8,8 +8,15 @@ from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from sensor_msgs.msg import Image
 
 from agt_interfaces.action import InspectImage
+from agt_inspection.mock_visual import (
+    MOCK_MODEL_ID,
+    MOCK_MODEL_VERSION,
+    MOCK_WEIGHTS_SHA256,
+    build_mock_level1_payload,
+)
 
 
 class MockVisionServer(Node):
@@ -40,6 +47,36 @@ class MockVisionServer(Node):
     def _cancel(self, _goal_handle) -> CancelResponse:
         return CancelResponse.ACCEPT
 
+    @staticmethod
+    def _overlay_image(source: Image) -> Image:
+        """Return a deterministic mock overlay using the captured pixels unchanged."""
+        overlay = Image()
+        overlay.header = source.header
+        overlay.height = source.height
+        overlay.width = source.width
+        overlay.encoding = source.encoding
+        overlay.is_bigendian = source.is_bigendian
+        overlay.step = source.step
+        overlay.data = bytes(source.data)
+        return overlay
+
+    @staticmethod
+    def _mask_image(source: Image) -> Image:
+        """Return a deterministic mono8 checker mask for codec/E2E verification."""
+        mask = Image()
+        mask.header = source.header
+        mask.height = source.height
+        mask.width = source.width
+        mask.encoding = "mono8"
+        mask.is_bigendian = 0
+        mask.step = source.width
+        mask.data = bytes(
+            255 if (x + y) % 2 == 0 else 0
+            for y in range(source.height)
+            for x in range(source.width)
+        )
+        return mask
+
     def _execute(self, goal_handle):
         result = InspectImage.Result()
         deadline = time.monotonic() + max(self._delay_s, 0.0)
@@ -61,28 +98,20 @@ class MockVisionServer(Node):
         feedback.progress = 1.0
         goal_handle.publish_feedback(feedback)
 
+        source_image = goal_handle.request.image
+        payload = build_mock_level1_payload()
+
         goal_handle.succeed()
         result.success = True
         result.error_code = InspectImage.Result.ERROR_NONE
-        result.model_id = "mock-vision"
-        result.model_version = "1"
+        result.model_id = MOCK_MODEL_ID
+        result.model_version = MOCK_MODEL_VERSION
+        result.weights_sha256 = MOCK_WEIGHTS_SHA256
         result.inference_time_ms = self._delay_s * 1000.0
         result.primary_confidence = 0.93
-        result.result_json = json.dumps(
-            {
-                "class": "test_target",
-                "confidence": 0.93,
-                "raw_count": 3,
-                "instances": [
-                    {"local_instance_id": "I0001", "confidence": 0.93},
-                    {"local_instance_id": "I0002", "confidence": 0.91},
-                    {"local_instance_id": "I0003", "confidence": 0.89},
-                ],
-                "overlay_uri": "",
-                "mask_uri": "",
-            },
-            separators=(",", ":"),
-        )
+        result.result_json = json.dumps(payload, separators=(",", ":"))
+        result.overlay_image = self._overlay_image(source_image)
+        result.mask_image = self._mask_image(source_image)
         result.message = "mock inference completed"
         return result
 
