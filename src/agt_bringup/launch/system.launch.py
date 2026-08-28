@@ -70,6 +70,12 @@ def generate_launch_description():
             DeclareLaunchArgument("start_gnss", default_value="false"),
             DeclareLaunchArgument("gnss_input_topic", default_value=""),
             DeclareLaunchArgument("start_odometry", default_value="true"),
+            DeclareLaunchArgument("mapping_save_pcd", default_value="false"),
+            DeclareLaunchArgument("mapping_pcd_save_interval", default_value="-1"),
+            DeclareLaunchArgument(
+                "mapping_pcd_output_dir",
+                default_value="runtime/maps/fast_livo2",
+            ),
             DeclareLaunchArgument("start_perception", default_value="true"),
             DeclareLaunchArgument("start_localization", default_value="false"),
             DeclareLaunchArgument("start_navigation", default_value="false"),
@@ -125,7 +131,9 @@ def generate_launch_description():
                 ),
                 launch_arguments={
                     "use_sim_time": use_sim_time,
-                    "save_pcd": "false",
+                    "save_pcd": LaunchConfiguration("mapping_save_pcd"),
+                    "pcd_save_interval": LaunchConfiguration("mapping_pcd_save_interval"),
+                    "pcd_output_dir": LaunchConfiguration("mapping_pcd_output_dir"),
                 }.items(),
                 condition=IfCondition(LaunchConfiguration("start_odometry")),
             ),
