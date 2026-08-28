@@ -43,3 +43,16 @@ def test_mission_manager_wires_return_home_runner_and_reporter():
     assert "reporter=reporter" in node
     assert "result.report_uri" in node
     assert "reporter.finish(status)" in node
+
+
+def test_mission_manager_node_is_staged_executable_for_symlink_install():
+    cmake = _read("CMakeLists.txt")
+
+    assert "AGT_MISSION_MANAGER_GENERATED_SCRIPT_DIR" in cmake
+    assert "file(COPY" in cmake
+    assert "FILE_PERMISSIONS" in cmake
+    assert "OWNER_EXECUTE" in cmake
+    assert "GROUP_EXECUTE" in cmake
+    assert "WORLD_EXECUTE" in cmake
+    assert "generated_scripts/mission_manager_node.py" in cmake or "AGT_MISSION_MANAGER_GENERATED_SCRIPT_DIR" in cmake
+    assert "install(PROGRAMS" in cmake
