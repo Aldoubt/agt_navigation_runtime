@@ -1,8 +1,12 @@
 from importlib import import_module
 from pathlib import Path
+import sys
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+CANONICAL_SRC = REPO_ROOT / "src/agt_runtime_contracts"
+if str(CANONICAL_SRC) not in sys.path:
+    sys.path.insert(0, str(CANONICAL_SRC))
 
 
 def test_installable_runtime_contract_library_is_canonical():
