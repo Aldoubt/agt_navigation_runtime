@@ -99,6 +99,59 @@ ros2 topic echo /agt/navigation/waypoint_preview_status
 ros2 topic echo /plan --once
 ```
 
+## P1 Headland planner smoke
+
+`headland_planner_smoke.launch.py` 是地图重建仓库到 Nav2 的只读规划验收入口。它消费
+`navigation_conservative_v2`、`planner_pairs.yaml` 和修正后的 headland gap diagnostics，
+只启动 `map_server`、`planner_server`、lifecycle manager 和 smoke runner；不会启动
+controller、BT Navigator、Waypoint Follower、安全使能、底盘或任何 `cmd_vel` 链。
+
+Phase-1 使用与 P1 topology 实验一致的 `0.20 m` 圆形 clearance proxy，SmacPlanner2D
+保持 `allow_unknown: false`。这一步只验证“冻结地图 + handoff 起终点”是否能被 Nav2
+`ComputePathToPose` 正确解释，**不是** MK-mini Ackermann 实车可行性验收；真实 0.84 x 0.60 m
+footprint、1.5 m 最小转弯半径和最终 `base_footprint` 基准仍属于后续 SmacHybrid / 车辆阶段。
+
+manifest 不硬编码行号：正样本来自 `planner_pairs.tests` 中 `enabled=true &&
+conservative_connected=true` 的 pair-side；负样本只来自 gap diagnostics 中 strict 失败但
+`bridge_type` 为 `mixed_bridge` 或 `clearance_only_bridge` 的 pair-side。当前 P1 冻结数据应由
+输入资产自动展开为 22 个 positive directional requests 和 6 个 negative directional controls；
+实际生成的 manifest 始终是权威，不以文档数字覆盖资产内容。
+
+示例：
+
+```bash
+MAP_REPO=/home/yangxuan/Aldoubt-agt_map_reconstruction
+BASE=$MAP_REPO/results/P1/greenhouse_01_region_split
+
+MAP_YAML=$(realpath "$BASE/navigation_conservative_v2/navigation_base_map.yaml")
+PAIRS=$(realpath "$BASE/topology/headland_handoff_connectivity_r020/planner_pairs.yaml")
+GAP=$(realpath "$BASE/topology/headland_gap_diagnostics_r020_v3/headland_gap_diagnostics.json")
+OUT=$(realpath -m "$BASE/planning/nav2_headland_smoke_r020")
+
+ros2 launch agt_navigation headland_planner_smoke.launch.py \
+  map:="$MAP_YAML" \
+  planner_pairs:="$PAIRS" \
+  gap_diagnostics:="$GAP" \
+  output:="$OUT"
+```
+
+若本地 gap 目录不是 `headland_gap_diagnostics_r020_v3`，请把 `GAP` 指向最后一次使用
+`5dba16f` 之后生成、字段包含 `bridge_type / promoted_safe /
+baseline_new_safe` 的结果文件。
+
+输出固定为：
+
+```text
+planner_smoke_results.json
+summary.csv
+planner_paths.geojson
+planner_overlay.png
+```
+
+正样本规划失败和负样本意外规划成功都会记为 expectation mismatch。Action server 不可用、
+请求超时、goal 被拒绝或异常空路径属于 `infrastructure_error`，绝不会因为“负样本也失败了”
+而被误记为负样本通过。
+
 ## 接真实地图
 
 先启动机器人描述、LIO、障碍过滤和重定位，再执行：
