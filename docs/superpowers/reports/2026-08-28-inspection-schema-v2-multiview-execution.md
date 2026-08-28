@@ -67,24 +67,56 @@ Mock Level 1 emits `raw_count=3` per view. The mock aggregator remains a deliber
 
 The user reports the schema-v2 build, direct pytest/CTest and package-level software gates completed with **0 failures**.
 
-The first hardware-free E2E launch then failed before any mock node started:
+### E2E issue 1: Python libexec packaging
+
+The first hardware-free E2E launch failed before any mock node started because installed Python entry points were not executable under `--symlink-install`. The repository Git tree records the scripts as mode `100644`.
+
+`agt_inspection` now stages every ROS Python entry through an executable build-tree copy (`OWNER/GROUP/WORLD_EXECUTE`) before `install(PROGRAMS ...)`. User-machine evidence then confirmed all seven executables were discoverable and launchable.
+
+### E2E issue 2: fixture install path
+
+The launch consumed fixtures from:
 
 ```text
-executable 'mock_runtime_context.py' not found on the libexec directory
-.../install/agt_inspection/lib/agt_inspection
+share/agt_inspection/fixtures/runtime/maps
 ```
 
-Root-cause inspection showed that the script was already present in the CMake install list, so the failure was not a missing filename. The repository Git tree records all `agt_inspection/scripts/*.py` entries as mode `100644`. With `colcon --symlink-install`, source-backed libexec entries can therefore remain non-executable. This is the same packaging class previously handled in `agt_bringup`.
+while CMake originally installed them under:
 
-`agt_inspection` now stages every ROS Python entry through an executable build-tree copy (`OWNER/GROUP/WORLD_EXECUTE`) before `install(PROGRAMS ...)`. A regression contract requires this symlink-safe staging. The mock E2E must be rerun after a clean package rebuild before this milestone is marked GREEN.
+```text
+share/agt_inspection/test/fixtures/runtime/maps
+```
+
+The install path is now aligned to `share/${PROJECT_NAME}/fixtures`, and a regression contract binds the CMake destination to the launch lookup path. User-machine evidence then showed the inspection Action accepted the schema-v2 task and entered `P001 / NAVIGATING`.
+
+### E2E issue 3: Humble Action mock asyncio incompatibility
+
+The next E2E run reached the waypoint mock, which aborted with:
+
+```text
+RuntimeError: no running event loop
+```
+
+The traceback originated from `await asyncio.sleep(step)` inside the rclpy Action execute callback. ROS 2 Humble's rclpy ActionServer may drive a coroutine callback without providing an asyncio event loop suitable for `asyncio.sleep()`.
+
+The same unsafe pattern was present in waypoint, gimbal and single-view vision mocks. All three now use:
+
+```text
+synchronous execute callback
++ short time.sleep() steps
++ ReentrantCallbackGroup
++ MultiThreadedExecutor(num_threads=2)
+```
+
+This keeps the mocks independent of an asyncio event loop while still allowing cancel callbacks to execute concurrently. A new regression test (`test_mock_action_executor_contract.py`) forbids `asyncio.sleep()`/async execute callbacks in these Humble hardware-free Action mocks.
 
 ## Verification boundary
 
-The ROS build/tests and launch were performed on the user's Runtime machine. They were not independently executed in the assistant environment. The packaging fix is code-landed but its E2E rerun is still pending user-machine evidence.
+The ROS build/tests and launch were performed on the user's Runtime machine. They were not independently executed in the assistant environment. The latest Humble Action mock fix is code-landed but its E2E rerun is pending user-machine evidence.
 
-## Required packaging/E2E rerun
+## Required E2E rerun
 
-Use a fresh shell and remove the stale package-specific build/install trees:
+Use a fresh shell and rebuild `agt_inspection` so the staged build-tree script copies contain the latest mock sources:
 
 ```bash
 cd ~/agt_navigation_runtime
@@ -97,12 +129,12 @@ rm -rf build/agt_inspection install/agt_inspection
 colcon build --packages-select agt_interfaces agt_inspection --symlink-install
 source install/setup.bash
 
-python3 -m pytest src/agt_inspection/test/test_multiview_v2_ros_contract.py -q
+python3 -m pytest \
+  src/agt_inspection/test/test_multiview_v2_ros_contract.py \
+  src/agt_inspection/test/test_mock_action_executor_contract.py -q
 
-ls -l install/agt_inspection/lib/agt_inspection
-test -x install/agt_inspection/lib/agt_inspection/mock_runtime_context.py && echo runtime_context_OK
-test -x install/agt_inspection/lib/agt_inspection/mock_waypoint_task_server.py && echo waypoint_mock_OK
-ros2 pkg executables agt_inspection
+colcon test --packages-select agt_inspection
+colcon test-result --verbose
 ```
 
 Then retry:
@@ -112,7 +144,7 @@ rm -rf /tmp/agt_inspection_mock_evidence
 ros2 launch agt_inspection mock_inspection.launch.py
 ```
 
-Only after the launch stays up should the schema-v2 Action goal be sent from a second shell.
+Send the schema-v2 Action goal from a second sourced shell and inspect both Action feedback/result and launch-side tracebacks. The milestone remains open until the complete two-point × three-view mock run and generated report are verified.
 
 ## Known pending real-hardware adapters
 
