@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
-import asyncio
+import time
 
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 
 from agt_interfaces.action import ExecuteWaypointTask
@@ -21,6 +23,7 @@ class MockWaypointTaskServer(Node):
             execute_callback=self._execute,
             goal_callback=self._goal,
             cancel_callback=lambda _goal: CancelResponse.ACCEPT,
+            callback_group=ReentrantCallbackGroup(),
         )
 
     def _goal(self, request: ExecuteWaypointTask.Goal) -> GoalResponse:
@@ -34,17 +37,13 @@ class MockWaypointTaskServer(Node):
             and request.client_request_id
         )
         deprecated_empty = not request.task_file and not request.poses and not request.loop
-        return (
-            GoalResponse.ACCEPT
-            if formal and deprecated_empty
-            else GoalResponse.REJECT
-        )
+        return GoalResponse.ACCEPT if formal and deprecated_empty else GoalResponse.REJECT
 
-    async def _execute(self, goal_handle):
+    def _execute(self, goal_handle):
         request = goal_handle.request
         result = ExecuteWaypointTask.Result()
-        elapsed = 0.0
-        while elapsed < self._delay_s:
+        deadline = time.monotonic() + max(self._delay_s, 0.0)
+        while True:
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
                 result.success = False
@@ -52,9 +51,11 @@ class MockWaypointTaskServer(Node):
                 result.message = "mock navigation canceled"
                 result.session_id = request.client_request_id
                 return result
-            step = min(0.01, self._delay_s - elapsed)
-            await asyncio.sleep(step)
-            elapsed += step
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
+                break
+            step = min(0.01, remaining)
+            time.sleep(step)
 
         status = NavigationSessionStatus()
         status.header.stamp = self.get_clock().now().to_msg()
@@ -87,13 +88,22 @@ class MockWaypointTaskServer(Node):
         goal_handle.succeed()
         return result
 
+    def destroy_node(self):
+        self._server.destroy()
+        return super().destroy_node()
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = MockWaypointTaskServer()
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
+    except KeyboardInterrupt:
+        pass
     finally:
+        executor.shutdown()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
