@@ -16,6 +16,7 @@ class Level1VisionResultError(ValueError):
 @dataclass(frozen=True)
 class Level1VisionResult:
     schema_version: int
+    count_target: str
     model_id: str
     model_version: str
     weights_sha256: str
@@ -73,6 +74,8 @@ def parse_level1_result(
     if isinstance(schema_version, bool) or schema_version != 1:
         raise Level1VisionResultError("schema_version must be 1")
 
+    count_target = _require_nonempty_string(payload.get("count_target"), "count_target")
+
     model = payload.get("model")
     if not isinstance(model, dict):
         raise Level1VisionResultError("model must be a JSON object")
@@ -96,8 +99,6 @@ def parse_level1_result(
     instances = payload.get("instances")
     if not isinstance(instances, list):
         raise Level1VisionResultError("instances must be a JSON array")
-    if len(instances) != raw_count:
-        raise Level1VisionResultError("instances length must equal raw_count")
     normalized_instances: list[Mapping[str, Any]] = []
     for index, instance in enumerate(instances):
         if not isinstance(instance, dict):
@@ -116,6 +117,7 @@ def parse_level1_result(
 
     return Level1VisionResult(
         schema_version=1,
+        count_target=count_target,
         model_id=typed_model_id,
         model_version=typed_model_version,
         weights_sha256=typed_weights_sha256,
