@@ -93,6 +93,10 @@ if(BUILD_TESTING)
     test_v25_10_route_correction_generation
     test/test_v25_10_route_correction_generation.py
   )
+  ament_add_pytest_test(
+    test_rviz_goal_bridge_contract
+    test/test_rviz_goal_bridge_contract.py
+  )
 endif()
 
 ament_package()
