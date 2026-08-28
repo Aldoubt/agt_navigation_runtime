@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
-import asyncio
+import time
 
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 
 from agt_interfaces.action import MoveGimbal
@@ -20,6 +22,7 @@ class MockGimbalServer(Node):
             execute_callback=self._execute,
             goal_callback=self._goal,
             cancel_callback=self._cancel,
+            callback_group=ReentrantCallbackGroup(),
         )
 
     def _goal(self, request: MoveGimbal.Goal) -> GoalResponse:
@@ -30,20 +33,22 @@ class MockGimbalServer(Node):
     def _cancel(self, _goal_handle) -> CancelResponse:
         return CancelResponse.ACCEPT
 
-    async def _execute(self, goal_handle):
+    def _execute(self, goal_handle):
         request = goal_handle.request
         result = MoveGimbal.Result()
-        elapsed = 0.0
-        while elapsed < self._delay_s:
+        deadline = time.monotonic() + max(self._delay_s, 0.0)
+        while True:
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
                 result.success = False
                 result.error_code = MoveGimbal.Result.ERROR_CANCELED
                 result.message = "mock gimbal canceled"
                 return result
-            step = min(0.01, self._delay_s - elapsed)
-            await asyncio.sleep(step)
-            elapsed += step
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
+                break
+            step = min(0.01, remaining)
+            time.sleep(step)
 
         feedback = MoveGimbal.Feedback()
         feedback.state = "AT_TARGET"
@@ -58,13 +63,22 @@ class MockGimbalServer(Node):
         result.message = "mock gimbal reached target"
         return result
 
+    def destroy_node(self):
+        self._server.destroy()
+        return super().destroy_node()
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = MockGimbalServer()
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
+    except KeyboardInterrupt:
+        pass
     finally:
+        executor.shutdown()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
