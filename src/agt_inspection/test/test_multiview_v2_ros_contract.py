@@ -99,6 +99,8 @@ def test_level1_ros_adapter_validates_model_identity_and_encodes_visual_payloads
     assert "parse_level1_result" in server
     assert "parse_level1_result(" in server
     assert "weights_sha256=str(result.weights_sha256)" in server
-    assert "overlay_bytes=encode_jpeg(result.overlay_image)" in server
-    assert "mask_bytes=encode_png(result.mask_image)" in server
+    assert "overlay_bytes = encode_jpeg(result.overlay_image)" in server
+    assert "mask_bytes = encode_png(result.mask_image)" in server
+    assert "overlay_bytes=overlay_bytes" in server
+    assert "mask_bytes=mask_bytes" in server
     assert "result_json=json.dumps(validated.payload" in server
