@@ -21,6 +21,7 @@ set(AGT_NAVIGATION_ENTRYPOINTS
   differential_drive_simulator.py
   execute_waypoint_task.py
   goal_pose_bridge.py
+  headland_planner_smoke.py
   navigation_capability_server.py
   route_controller_smoke.py
   route_system_smoke.py
@@ -74,6 +75,12 @@ if(BUILD_TESTING)
   )
   ament_add_pytest_test(
     test_waypoint_preview_launch test/test_waypoint_preview_launch.py
+  )
+  ament_add_pytest_test(
+    test_headland_planner_smoke test/test_headland_planner_smoke.py
+  )
+  ament_add_pytest_test(
+    test_headland_planner_smoke_launch test/test_headland_planner_smoke_launch.py
   )
   ament_add_pytest_test(test_route_runtime test/test_route_runtime.py)
   ament_add_pytest_test(
