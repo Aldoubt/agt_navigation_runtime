@@ -69,11 +69,14 @@ Current migrated runtime capabilities include
 - ICP / NDT relocalization
 - Local obstacle perception
 - Nav2 runtime planning and control
+- Planner-only P1 headland handoff smoke harness for frozen map assets
 - Safety arbitration
 - Chassis adapter
 - BehaviorTree capability layer
 - Mission manager
 - Experiment manager
+
+The headland smoke harness is intentionally planner-only: it consumes an externally produced static map plus `planner_pairs.yaml` and gap diagnostics, then calls Nav2 `ComputePathToPose` without starting controller, BT, safety enable, or chassis. The current P1 phase uses a 0.20 m topology proxy and is not MK-mini vehicle-feasibility acceptance. See `src/agt_navigation/README.md` for the replay contract.
 
 ## Current Runtime Packages
 
