@@ -5,6 +5,9 @@ import yaml
 from agt_experiment_manager.manager import ExperimentManager
 
 
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+README = PACKAGE_ROOT / "README.md"
+
 REQUIRED_FIELD_MAPPING_TOPICS = {
     "/tf",
     "/tf_static",
@@ -23,6 +26,7 @@ REQUIRED_FIELD_NAVIGATION_TOPICS = {
     "/agt/mapping/odometry",
     "/agt/mapping/registered_points",
     "/agt/localization/status",
+    "/agt/perception/obstacle_cloud",
     "/agt/navigation/cmd_vel_raw",
     "/agt/navigation/cmd_vel",
     "/plan",
@@ -45,7 +49,7 @@ class FakeRecordingProcess:
 
 
 def _profiles():
-    path = Path(__file__).resolve().parents[1] / "config" / "bag_profiles.yaml"
+    path = PACKAGE_ROOT / "config" / "bag_profiles.yaml"
     return yaml.safe_load(path.read_text(encoding="utf-8"))["profiles"]
 
 
@@ -102,3 +106,17 @@ def test_field_baseline_record_commands_never_use_record_all(tmp_path):
         ]
         assert "-a" not in command
         assert required_topics <= set(command)
+
+
+def test_readme_documents_sole_recorder_and_field_profile_flow():
+    text = README.read_text(encoding="utf-8").lower()
+    required_fragments = (
+        "field_mapping.launch.py",
+        "field_navigation.launch.py",
+        "field_mapping_baseline",
+        "field_navigation_baseline",
+        "sole runtime owner",
+        "before moving the robot",
+    )
+    missing = [fragment for fragment in required_fragments if fragment not in text]
+    assert not missing, f"README is missing field baseline recorder guidance: {missing}"
