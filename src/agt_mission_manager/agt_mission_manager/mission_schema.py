@@ -48,6 +48,13 @@ STEP_KEYS = {
         "inspection_task_revision",
         "expected_content_sha256",
     },
+    StepType.RETURN_HOME: {
+        "id",
+        "type",
+        "task_group_id",
+        "task_group_revision",
+        "expected_content_sha256",
+    },
 }
 REQUIRED_STEP_KEYS = {
     StepType.WAYPOINT_TASK: {"id", "type", "task_file"},
@@ -58,6 +65,13 @@ REQUIRED_STEP_KEYS = {
         "type",
         "inspection_task_id",
         "inspection_task_revision",
+        "expected_content_sha256",
+    },
+    StepType.RETURN_HOME: {
+        "id",
+        "type",
+        "task_group_id",
+        "task_group_revision",
         "expected_content_sha256",
     },
 }
@@ -234,7 +248,7 @@ def parse_mission(
                     maximum_event_timeout_s,
                 ),
             )
-        else:
+        elif step_type == StepType.INSPECTION_TASK:
             step = MissionStep(
                 step_id,
                 step_type,
@@ -251,7 +265,30 @@ def parse_mission(
                     "expected_content_sha256",
                 ),
             )
+        else:
+            step = MissionStep(
+                step_id,
+                step_type,
+                task_group_id=validate_component(
+                    raw.get("task_group_id"), "task_group_id"
+                ),
+                task_group_revision=_positive_revision(
+                    raw.get("task_group_revision"), "task_group_revision"
+                ),
+                expected_content_sha256=validate_sha256(
+                    raw.get("expected_content_sha256"),
+                    "expected_content_sha256",
+                ),
+            )
         steps.append(step)
+
+    home_indexes = [
+        index for index, step in enumerate(steps) if step.type == StepType.RETURN_HOME
+    ]
+    if len(home_indexes) > 1:
+        raise MissionError("RETURN_HOME may appear at most once")
+    if home_indexes and home_indexes[0] != len(steps) - 1:
+        raise MissionError("RETURN_HOME must be the final mission step")
 
     return Mission(
         mission_id=mission_id,
