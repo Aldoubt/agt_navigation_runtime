@@ -15,6 +15,7 @@ _BASE_INSTANCES = [
 def _payload(
     *,
     raw_count=2,
+    count_target="litchi_flower",
     model_id="flower-seg",
     model_version="1.2.3",
     weights_sha256=WEIGHTS,
@@ -28,6 +29,7 @@ def _payload(
 
     return {
         "schema_version": 1,
+        "count_target": count_target,
         "model": {
             "model_id": model_id,
             "model_version": model_version,
@@ -52,6 +54,7 @@ def _parse(payload):
 def test_valid_level1_result_is_parsed_and_preserves_model_identity():
     result = _parse(_payload())
 
+    assert result.count_target == "litchi_flower"
     assert result.raw_count == 2
     assert result.model_id == "flower-seg"
     assert result.model_version == "1.2.3"
@@ -74,7 +77,7 @@ def test_zero_count_is_a_valid_success_result_not_an_inference_failure():
     [
         ("not-json", "valid JSON"),
         (json.dumps([]), "JSON object"),
-        (json.dumps({"schema_version": 1}), "model"),
+        (json.dumps({"schema_version": 1}), "count_target"),
     ],
 )
 def test_malformed_level1_result_is_rejected(text, message):
@@ -85,6 +88,22 @@ def test_malformed_level1_result_is_rejected(text, message):
             model_version="1.2.3",
             weights_sha256=WEIGHTS,
         )
+
+
+@pytest.mark.parametrize("count_target", ["", None, False, 123])
+def test_count_target_must_be_a_nonempty_string(count_target):
+    with pytest.raises(Level1VisionResultError, match="count_target"):
+        _parse(_payload(count_target=count_target))
+
+
+def test_raw_count_and_instances_length_are_independent_contract_fields():
+    payload = _payload(raw_count=2)
+    payload["instances"] = payload["instances"][:1]
+
+    result = _parse(payload)
+
+    assert result.raw_count == 2
+    assert len(result.instances) == 1
 
 
 @pytest.mark.parametrize("raw_count", [-1, True, 1.5, "2"])
