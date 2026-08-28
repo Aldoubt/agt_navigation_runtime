@@ -1,5 +1,6 @@
 from pathlib import Path
 import importlib.util
+import re
 
 import yaml
 
@@ -108,8 +109,8 @@ def test_f4_launch_accepts_planner_params_and_contract_label():
     source = (ROOT / "launch" / "headland_planner_smoke.launch.py").read_text(
         encoding="utf-8"
     )
-    assert 'DeclareLaunchArgument("planner_params"' in source
-    assert 'DeclareLaunchArgument("planner_contract"' in source
+    assert re.search(r'DeclareLaunchArgument\(\s*"planner_params"', source)
+    assert re.search(r'DeclareLaunchArgument\(\s*"planner_contract"', source)
     assert 'LaunchConfiguration("planner_params")' in source
     assert '"--planner-contract"' in source
     assert 'LaunchConfiguration("planner_contract")' in source
