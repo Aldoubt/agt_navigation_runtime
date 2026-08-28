@@ -47,8 +47,11 @@ install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
 )
 
+# Source fixtures live under test/ for repository organization, but the
+# installed hardware-free launch consumes them as package assets. Keep the
+# install path independent of the source-side test/ directory name.
 install(DIRECTORY test/fixtures/
-  DESTINATION share/${PROJECT_NAME}/test/fixtures
+  DESTINATION share/${PROJECT_NAME}/fixtures
 )
 
 if(BUILD_TESTING)
