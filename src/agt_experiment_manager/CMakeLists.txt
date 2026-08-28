@@ -21,6 +21,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_calibration_bag_profile test/test_calibration_bag_profile.py
   )
+  ament_add_pytest_test(
+    test_field_baseline_bag_profiles test/test_field_baseline_bag_profiles.py
+  )
 endif()
 
 ament_package()
