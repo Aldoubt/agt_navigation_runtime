@@ -38,6 +38,10 @@ if(BUILD_TESTING)
     test_runtime_bringup_contract
     test/test_runtime_bringup_contract.py
   )
+  ament_add_pytest_test(
+    test_field_commissioning_contract
+    test/test_field_commissioning_contract.py
+  )
 endif()
 
 ament_package()
