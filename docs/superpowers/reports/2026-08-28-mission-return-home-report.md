@@ -1,6 +1,6 @@
 # Mission RETURN_HOME + Report Implementation Report
 
-Status: **USER-MACHINE E2E GREEN / TEST PATH FIX LANDED / RERUN REQUIRED**
+Status: **USER-MACHINE GREEN / FULL SOFTWARE REGRESSION GREEN / MOCK MISSION E2E GREEN**
 
 Branch: `feat/inspection-multiview-evidence`
 
@@ -170,93 +170,49 @@ Inspection evidence, aggregation JSON, per-view results, Mission audit log, Miss
 
 Therefore the **hardware-free Mission E2E is GREEN on the user machine**.
 
-## Test-suite issue found during verification
+## Regression issue and closure
 
-The Mission Manager regression run exposed one repository-layout bug in the newly added ROS contract test:
+During the first regression run, `test_return_home_ros_contract.py` incorrectly resolved sibling package `agt_interfaces` at repository root instead of `<repo>/src/agt_interfaces`. The production runtime was unaffected and the Mission E2E still succeeded.
 
-```text
-FileNotFoundError:
-/home/yangxuan/agt_navigation_runtime/agt_interfaces/msg/MissionStatus.msg
-```
-
-The test incorrectly searched for sibling package `agt_interfaces` at repository root, while packages live under `<repo>/src/`.
-
-The production runtime was not affected; the Mission E2E still completed successfully. The test path was corrected to resolve sibling packages from `src/` in commit:
+The test path was corrected in commit:
 
 ```text
 dd51791 fix(mission-test): resolve sibling interfaces under src
 ```
 
-Before this fix, the Mission Manager pytest output showed 51 passed and one failed test case. `colcon test-result` represented the same failing contract through its CTest/xUnit layers; this is not treated as two independent runtime defects.
+The user subsequently reran the requested targeted pytest, full Mission Manager pytest suite, and selected-package CTest gate and reported that **all tests passed with 0 failures**.
 
-A fresh rerun is still required before marking the whole software test suite GREEN.
-
-The initial `AMENT_PREFIX_PATH` / `CMAKE_PREFIX_PATH` warnings came from stale environment entries after deleting selected install prefixes. They are build-shell hygiene warnings, not the cause of the failing test. Starting a fresh shell and sourcing only `/opt/ros/humble/setup.bash` before rebuilding avoids them.
-
-## Tests landed
-
-- `test_return_home_mission.py`
-- `test_mission_report.py`
-- `test_return_home_ros_contract.py`
-- `test_mock_inspection_return.py`
-- existing Mission Manager regression suite remains registered.
-
-The tests cover final-only HOME schema, formal registry binding, executor ordering, report count semantics, ROS wiring, symlink-safe packaging, and hardware-free fixture/launch contracts.
+The earlier `AMENT_PREFIX_PATH` / `CMAKE_PREFIX_PATH` warnings were stale shell entries after deleting selected install prefixes and were not causal.
 
 ## Verification boundary
 
 Current evidence supports:
 
 ```text
+Inspection Schema v2 / MultiView mock E2E: USER-MACHINE GREEN
 Mission mock E2E: USER-MACHINE GREEN
 Packaging checks: USER-MACHINE GREEN
 RETURN_HOME: USER-MACHINE GREEN in mock path
 Mission report export: USER-MACHINE GREEN
-Full software regression: PENDING RERUN AFTER TEST-PATH FIX
+Full selected software regression: USER-REPORTED GREEN / 0 FAILURES
 Real hardware: NOT PART OF THIS ACCEPTANCE
 ```
 
 No assistant-side ROS 2 Humble build or execution is claimed.
 
-## Rerun gate after test-path fix
+## Frozen milestone
 
-Use a fresh shell to avoid stale install-prefix warnings:
+This hardware-free Mission milestone is now frozen. Further work should not expand Mission Manager unless a concrete runtime requirement demands it.
 
-```bash
-cd ~/agt_navigation_runtime
-git checkout feat/inspection-multiview-evidence
-git pull
+The next implementation line is real visual evidence integration:
 
-source /opt/ros/humble/setup.bash
-
-python3 -m pytest \
-  src/agt_mission_manager/test/test_return_home_ros_contract.py \
-  -q
-
-python3 -m pytest \
-  src/agt_mission_manager/test \
-  -q
-
-colcon test \
-  --packages-select agt_interfaces agt_inspection agt_mission_manager
-
-colcon test-result --verbose
+```text
+Capture sensor_msgs/Image
+-> encode original.jpg
+-> Level-1 /agt/vision/inspect
+-> persist overlay.jpg + mask.png + result.json
+-> preserve model_id / model_version / weights_sha256
+-> Mission report references those artifacts
 ```
 
-If the installed packages need rebuilding after the pull:
-
-```bash
-rm -rf \
-  build/agt_interfaces build/agt_inspection build/agt_mission_manager \
-  install/agt_interfaces install/agt_inspection install/agt_mission_manager
-
-source /opt/ros/humble/setup.bash
-colcon build \
-  --packages-select agt_interfaces agt_inspection agt_mission_manager \
-  --symlink-install
-source install/setup.bash
-```
-
-## Next after full software GREEN
-
-After the regression rerun is clean, freeze this hardware-free Mission milestone and proceed to real visual evidence adapters: encode `original.jpg`, `overlay.jpg`, `mask.png`, preserve visual model version/hash, and wire the Level-1 visual model behind `/agt/vision/inspect` without changing Mission/Nav2 ownership.
+Mission, Nav2, localization, and motion ownership remain unchanged.
