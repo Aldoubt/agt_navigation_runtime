@@ -21,6 +21,19 @@ def _declares_required_argument(source: str, name: str) -> bool:
     return re.search(pattern, source) is not None
 
 
+def _has_frozen_asset_validation_loop(source: str) -> bool:
+    pattern = (
+        r'for\s+name\s+in\s*\(\s*'
+        r'"global_map_pcd"\s*,\s*'
+        r'"global_map_processing_record"\s*,\s*'
+        r'"navigation_map"\s*,?\s*\)\s*:'
+        r'.*?path\s*=\s*Path\(LaunchConfiguration\(name\)\.perform\(context\)\)'
+        r'.*?if\s+not\s+path\.is_file\(\)\s*:'
+        r'.*?raise\s+RuntimeError\(f"\{name\} must be a file: \{path\}"\)'
+    )
+    return re.search(pattern, source, flags=re.DOTALL) is not None
+
+
 def test_system_exposes_safe_mapping_output_arguments():
     source = SYSTEM.read_text(encoding="utf-8")
 
@@ -134,9 +147,7 @@ def test_field_navigation_fails_closed_on_asset_or_identity_mismatch():
 
     assert "OpaqueFunction" in source
     assert "map_id must not be empty" in source
-    assert "global_map_pcd must be a file" in source
-    assert "global_map_processing_record must be a file" in source
-    assert "navigation_map must be a file" in source
+    assert _has_frozen_asset_validation_loop(source)
     assert "map_hash must match sha256:<64 lowercase hex>" in source
 
 
