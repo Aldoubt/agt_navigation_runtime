@@ -33,6 +33,13 @@ set(AGT_NAVIGATION_ENTRYPOINTS
 )
 
 foreach(_script IN LISTS AGT_NAVIGATION_ENTRYPOINTS)
+  # file(COPY) runs at configure time. Tell CMake that every source entrypoint
+  # is a configure dependency so an incremental colcon build re-runs this copy
+  # whenever a script changes instead of leaving a stale executable in install/.
+  set_property(
+    DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/${_script}"
+  )
   file(COPY
     "${CMAKE_CURRENT_SOURCE_DIR}/scripts/${_script}"
     DESTINATION "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}"
