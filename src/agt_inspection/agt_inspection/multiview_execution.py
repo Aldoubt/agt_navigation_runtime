@@ -190,6 +190,7 @@ class MultiviewInspectionExecutor(InspectionExecutor):
             "vision": {
                 "model_id": vision.model_id,
                 "model_version": vision.model_version,
+                "weights_sha256": vision.weights_sha256,
                 "raw_count": raw_count,
                 "inference_time_ms": vision.inference_time_ms,
                 "primary_confidence": vision.primary_confidence,
@@ -409,6 +410,8 @@ class MultiviewInspectionExecutor(InspectionExecutor):
                         view.id,
                         observation,
                         image_bytes=capture.image_bytes,
+                        overlay_bytes=vision.overlay_bytes,
+                        mask_bytes=vision.mask_bytes,
                     )
                     observation["single_view_result_uri"] = result_uri
                     observations.append(observation)
