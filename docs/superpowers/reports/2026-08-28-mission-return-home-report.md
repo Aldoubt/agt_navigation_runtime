@@ -1,6 +1,6 @@
 # Mission RETURN_HOME + Report Implementation Report
 
-Status: **CODE_LANDED / LOCAL_VERIFICATION_REQUIRED**
+Status: **USER-MACHINE E2E GREEN / TEST PATH FIX LANDED / RERUN REQUIRED**
 
 Branch: `feat/inspection-multiview-evidence`
 
@@ -87,7 +87,7 @@ mission_dedup_applied = false
 
 The report does not expose `global_unique_count` or claim whole-mission ID cleaning.
 
-`ExecuteMission.Result` now includes `report_uri`.
+`ExecuteMission.Result` includes `report_uri`.
 
 ## Hardware-free Mission fixture
 
@@ -116,7 +116,82 @@ No real BUNKER/CAN/Nav2 launch is part of this hardware-free acceptance.
 
 ## Symlink-install packaging
 
-The Git tree stores `scripts/mission_manager_node.py` as mode 0644. To avoid repeating the earlier `agt_inspection` libexec failure, CMake now stages an executable build-tree copy with owner/group/world execute permissions before `install(PROGRAMS ...)`.
+The Git tree stores `scripts/mission_manager_node.py` as mode 0644. To avoid repeating the earlier `agt_inspection` libexec failure, CMake stages an executable build-tree copy with owner/group/world execute permissions before `install(PROGRAMS ...)`.
+
+User-machine packaging checks passed:
+
+```text
+mission_manager_exec_OK
+agt_mission_manager mission_manager_node.py
+mission_fixture_OK
+```
+
+## User-machine Mission E2E evidence
+
+The user-machine hardware-free Mission run completed the intended sequence:
+
+```text
+VALIDATING
+-> RUNNING
+-> INSPECTION_TASK (step type 4)
+-> RETURN_HOME (step type 5)
+-> Mission state 9 / completed
+```
+
+Action result:
+
+```text
+success: true
+error_code: 0
+Goal finished with status: SUCCEEDED
+```
+
+The returned report URI was non-empty and resolved to an exported report under:
+
+```text
+/tmp/agt_mission_mock_runtime/mission_reports/mock_inspection_return/<run_id>/report.json
+```
+
+The supplied report verified:
+
+```text
+home_returned = true
+success = true
+state = SUCCEEDED
+inspection_summary.count_semantics = POINT_SUM_ESTIMATE
+inspection_summary.mission_dedup_applied = false
+inspection_summary.point_sum_estimate = 18
+inspection_summary.raw_instance_count = 18
+```
+
+Both Mission steps are recorded as successful, including the `RETURN_HOME` child session.
+
+Inspection evidence, aggregation JSON, per-view results, Mission audit log, Mission report JSON, `steps.csv`, and `inspections.csv` were all present in the supplied filesystem listing.
+
+Therefore the **hardware-free Mission E2E is GREEN on the user machine**.
+
+## Test-suite issue found during verification
+
+The Mission Manager regression run exposed one repository-layout bug in the newly added ROS contract test:
+
+```text
+FileNotFoundError:
+/home/yangxuan/agt_navigation_runtime/agt_interfaces/msg/MissionStatus.msg
+```
+
+The test incorrectly searched for sibling package `agt_interfaces` at repository root, while packages live under `<repo>/src/`.
+
+The production runtime was not affected; the Mission E2E still completed successfully. The test path was corrected to resolve sibling packages from `src/` in commit:
+
+```text
+dd51791 fix(mission-test): resolve sibling interfaces under src
+```
+
+Before this fix, the Mission Manager pytest output showed 51 passed and one failed test case. `colcon test-result` represented the same failing contract through its CTest/xUnit layers; this is not treated as two independent runtime defects.
+
+A fresh rerun is still required before marking the whole software test suite GREEN.
+
+The initial `AMENT_PREFIX_PATH` / `CMAKE_PREFIX_PATH` warnings came from stale environment entries after deleting selected install prefixes. They are build-shell hygiene warnings, not the cause of the failing test. Starting a fresh shell and sourcing only `/opt/ros/humble/setup.bash` before rebuilding avoids them.
 
 ## Tests landed
 
@@ -126,13 +201,26 @@ The Git tree stores `scripts/mission_manager_node.py` as mode 0644. To avoid rep
 - `test_mock_inspection_return.py`
 - existing Mission Manager regression suite remains registered.
 
-The new tests cover final-only HOME schema, formal registry binding, executor ordering, report count semantics, ROS wiring, symlink-safe packaging, and hardware-free fixture/launch contracts.
+The tests cover final-only HOME schema, formal registry binding, executor ordering, report count semantics, ROS wiring, symlink-safe packaging, and hardware-free fixture/launch contracts.
 
 ## Verification boundary
 
-These RETURN_HOME/Mission-report changes have not been independently built or executed in the assistant environment. ROS 2 Humble build, pytest/CTest and Mission mock E2E require fresh user-machine verification before this milestone becomes GREEN.
+Current evidence supports:
 
-## Local software gate
+```text
+Mission mock E2E: USER-MACHINE GREEN
+Packaging checks: USER-MACHINE GREEN
+RETURN_HOME: USER-MACHINE GREEN in mock path
+Mission report export: USER-MACHINE GREEN
+Full software regression: PENDING RERUN AFTER TEST-PATH FIX
+Real hardware: NOT PART OF THIS ACCEPTANCE
+```
+
+No assistant-side ROS 2 Humble build or execution is claimed.
+
+## Rerun gate after test-path fix
+
+Use a fresh shell to avoid stale install-prefix warnings:
 
 ```bash
 cd ~/agt_navigation_runtime
@@ -141,17 +229,13 @@ git pull
 
 source /opt/ros/humble/setup.bash
 
-rm -rf \
-  build/agt_interfaces build/agt_inspection build/agt_mission_manager \
-  install/agt_interfaces install/agt_inspection install/agt_mission_manager
+python3 -m pytest \
+  src/agt_mission_manager/test/test_return_home_ros_contract.py \
+  -q
 
-colcon build \
-  --packages-select agt_interfaces agt_inspection agt_mission_manager \
-  --symlink-install
-
-source install/setup.bash
-
-python3 -m pytest src/agt_mission_manager/test -q
+python3 -m pytest \
+  src/agt_mission_manager/test \
+  -q
 
 colcon test \
   --packages-select agt_interfaces agt_inspection agt_mission_manager
@@ -159,59 +243,20 @@ colcon test \
 colcon test-result --verbose
 ```
 
-Packaging checks:
+If the installed packages need rebuilding after the pull:
 
 ```bash
-test -x install/agt_mission_manager/lib/agt_mission_manager/mission_manager_node.py \
-  && echo mission_manager_exec_OK
+rm -rf \
+  build/agt_interfaces build/agt_inspection build/agt_mission_manager \
+  install/agt_interfaces install/agt_inspection install/agt_mission_manager
 
-ros2 pkg executables agt_mission_manager
-
-test -f \
-  install/agt_mission_manager/share/agt_mission_manager/fixtures/runtime/missions/mock_inspection_return/v1/mission.yaml \
-  && echo mission_fixture_OK
-```
-
-## Hardware-free Mission E2E
-
-Shell A:
-
-```bash
-rm -rf /tmp/agt_mission_mock_runtime
-ros2 launch agt_mission_manager mock_inspection_return.launch.py
-```
-
-Shell B:
-
-```bash
 source /opt/ros/humble/setup.bash
-source ~/agt_navigation_runtime/install/setup.bash
-
-ros2 action send_goal \
-  /agt/missions/execute \
-  agt_interfaces/action/ExecuteMission \
-  "{mission_id: 'mock_inspection_return', mission_version: 'v1', expected_content_sha256: 'sha256:825ea0ff78b237a64f5fea6419aac99117ff4bc870746d492410b7a1947c0ec0'}" \
-  --feedback
+colcon build \
+  --packages-select agt_interfaces agt_inspection agt_mission_manager \
+  --symlink-install
+source install/setup.bash
 ```
 
-Acceptance target:
+## Next after full software GREEN
 
-```text
-INSPECTION_TASK succeeds
--> RETURN_HOME formal child succeeds
--> Mission success=true
--> Goal SUCCEEDED
--> report_uri non-empty
--> report.json home_returned=true
-```
-
-Then inspect:
-
-```bash
-find /tmp/agt_mission_mock_runtime -maxdepth 10 -type f | sort
-cat /tmp/agt_mission_mock_runtime/mission_reports/mock_inspection_return/*/report.json
-```
-
-## Next after GREEN
-
-After this Mission-level E2E is green, proceed to real visual evidence adapters: encode `original.jpg`, `overlay.jpg`, `mask.png`, preserve visual model version/hash, and wire the Level-1 visual model behind `/agt/vision/inspect` without changing Mission/Nav2 ownership.
+After the regression rerun is clean, freeze this hardware-free Mission milestone and proceed to real visual evidence adapters: encode `original.jpg`, `overlay.jpg`, `mask.png`, preserve visual model version/hash, and wire the Level-1 visual model behind `/agt/vision/inspect` without changing Mission/Nav2 ownership.
