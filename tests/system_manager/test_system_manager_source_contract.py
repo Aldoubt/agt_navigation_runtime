@@ -76,6 +76,17 @@ def test_system_manager_package_has_no_gateway_or_web_business_dependency():
     assert "http" not in combined
 
 
+def test_system_manager_installs_executable_copy_for_symlink_install():
+    cmake = CMAKE.read_text(encoding="utf-8")
+    assert "generated_scripts" in cmake
+    assert "file(COPY" in cmake
+    assert "FILE_PERMISSIONS" in cmake
+    assert "OWNER_EXECUTE" in cmake
+    assert "GROUP_EXECUTE" in cmake
+    assert "WORLD_EXECUTE" in cmake
+    assert "${CMAKE_CURRENT_BINARY_DIR}/generated_scripts/system_manager_node.py" in cmake
+
+
 def test_launch_installs_configured_node_without_other_runtime_owners():
     source = LAUNCH.read_text(encoding="utf-8")
     assert 'package="agt_system_manager"' in source
