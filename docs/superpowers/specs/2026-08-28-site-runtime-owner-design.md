@@ -2,9 +2,9 @@
 
 ## Status
 
-Approved design for the next Runtime convergence slice after P0.
+Approved architecture for the next Runtime convergence slice after P0.
 
-This document freezes the architecture and behavior of the read-only Site Runtime owner before implementation.
+This document freezes the behavior and boundaries of the read-only Site Runtime owner before implementation.
 
 ## Goal
 
@@ -17,7 +17,7 @@ asset-production or map-lifecycle database.
 
 ## Selected Approach
 
-Create a new package named `agt_site_runtime`.
+Create a new ROS package named `agt_site_runtime`.
 
 `agt_site_runtime` is a read-only deployment registry and activation owner. It is intentionally not named
 `agt_map_manager`, because it does not import, delete, archive, purge, pin, mutate, or generate map assets.
@@ -25,9 +25,39 @@ Create a new package named `agt_site_runtime`.
 The package consumes only deployed Site Packages under a configured `sites_root` and a configured Vehicle
 Profile. It must not discover or depend on a V2/V2.5 source or install workspace.
 
+## Installable Contract Library Boundary
+
+The existing validation implementation currently lives under repository tooling. That location is suitable for
+CI and command-line validation but is not a valid runtime dependency for an installed ROS package.
+
+P0.1 therefore introduces a thin installable shared package:
+
+```text
+src/agt_runtime_contracts/
+```
+
+Its purpose is only to make the existing Runtime contract logic and schemas installable and reusable.
+
+`agt_runtime_contracts` owns the canonical implementations for:
+
+- Site Package validation;
+- Vehicle Profile validation;
+- path containment and Nav2 image dependency validation;
+- SHA-256 integrity validation;
+- vehicle compatibility;
+- Ackermann geometry validation;
+- loading the installed Site Package and Vehicle Profile schemas.
+
+`agt_site_runtime` depends on `agt_runtime_contracts`.
+
+The existing `tools/runtime_contracts` entry points remain compatibility wrappers for CLI/cloud tests and import
+the installable canonical implementation. There must not be two independent validator implementations.
+
+This refactor is a dependency-enablement step, not a second business subsystem.
+
 ## Existing Contract Reuse
 
-The existing Site Package 1.0 contract remains the deployment boundary.
+The existing Site Package 1.0 contract remains the only supported deployment boundary.
 
 Reference layout:
 
@@ -47,7 +77,7 @@ sites/<site-id>/<revision>/
 └── hashes.yaml
 ```
 
-The existing runtime contract validator remains the single validation truth for:
+The canonical validator remains the single validation truth for:
 
 - Site schema 1.0;
 - relative-path and path-escape rules;
@@ -57,13 +87,14 @@ The existing runtime contract validator remains the single validation truth for:
 - Vehicle Profile compatibility;
 - Ackermann geometry validity when applicable.
 
-`agt_site_runtime` must wrap and reuse that validation behavior instead of reimplementing independent ROS-side
-validation rules.
+`agt_site_runtime` must consume that implementation instead of reimplementing independent ROS-side validation
+rules.
 
 ## Scope
 
 ### In Scope
 
+- make existing Runtime contract validation installable through `agt_runtime_contracts`;
 - discover deployed `sites_root/<site_id>/<revision>/manifest.yaml` candidates;
 - validate deployed candidates;
 - list deployed candidates with READY/INVALID summaries;
@@ -146,9 +177,35 @@ active state and persisted selection remain unchanged.
 Invalid candidates remain visible through List/Validate as `STATE_INVALID`, but `/agt/maps/active` represents
 only the currently accepted authoritative active Site.
 
-## Package Boundary
+## Package Boundaries
 
-Proposed package structure:
+### `agt_runtime_contracts`
+
+Proposed structure:
+
+```text
+src/agt_runtime_contracts/
+├── agt_runtime_contracts/
+│   ├── __init__.py
+│   └── validator.py
+├── schemas/
+│   ├── site_package.schema.json
+│   └── vehicle_profile.schema.json
+├── test/
+│   └── test_validator.py
+├── CMakeLists.txt
+├── package.xml
+└── README.md
+```
+
+It contains no ROS node, topic, service, launch file, asset activation behavior, or mutable runtime state.
+
+The existing repository-level schemas become installed copies owned by this package. Repository tooling resolves
+the same canonical schema content rather than maintaining a second schema definition.
+
+### `agt_site_runtime`
+
+Proposed structure:
 
 ```text
 src/agt_site_runtime/
@@ -200,8 +257,7 @@ class ActiveSelection:
     revision: str
 ```
 
-Additional immutable validation/summary data structures may be added when required, but ROS messages must not
-become the domain model.
+ROS messages must not become the domain model.
 
 ### `registry.py`
 
@@ -213,19 +269,14 @@ Responsibilities:
 - resolve an exact candidate by `SiteKey`;
 - ignore unrelated filesystem entries without treating them as Site Packages.
 
-The registry does not:
-
-- hash assets;
-- perform contract validation;
-- publish ROS messages;
-- write persistent state;
-- auto-select a candidate.
+The registry does not hash assets, perform contract validation, publish ROS messages, write persistent state, or
+auto-select a candidate.
 
 ### `validator.py`
 
 Responsibilities:
 
-- reuse existing runtime contract validation against the selected Vehicle Profile;
+- call `agt_runtime_contracts` against the selected Vehicle Profile;
 - enforce directory/manifest identity consistency;
 - normalize validation results into stable Site Runtime blocker codes;
 - expose only deployed-candidate validation, never arbitrary external paths.
@@ -238,7 +289,7 @@ manifest.site.id       == greenhouse_a
 manifest.site.revision == 2026-r01
 ```
 
-Mismatch returns an invalid result with:
+Mismatch produces:
 
 ```text
 SITE_IDENTITY_MISMATCH
@@ -280,6 +331,9 @@ os.replace(temp, active_site.yaml)
 
 The node must not publish a new active map before persistence succeeds.
 
+Malformed persistence state does not crash the node. It is treated as no restorable active map and logged as an
+explicit restore error so the operator can recover by making a new valid activation request.
+
 ### `summary_builder.py`
 
 Responsibilities:
@@ -300,7 +354,7 @@ The ROS node owns:
 - `/agt/maps/activate`;
 - startup restore;
 - activation serialization and request idempotency;
-- diagnostics/logging.
+- concise ROS logging of startup restore and activation outcomes.
 
 The node does not start map servers, localization backends, navigation nodes, or process managers.
 
@@ -315,8 +369,13 @@ map_id         = manifest.site.id
 map_version_id = manifest.site.revision
 ```
 
-`parent_map_version_id` may be populated only when the deployed contract contains an explicit parent revision;
-otherwise it remains empty.
+For Site Package 1.0:
+
+```text
+parent_map_version_id = ""
+```
+
+No undocumented parent key is inferred.
 
 ### State
 
@@ -329,7 +388,7 @@ STATE_INVALID
 
 It does not produce DRAFT, PROCESSING, ARCHIVED or DELETED states.
 
-For an accepted active candidate:
+Accepted active candidate:
 
 ```text
 state  = STATE_READY
@@ -337,7 +396,7 @@ active = true
 valid  = true
 ```
 
-For a valid inactive candidate:
+Valid inactive candidate:
 
 ```text
 state  = STATE_READY
@@ -345,7 +404,7 @@ active = false
 valid  = true
 ```
 
-For an invalid candidate:
+Invalid candidate:
 
 ```text
 state  = STATE_INVALID
@@ -353,34 +412,33 @@ active = false
 valid  = false
 ```
 
-`deleted` and `pinned` remain false in this read-only implementation.
+`deleted` and `pinned` remain false.
 
 ### Resolved Runtime Paths
 
 The Site Package manifest remains relocatable and continues to store relative paths.
 
-The Runtime read model publishes normalized absolute paths for downstream consumers:
+The Runtime read model publishes normalized absolute paths for validated assets:
 
 ```text
 navigation_yaml
 localization_pcd
-processing_record
-tasks_directory
 ```
 
-Absolute Runtime paths must only be produced from paths that remain within the validated Site Package root.
-
-`tasks_directory` is not invented from `routes/`. For Site Package 1.0:
+`processing_record` is populated only when `assets.processing_record` is explicitly present in the manifest and
+therefore participates in the normal path and integrity validation. Otherwise:
 
 ```text
-if <site_root>/tasks/ exists:
-    tasks_directory = absolute path to <site_root>/tasks/
-else:
-    tasks_directory = ""
+processing_record = ""
 ```
 
-A formal task-registry asset can be added by a future Site Package schema revision rather than hidden inside
-P0.1 behavior.
+Site Package 1.0 has no integrity-protected task-registry directory contract. Therefore P0.1 always publishes:
+
+```text
+tasks_directory = ""
+```
+
+A formal task-registry asset belongs in a future Site Package schema revision.
 
 ### Hash Fields
 
@@ -400,11 +458,16 @@ localization_pcd_sha256
 
 `map_hash` is the deterministic Site content identity and is not equal to only the localization PCD digest.
 
+Canonical effective asset set:
+
+1. every manifest-declared `assets.*` path accepted by validation;
+2. the transitive Nav2 image path referenced by `assets.navigation_map`.
+
 Canonical algorithm:
 
 1. compute `manifest_sha256` from the current manifest bytes;
 2. load the validated hash mapping;
-3. collect all integrity-protected effective Site assets, including the transitive Nav2 image;
+3. collect the effective asset set above;
 4. sort entries by Site-root-relative path;
 5. serialize each as `<relative-path>:<sha256>\n`;
 6. hash the UTF-8 bytes of:
@@ -442,9 +505,7 @@ TRANSIENT_LOCAL
 depth = 1
 ```
 
-This topic is the single authoritative active Site read model.
-
-No separate GetActive service is added in P0.1.
+This topic is the single authoritative active Site read model. No separate GetActive service is added in P0.1.
 
 ### `/agt/maps/list`
 
@@ -526,14 +587,15 @@ SITE_HASH_MISMATCH
 SITE_VEHICLE_INCOMPATIBLE
 SITE_NAVIGATION_MAP_INVALID
 SITE_VALIDATION_FAILED
+ACTIVE_SELECTION_INVALID
 ACTIVE_SELECTION_PERSIST_FAILED
+ACTIVE_SELECTION_RESTORE_FAILED
 ```
 
-The implementation may map multiple low-level validator issues to the same stable blocker code when that keeps
-the public contract stable.
+Multiple low-level validator issues may map to one stable blocker code when that keeps the public contract stable.
 
-Operator-facing messages must be concise. Technical messages may include paths and expected/actual digests.
-HMI/Gateway code must not be required to parse Python exception text.
+Operator-facing messages must be concise. Technical detail remains available in validation messages and ROS
+logs. HMI/Gateway code must not be required to parse Python exception text.
 
 ## Concurrency and Idempotency
 
@@ -559,7 +621,6 @@ successful request becomes active.
 ```text
 load parameters
 construct Registry / Validator / ActivationStore
-scan registry
 load persisted selection
 
 if no selection:
@@ -573,13 +634,13 @@ if selection exists:
         restore in-memory active
         publish /agt/maps/active
     if FAIL:
-        log/diagnose restore failure
+        log restore failure
         publish no active map
-        do not modify the stored selection automatically
+        do not modify stored selection automatically
         do not fallback to any other revision
 ```
 
-Leaving the invalid persisted selection in place is intentional: it preserves operator intent and makes the
+Leaving an invalid persisted selection in place is intentional: it preserves operator intent and makes the
 restore failure inspectable. A later explicit successful activation replaces it atomically.
 
 ## SystemManager Integration
@@ -597,7 +658,7 @@ After Site Runtime publishes a valid active summary, that blocker may disappear,
 blocked while other required evidence is absent, including localization, safety, chassis or sensor-health
 evidence.
 
-This proves that each Runtime provider clears only the blockers it owns.
+Each Runtime provider clears only the blockers it owns.
 
 ## Localization and Navigation Boundary
 
@@ -622,20 +683,28 @@ agt_site_runtime:
     sites_root: /opt/agt/sites
     state_root: ~/.local/state/agt_navigation_runtime
     vehicle_profile: /opt/agt/profiles/bunker.yaml
-    site_schema: ""
-    vehicle_schema: ""
     recent_request_limit: 128
 ```
 
-Empty schema parameters mean the package resolves the repository-installed default Runtime schemas through its
-installed share resources. Explicit paths are allowed for tests and deployment overrides.
+The node expands `~` in configured filesystem paths.
 
-The implementation must validate that required parameters resolve to readable files/directories before claiming
-any Site READY.
+`agt_runtime_contracts` resolves its installed schemas from its package share directory. Tests may explicitly
+inject alternate schema paths into pure validation APIs, but production Site Runtime does not depend on
+repository-root schema paths.
+
+`sites_root` may be empty or absent at startup; that is a valid no-site state and does not crash the node.
+`vehicle_profile` must resolve to a readable valid profile before any Site can be reported READY or activated.
 
 ## Testing Strategy
 
-### Pure Python tests
+### Shared contract-library tests
+
+- existing Runtime contract behavior remains unchanged after extraction;
+- installed schema lookup resolves the canonical Site and Vehicle schemas;
+- repository CLI compatibility wrapper returns the same ValidationReport results;
+- no V2/V2.5 package dependency is introduced.
+
+### Pure Site Runtime tests
 
 Registry:
 
@@ -663,7 +732,7 @@ ActivationStore:
 
 - no existing state;
 - valid state load;
-- malformed state rejection;
+- malformed state becomes a recoverable no-active condition;
 - successful atomic replacement;
 - simulated write/replace failure preserves old file;
 - persisted contents contain only schema_version/site_id/revision.
@@ -674,11 +743,12 @@ SummaryBuilder:
 - INVALID summary fields;
 - active flag behavior;
 - normalized absolute paths;
+- empty Site Package 1.0 `tasks_directory`;
+- optional validated `processing_record`;
 - manifest digest;
 - Nav2 YAML/image/PCD digest fields;
 - deterministic `map_hash`;
-- content mutation changes `map_hash`;
-- optional tasks directory behavior.
+- effective asset mutation changes `map_hash`.
 
 Runtime policy:
 
@@ -687,7 +757,8 @@ Runtime policy:
 - successful activation persists before publishing;
 - startup valid selection restores;
 - startup invalid selection restores nothing;
-- no startup fallback.
+- no startup fallback;
+- duplicate activation idempotency.
 
 Existing contract fixtures should be reused where possible rather than copied into a second fixture family.
 
@@ -695,11 +766,12 @@ Existing contract fixtures should be reused where possible rather than copied in
 
 Cloud-capable tests must assert:
 
-- package files exist and Python sources parse;
+- both new package boundaries are installable and source files parse;
 - exact public topic/service names;
 - active publisher uses transient-local reliable QoS;
 - the node exposes no `ManageMapVersion` service;
 - no import/delete/archive/purge/pin operation is implemented;
+- Site Runtime does not import repository-root `tools.runtime_contracts`;
 - package does not depend on V2/V2.5 workspace packages;
 - new `ValidateMapVersion.srv` is registered in `agt_interfaces`;
 - existing Runtime contracts remain green.
@@ -741,24 +813,26 @@ activate valid Site
 P0.1 is PASS only when all of the following are demonstrated:
 
 ```text
-Site discovery                         PASS
-Full contract validation               PASS
-Directory/manifest identity binding    PASS
-Explicit activation only               PASS
-No auto-select                         PASS
-Persistent selection                   PASS
-Startup full revalidation              PASS
-No fallback on failed restore          PASS
-Atomic persistence                     PASS
-Failed switch preserves active         PASS
-/agt/maps/active transient-local       PASS
-List / Validate / Activate             PASS
-Invalid Site never active              PASS
-Activation request idempotency         PASS
-SystemManager integration              PASS
-No import/delete/archive/purge/pin     PASS
-Cloud contract suite                   PASS
-Local ROS integration                  PASS
+Installable shared contract library       PASS
+Existing contract behavior preserved      PASS
+Site discovery                            PASS
+Full contract validation                  PASS
+Directory/manifest identity binding       PASS
+Explicit activation only                  PASS
+No auto-select                            PASS
+Persistent selection                      PASS
+Startup full revalidation                 PASS
+No fallback on failed restore             PASS
+Atomic persistence                        PASS
+Failed switch preserves active            PASS
+/agt/maps/active transient-local          PASS
+List / Validate / Activate                PASS
+Invalid Site never active                 PASS
+Activation request idempotency            PASS
+SystemManager integration                 PASS
+No import/delete/archive/purge/pin        PASS
+Cloud contract suite                      PASS
+Local ROS integration                     PASS
 ```
 
 A clean-source-tree reproduction remains a separate repository hygiene gate if the developer workstation still
