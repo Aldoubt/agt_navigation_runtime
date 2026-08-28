@@ -21,6 +21,7 @@ class StepType(IntEnum):
     WAIT_DURATION = 2
     WAIT_EVENT = 3
     INSPECTION_TASK = 4
+    RETURN_HOME = 5
 
 
 class MissionState(IntEnum):
@@ -73,6 +74,8 @@ class MissionStep:
     inspection_task_id: str = ""
     inspection_task_revision: int = 0
     expected_content_sha256: str = ""
+    task_group_id: str = ""
+    task_group_revision: int = 0
 
 
 @dataclass(frozen=True)
