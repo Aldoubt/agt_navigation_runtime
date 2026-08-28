@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 import uuid
 
@@ -31,11 +32,14 @@ from agt_inspection.execution import (
     InspectionExecutor,
     VisionResult,
 )
+from agt_inspection.image_codec import encode_jpeg, encode_png
+from agt_inspection.image_codec import ImageCodecError
 from agt_inspection.multiview_evidence import InspectionEvidenceStore
 from agt_inspection.multiview_execution import MultiviewInspectionExecutor
 from agt_inspection.repository import InspectionRepository
 from agt_inspection.ros_multiview import RosViewAggregatorRunner, RosViewContextProvider
 from agt_inspection.schema import InspectionTaskError
+from agt_inspection.vision_result import Level1VisionResultError, parse_level1_result
 
 
 async def _wait_future(future, poll_s: float = 0.01):
@@ -218,15 +222,58 @@ class VisionRunner:
         result = wrapped.result
         canceled = _cancel_confirmed(wrapped.status)
         self._image_cache.pop(request_id, None)
+
+        if not bool(result.success):
+            return VisionResult(
+                success=False,
+                error_code=int(result.error_code),
+                message=str(result.message),
+                model_id=str(result.model_id),
+                model_version=str(result.model_version),
+                weights_sha256=str(result.weights_sha256),
+                inference_time_ms=float(result.inference_time_ms),
+                primary_confidence=float(result.primary_confidence),
+                result_json=str(result.result_json),
+                canceled=canceled,
+                cancel_confirmed=canceled,
+            )
+
+        try:
+            validated = parse_level1_result(
+                str(result.result_json),
+                model_id=str(result.model_id),
+                model_version=str(result.model_version),
+                weights_sha256=str(result.weights_sha256),
+            )
+            overlay_bytes = encode_jpeg(result.overlay_image)
+            mask_bytes = encode_png(result.mask_image)
+        except (Level1VisionResultError, ImageCodecError) as exc:
+            return VisionResult(
+                success=False,
+                error_code=int(InspectionErrorCode.INFERENCE),
+                message=f"invalid Level-1 vision result: {exc}",
+                model_id=str(result.model_id),
+                model_version=str(result.model_version),
+                weights_sha256=str(result.weights_sha256),
+                inference_time_ms=float(result.inference_time_ms),
+                primary_confidence=float(result.primary_confidence),
+                result_json=str(result.result_json),
+                canceled=canceled,
+                cancel_confirmed=canceled,
+            )
+
         return VisionResult(
-            success=bool(result.success),
+            success=True,
             error_code=int(result.error_code),
             message=str(result.message),
             model_id=str(result.model_id),
             model_version=str(result.model_version),
+            weights_sha256=str(result.weights_sha256),
             inference_time_ms=float(result.inference_time_ms),
             primary_confidence=float(result.primary_confidence),
-            result_json=str(result.result_json),
+            result_json=json.dumps(validated.payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            overlay_bytes=encode_jpeg(result.overlay_image),
+            mask_bytes=encode_png(result.mask_image),
             canceled=canceled,
             cancel_confirmed=canceled,
         )
