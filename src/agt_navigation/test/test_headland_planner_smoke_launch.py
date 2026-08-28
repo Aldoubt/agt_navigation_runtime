@@ -18,6 +18,8 @@ def test_headland_smoke_launch_is_planner_only_and_artifact_driven():
         'executable="map_server"',
         'executable="planner_server"',
         'executable="headland_planner_smoke.py"',
+        "OnProcessExit",
+        "Shutdown",
     ):
         assert required in source
     for forbidden in (
