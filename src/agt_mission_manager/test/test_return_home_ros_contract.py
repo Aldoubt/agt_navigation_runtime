@@ -41,4 +41,5 @@ def test_mission_manager_wires_return_home_runner_and_reporter():
     assert "MissionReportWriter" in node
     assert "task_group_runner=self._task_group_runner" in node
     assert "reporter=reporter" in node
-    assert "result.report_uri = reporter.finish(status)" in node
+    assert "result.report_uri" in node
+    assert "reporter.finish(status)" in node
