@@ -4,7 +4,8 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, RegisterEventHandler, Shutdown
+from launch.event_handlers import OnProcessExit
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -12,6 +13,31 @@ from launch_ros.actions import Node
 def generate_launch_description():
     nav_share = Path(get_package_share_directory("agt_navigation"))
     planner_config = str(nav_share / "config" / "headland_planner_smoke_nav2.yaml")
+
+    runner = Node(
+        package="agt_navigation",
+        executable="headland_planner_smoke.py",
+        name="agt_headland_planner_smoke",
+        output="screen",
+        arguments=[
+            "--planner-pairs",
+            LaunchConfiguration("planner_pairs"),
+            "--gap-diagnostics",
+            LaunchConfiguration("gap_diagnostics"),
+            "--map-yaml",
+            LaunchConfiguration("map"),
+            "--output",
+            LaunchConfiguration("output"),
+            "--planner-id",
+            LaunchConfiguration("planner_id"),
+            "--planner-action",
+            LaunchConfiguration("planner_action"),
+            "--server-timeout",
+            LaunchConfiguration("server_timeout_s"),
+            "--request-timeout",
+            LaunchConfiguration("request_timeout_s"),
+        ],
+    )
 
     return LaunchDescription(
         [
@@ -58,29 +84,12 @@ def generate_launch_description():
                     }
                 ],
             ),
-            Node(
-                package="agt_navigation",
-                executable="headland_planner_smoke.py",
-                name="agt_headland_planner_smoke",
-                output="screen",
-                arguments=[
-                    "--planner-pairs",
-                    LaunchConfiguration("planner_pairs"),
-                    "--gap-diagnostics",
-                    LaunchConfiguration("gap_diagnostics"),
-                    "--map-yaml",
-                    LaunchConfiguration("map"),
-                    "--output",
-                    LaunchConfiguration("output"),
-                    "--planner-id",
-                    LaunchConfiguration("planner_id"),
-                    "--planner-action",
-                    LaunchConfiguration("planner_action"),
-                    "--server-timeout",
-                    LaunchConfiguration("server_timeout_s"),
-                    "--request-timeout",
-                    LaunchConfiguration("request_timeout_s"),
-                ],
+            runner,
+            RegisterEventHandler(
+                OnProcessExit(
+                    target_action=runner,
+                    on_exit=[Shutdown(reason="headland planner smoke finished")],
+                )
             ),
         ]
     )
