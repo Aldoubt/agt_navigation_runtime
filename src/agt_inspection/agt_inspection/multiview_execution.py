@@ -159,9 +159,11 @@ class MultiviewInspectionExecutor(InspectionExecutor):
             raise ValueError(f"Level-1 result_json is not valid JSON: {exc}") from exc
         if not isinstance(payload, dict):
             raise ValueError("Level-1 result_json must contain a JSON object")
-        if payload.get("count_target") != expected_count_target:
+        actual_count_target = payload.get("count_target")
+        if actual_count_target != expected_count_target:
             raise ValueError(
-                "Level-1 result_json.count_target must match task count_target"
+                "Level-1 result_json.count_target mismatch: "
+                f"expected {expected_count_target!r}, got {actual_count_target!r}"
             )
         raw_count = payload.get("raw_count")
         if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 0:
