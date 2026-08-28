@@ -32,8 +32,7 @@ from agt_inspection.execution import (
     InspectionExecutor,
     VisionResult,
 )
-from agt_inspection.image_codec import encode_jpeg, encode_png
-from agt_inspection.image_codec import ImageCodecError
+from agt_inspection.image_codec import ImageCodecError, encode_jpeg, encode_png
 from agt_inspection.multiview_evidence import InspectionEvidenceStore
 from agt_inspection.multiview_execution import MultiviewInspectionExecutor
 from agt_inspection.repository import InspectionRepository
@@ -174,15 +173,29 @@ class CameraRunner:
         response = await _wait_future(self._client.call_async(request))
         if response is None:
             return CaptureResult(False, message="camera service returned no response")
+
+        image_bytes = b""
         if response.success:
+            try:
+                image_bytes = encode_jpeg(response.image)
+            except ImageCodecError as exc:
+                return CaptureResult(
+                    False,
+                    int(InspectionErrorCode.CAPTURE),
+                    message=f"invalid captured image: {exc}",
+                    image_uri=str(response.image_uri),
+                    image_suffix=".jpg",
+                )
             self._image_cache[request_id] = response.image
             self._capture_stamps[request_id] = response.image.header.stamp
+
         return CaptureResult(
             success=bool(response.success),
             error_code=int(response.error_code),
             message=str(response.message),
-            image_bytes=bytes(response.image.data),
+            image_bytes=image_bytes,
             image_uri=str(response.image_uri),
+            image_suffix=".jpg",
         )
 
     def capture_stamp(self, request_id: str):
@@ -271,9 +284,16 @@ class VisionRunner:
             weights_sha256=str(result.weights_sha256),
             inference_time_ms=float(result.inference_time_ms),
             primary_confidence=float(result.primary_confidence),
-            result_json=json.dumps(validated.payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            result_json=json.dumps(
+                validated.payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
             overlay_bytes=overlay_bytes,
             mask_bytes=mask_bytes,
+            overlay_suffix=".jpg",
+            mask_suffix=".png",
             canceled=canceled,
             cancel_confirmed=canceled,
         )
