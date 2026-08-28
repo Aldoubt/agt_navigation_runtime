@@ -222,6 +222,29 @@ def test_unexpected_positive_failure_and_negative_success_are_mismatches():
     assert mismatch_types == {"unexpected_failure", "unexpected_success"}
 
 
+def test_infrastructure_failure_never_satisfies_a_negative_control():
+    planner_pairs, diagnostics = _frozen_like_payloads()
+    manifest = build_smoke_manifest(planner_pairs, diagnostics)
+    negative = next(item for item in manifest["requests"] if not item["expected_success"])
+    result = finalize_smoke_results(
+        manifest,
+        [
+            {
+                "request_id": negative["request_id"],
+                "planner_success": False,
+                "path_xy": [],
+                "infrastructure_error": True,
+                "failure_reason": "planner result timed out",
+            }
+        ],
+    )
+    item = result["results"][0]
+    assert item["expectation_met"] is False
+    assert item["mismatch_type"] == "infrastructure_error"
+    assert result["summary"]["infrastructure_error"] == 1
+    assert result["summary"]["expectation_mismatch"] == 1
+
+
 def _write_p5(path: Path, width=8, height=6, value=254):
     payload = bytes([value] * width * height)
     path.write_bytes(f"P5\n{width} {height}\n255\n".encode("ascii") + payload)
