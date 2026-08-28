@@ -11,6 +11,12 @@ class SiteKey:
 
 
 @dataclass(frozen=True)
+class ActiveSelection:
+    site_id: str
+    revision: str
+
+
+@dataclass(frozen=True)
 class SiteCandidate:
     key: SiteKey
     root: Path
