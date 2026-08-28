@@ -45,7 +45,7 @@ def _wait_until(predicate, timeout=2.0):
 def _safety_message(*, ready: bool, estop: bool = False) -> DiagnosticArray:
     message = DiagnosticArray()
     status = DiagnosticStatus()
-    status.name = "agt_safety/tracked_controller"
+    status.name = "agt_safety/controller"
     status.values = [
         KeyValue(key="motion_enabled", value="true" if ready else "false"),
         KeyValue(key="estop_latched", value="true" if estop else "false"),
