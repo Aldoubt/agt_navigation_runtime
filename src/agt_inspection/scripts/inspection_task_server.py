@@ -272,8 +272,8 @@ class VisionRunner:
             inference_time_ms=float(result.inference_time_ms),
             primary_confidence=float(result.primary_confidence),
             result_json=json.dumps(validated.payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
-            overlay_bytes=encode_jpeg(result.overlay_image),
-            mask_bytes=encode_png(result.mask_image),
+            overlay_bytes=overlay_bytes,
+            mask_bytes=mask_bytes,
             canceled=canceled,
             cancel_confirmed=canceled,
         )
