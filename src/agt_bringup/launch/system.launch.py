@@ -79,6 +79,7 @@ def generate_launch_description():
             DeclareLaunchArgument("start_perception", default_value="true"),
             DeclareLaunchArgument("start_localization", default_value="false"),
             DeclareLaunchArgument("start_navigation", default_value="false"),
+            DeclareLaunchArgument("enable_rviz_goal_bridge", default_value="false"),
             DeclareLaunchArgument("start_chassis", default_value="false"),
             DeclareLaunchArgument("chassis_operation_mode", default_value="control"),
             DeclareLaunchArgument("can_interface", default_value="can0"),
@@ -171,6 +172,7 @@ def generate_launch_description():
                     "localization_status_timeout": LaunchConfiguration(
                         "localization_status_timeout"
                     ),
+                    "enable_rviz_goal_bridge": LaunchConfiguration("enable_rviz_goal_bridge"),
                     "use_sim_time": use_sim_time,
                     "autostart": "false",
                 }.items(),
