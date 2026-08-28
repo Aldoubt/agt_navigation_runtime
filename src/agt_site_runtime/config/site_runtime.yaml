@@ -1,0 +1,6 @@
+agt_site_runtime:
+  ros__parameters:
+    sites_root: /opt/agt/sites
+    state_root: ~/.local/state/agt_navigation_runtime
+    vehicle_profile: /opt/agt/profiles/bunker.yaml
+    recent_request_limit: 128
