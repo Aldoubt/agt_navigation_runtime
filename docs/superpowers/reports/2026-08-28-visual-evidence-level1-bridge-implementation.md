@@ -2,7 +2,7 @@
 
 Date: 2026-08-28
 
-Status: **USER-MACHINE FULL MOCK E2E GREEN**
+Status: **USER-MACHINE FULL MOCK E2E GREEN / CORRECTNESS FOLLOW-UP GREEN**
 
 This report freezes the software-only milestone for the Level-1 visual evidence bridge on branch `feat/inspection-multiview-evidence`. Evidence below is from the user's ROS 2 Humble machine unless explicitly stated otherwise; it is not assistant-side ROS execution evidence.
 
@@ -27,12 +27,16 @@ The mock vision stack now uses a deterministic canonical Level-1 payload and emi
 Level-1 result payload includes:
 
 - `schema_version = 1`
-- `count_target = litchi_flower`
+- non-empty `count_target`
 - typed and JSON-mirrored `model_id`, `model_version`, `weights_sha256`
 - non-negative integer `raw_count`
 - `instances[]`
 - `quality{}`
 - `warnings[]`
+
+`raw_count` and `instances[]` are intentionally independent contract fields. The parser does not impose an extra `len(instances) == raw_count` invariant.
+
+For Schema-v2 execution, the parsed Level-1 `count_target` must exactly match the inspection task's frozen `task.count_target`. A mismatch is rejected as an inference failure before evidence persistence or point-local aggregation. The diagnostic includes both expected and actual targets for auditability.
 
 Evidence codecs are:
 
@@ -61,6 +65,17 @@ The following gates were reported passing on the user machine during implementat
 - deterministic canonical mock payload: **2 passed**
 - mock Level-1 ROS action result + canonical mock payload regression set: **4 passed**
 - generated-script freshness regression: **1 passed**
+
+Correctness follow-up was completed with strict RED -> GREEN cycles:
+
+- canonical parser now requires and exposes non-empty `count_target`
+- parser no longer requires `len(instances) == raw_count`
+- Schema-v2 executor rejects a valid Level-1 payload whose `count_target` differs from `task.count_target`
+- mismatch diagnostics report both expected and actual target values
+- targeted multiview execution regression: **USER-MACHINE GREEN**
+- combined visual contract regression set: **USER-MACHINE GREEN**
+
+The final two GREEN claims above are user-reported test results from the user's machine; they are not assistant-side test execution.
 
 ## Full hardware-free Mission E2E
 
@@ -150,11 +165,13 @@ This milestone does **not** prove:
 
 The mock aggregator remains non-authoritative for real dedup quality. Mission-level `point_sum_estimate` must not be relabeled as a global unique count.
 
-## Remaining correctness follow-up
+## Correctness follow-up status
 
-Before real-model integration, one small contract cleanup remains recommended:
+The previously open Level-1 correctness cleanup is now **CLOSED / USER-MACHINE GREEN**:
 
-1. Explicitly validate `count_target` in the canonical Level-1 parser / execution boundary against the task's expected target.
-2. Remove the parser's extra `len(instances) == raw_count` invariant unless it is intentionally frozen as a formal contract; the frozen Level-1 design only requires a non-negative `raw_count` and an `instances` array.
+1. `count_target` is a required canonical Level-1 field and is exposed by the parser result.
+2. `raw_count` and `instances[]` are no longer forced to have equal lengths.
+3. Schema-v2 execution binds result `count_target` to the task's expected target and rejects mismatches before evidence persistence or aggregation.
+4. Mismatch diagnostics include both expected and actual targets.
 
-These are follow-up correctness items, not blockers for the now-green mock visual evidence E2E milestone.
+No further Mission/RETURN_HOME architecture change is required for this milestone. The next implementation line should focus on real camera/model integration while preserving the frozen runtime/evidence contracts above.
