@@ -45,6 +45,18 @@ class InspectionChildResult:
     message: str = ""
     canceled: bool = False
     cancel_confirmed: bool = False
+    session_id: str = ""
+    evidence_root_uri: str = ""
+
+
+@dataclass(frozen=True)
+class TaskGroupChildResult:
+    success: bool
+    error_code: int = 0
+    message: str = ""
+    canceled: bool = False
+    cancel_confirmed: bool = False
+    session_id: str = ""
 
 
 class WaypointRunner(Protocol):
@@ -61,6 +73,25 @@ class WaypointRunner(Protocol):
 class InspectionRunner(Protocol):
     async def run(self, mission: Mission, step: MissionStep) -> InspectionChildResult: ...
     async def cancel(self) -> bool: ...
+
+
+class TaskGroupRunner(Protocol):
+    async def run(self, mission: Mission, step: MissionStep) -> TaskGroupChildResult: ...
+    async def cancel(self) -> bool: ...
+
+
+class MissionReportSink(Protocol):
+    def start(self, mission: Mission) -> str: ...
+    def record_step(
+        self,
+        *,
+        index: int,
+        step: MissionStep,
+        success: bool,
+        message: str,
+        session_id: str = "",
+        artifact_uri: str = "",
+    ) -> None: ...
 
 
 class EventInbox:
@@ -109,6 +140,8 @@ class MissionExecutor:
         gate_provider: Callable[[], GateSnapshot],
         event_inbox: EventInbox,
         inspection_runner: InspectionRunner | None = None,
+        task_group_runner: TaskGroupRunner | None = None,
+        reporter: MissionReportSink | None = None,
         status_callback: Callable[[MissionRuntimeStatus], None] | None = None,
         monotonic: Callable[[], float] = time.monotonic,
         wall_time: Callable[[], float] = time.time,
@@ -119,6 +152,8 @@ class MissionExecutor:
         self.audit = audit
         self.waypoint_runner = waypoint_runner
         self.inspection_runner = inspection_runner
+        self.task_group_runner = task_group_runner
+        self.reporter = reporter
         self.gate_provider = gate_provider
         self.event_inbox = event_inbox
         self.status_callback = status_callback or (lambda _status: None)
@@ -131,6 +166,8 @@ class MissionExecutor:
         self._pause_requested = threading.Event()
         self._resume_requested = threading.Event()
         self._cancel_requested = threading.Event()
+        self._step_session_id = ""
+        self._step_artifact_uri = ""
 
     def request_pause(self) -> tuple[bool, str]:
         if self.status.state not in {
@@ -197,6 +234,18 @@ class MissionExecutor:
             {"error_code": int(code), "message": message},
         )
         return self.status
+
+    def _record_step(self, index: int, step: MissionStep, success: bool, message: str) -> None:
+        if self.reporter is None:
+            return
+        self.reporter.record_step(
+            index=index,
+            step=step,
+            success=success,
+            message=message,
+            session_id=self._step_session_id,
+            artifact_uri=self._step_artifact_uri,
+        )
 
     def _gates_ready(
         self, mission: Mission
@@ -375,6 +424,8 @@ class MissionExecutor:
                     )
                     confirmed = await self.inspection_runner.cancel()
                     result = await child_task
+                    self._step_session_id = result.session_id
+                    self._step_artifact_uri = result.evidence_root_uri
                     if not confirmed or not result.cancel_confirmed:
                         self._fail(
                             MissionErrorCode.CHILD_FAILED,
@@ -404,6 +455,8 @@ class MissionExecutor:
                 await self.sleep(self.poll_period_s)
             else:
                 result = await child_task
+                self._step_session_id = result.session_id
+                self._step_artifact_uri = result.evidence_root_uri
                 if self._cancel_requested.is_set():
                     await self._cancel_terminal()
                     return False
@@ -412,7 +465,6 @@ class MissionExecutor:
                 if result.canceled and self._cancel_requested.is_set():
                     await self._cancel_terminal()
                     return False
-                # Inspection errors 1/2 are asset/map validation failures.
                 code = (
                     MissionErrorCode.CHILD_REJECTED
                     if result.error_code in {1, 2, 40, 41}
@@ -422,6 +474,63 @@ class MissionExecutor:
                     code,
                     result.message or "inspection child failed",
                 )
+                return False
+
+    async def _run_task_group(self, mission: Mission, step: MissionStep) -> bool:
+        if self.task_group_runner is None:
+            self._fail(
+                MissionErrorCode.CHILD_REJECTED,
+                "formal task-group runner is unavailable",
+            )
+            return False
+        while True:
+            child_task = asyncio.create_task(self.task_group_runner.run(mission, step))
+            while not child_task.done():
+                if self._cancel_requested.is_set() or self._pause_requested.is_set():
+                    pause = self._pause_requested.is_set() and not self._cancel_requested.is_set()
+                    self._transition(
+                        MissionState.PAUSING if pause else MissionState.CANCELING,
+                        "canceling active return-home child",
+                    )
+                    confirmed = await self.task_group_runner.cancel()
+                    result = await child_task
+                    self._step_session_id = result.session_id
+                    if not confirmed or not result.cancel_confirmed:
+                        self._fail(
+                            MissionErrorCode.CHILD_FAILED,
+                            "return-home child did not confirm cancellation",
+                        )
+                        return False
+                    if not pause:
+                        await self._cancel_terminal()
+                        return False
+                    self._transition(
+                        MissionState.PAUSED,
+                        "mission paused after return-home cancellation",
+                    )
+                    if not await self._pause_until_resumed(mission):
+                        if self.status.state != MissionState.FAILED:
+                            await self._cancel_terminal()
+                        return False
+                    break
+                await self.sleep(self.poll_period_s)
+            else:
+                result = await child_task
+                self._step_session_id = result.session_id
+                if self._cancel_requested.is_set():
+                    await self._cancel_terminal()
+                    return False
+                if result.success:
+                    return True
+                if result.canceled and self._cancel_requested.is_set():
+                    await self._cancel_terminal()
+                    return False
+                code = (
+                    MissionErrorCode.CHILD_REJECTED
+                    if result.error_code in {40, 41}
+                    else MissionErrorCode.CHILD_FAILED
+                )
+                self._fail(code, result.message or "return-home child failed")
                 return False
 
     async def _run_duration(
@@ -525,6 +634,8 @@ class MissionExecutor:
         self._fsm = MissionFsm()
         self.status = MissionRuntimeStatus.for_mission(mission)
         self._fsm.transition(MissionState.VALIDATING)
+        if self.reporter is not None:
+            self.reporter.start(mission)
         self._checkpoint()
         self.audit.append(
             "mission_validating",
@@ -543,6 +654,8 @@ class MissionExecutor:
                 return await self._cancel_terminal()
             if not await self._pause_between_steps(mission):
                 return self.status
+            self._step_session_id = ""
+            self._step_artifact_uri = ""
             self.status.current_step_index = index
             self.status.current_step_id = step.id
             self.status.current_step_type = step.type
@@ -559,10 +672,13 @@ class MissionExecutor:
             if step.type in {
                 StepType.WAYPOINT_TASK,
                 StepType.INSPECTION_TASK,
+                StepType.RETURN_HOME,
             }:
                 ready, code, message, gates = self._gates_ready(mission)
                 if not ready:
-                    return self._fail(code, message, gates)
+                    self._fail(code, message, gates)
+                    self._record_step(index, step, False, self.status.message)
+                    return self.status
 
             if step.type == StepType.WAYPOINT_TASK:
                 completed = await self._run_waypoint(
@@ -570,19 +686,25 @@ class MissionExecutor:
                 )
             elif step.type == StepType.INSPECTION_TASK:
                 completed = await self._run_inspection(mission, step)
+            elif step.type == StepType.RETURN_HOME:
+                completed = await self._run_task_group(mission, step)
             elif step.type == StepType.WAIT_DURATION:
                 completed = await self._run_duration(mission, step)
             elif step.type == StepType.WAIT_EVENT:
                 completed = await self._run_event(mission, step)
             else:
-                return self._fail(
+                self._fail(
                     MissionErrorCode.INVALID_MISSION,
                     "unsupported mission step",
                 )
+                self._record_step(index, step, False, self.status.message)
+                return self.status
 
             if not completed:
+                self._record_step(index, step, False, self.status.message)
                 return self.status
             self.audit.append("step_completed", {"step_id": step.id})
+            self._record_step(index, step, True, "step completed")
 
         if self._cancel_requested.is_set():
             return await self._cancel_terminal()
