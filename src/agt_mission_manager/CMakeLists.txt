@@ -6,13 +6,36 @@ find_package(ament_cmake_python REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
 
+# GitHub contents writes may leave Python entry points at mode 0644. Under
+# colcon --symlink-install that can expose a non-executable libexec target.
+# Stage an executable build-tree copy, matching the proven agt_inspection path.
+set(AGT_MISSION_MANAGER_GENERATED_SCRIPT_DIR
+  "${CMAKE_CURRENT_BINARY_DIR}/generated_scripts"
+)
+file(MAKE_DIRECTORY "${AGT_MISSION_MANAGER_GENERATED_SCRIPT_DIR}")
+file(COPY
+  "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mission_manager_node.py"
+  DESTINATION "${AGT_MISSION_MANAGER_GENERATED_SCRIPT_DIR}"
+  FILE_PERMISSIONS
+    OWNER_READ OWNER_WRITE OWNER_EXECUTE
+    GROUP_READ GROUP_EXECUTE
+    WORLD_READ WORLD_EXECUTE
+)
+
 install(PROGRAMS
-  scripts/mission_manager_node.py
+  "${AGT_MISSION_MANAGER_GENERATED_SCRIPT_DIR}/mission_manager_node.py"
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME}
+)
+
+# Source fixtures remain under test/ for repository organization, while mock
+# launch consumes the installed copy as a package asset.
+install(DIRECTORY test/fixtures/
+  DESTINATION share/${PROJECT_NAME}/fixtures
+  OPTIONAL
 )
 
 if(BUILD_TESTING)
