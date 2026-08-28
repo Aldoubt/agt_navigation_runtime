@@ -65,6 +65,23 @@ def test_mock_launch_is_hardware_free_and_uses_installed_fixture_assets():
     assert "camera_calibration_sha256" in launch
 
 
+def test_ros_python_entries_are_staged_executable_for_symlink_install():
+    cmake = _read("CMakeLists.txt")
+
+    # GitHub contents writes can leave scripts at 0644. Installing source paths
+    # directly under colcon --symlink-install can therefore expose a non-
+    # executable libexec entry. Require the same build-tree staging pattern that
+    # agt_bringup already uses successfully.
+    assert "AGT_INSPECTION_GENERATED_SCRIPT_DIR" in cmake
+    assert "AGT_INSPECTION_GENERATED_SCRIPTS" in cmake
+    assert "file(COPY" in cmake
+    assert "FILE_PERMISSIONS" in cmake
+    assert "OWNER_EXECUTE" in cmake
+    assert "GROUP_EXECUTE" in cmake
+    assert "WORLD_EXECUTE" in cmake
+    assert "install(PROGRAMS" in cmake
+
+
 def test_mock_level1_contract_contains_raw_count_and_local_instance_ids():
     vision = _read("scripts/mock_vision_server.py")
 
