@@ -17,6 +17,7 @@ from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import ComputePathToPose
 from rclpy.action import ActionClient
 from rclpy.node import Node
+from rclpy.utilities import remove_ros_args
 
 from agt_navigation.headland_planner_smoke import (
     build_smoke_manifest,
@@ -41,6 +42,12 @@ def build_parser():
     parser.add_argument("--server-timeout", type=float, default=30.0)
     parser.add_argument("--request-timeout", type=float, default=30.0)
     return parser
+
+
+def _parse_cli_args(argv=None):
+    raw_args = list(sys.argv) if argv is None else [sys.argv[0], *list(argv)]
+    application_args = remove_ros_args(args=raw_args)
+    return build_parser().parse_args(application_args[1:])
 
 
 def _positive_timeout(value, name):
@@ -243,7 +250,7 @@ def _print_summary(result):
 
 
 def main(argv=None):
-    args = build_parser().parse_args(argv)
+    args = _parse_cli_args(argv)
     server_timeout = _positive_timeout(args.server_timeout, "server_timeout")
     request_timeout = _positive_timeout(args.request_timeout, "request_timeout")
     planner_pairs_path, planner_pairs = _load_payload(args.planner_pairs)
