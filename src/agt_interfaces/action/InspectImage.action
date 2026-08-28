@@ -15,6 +15,9 @@ bool success
 uint16 error_code
 string model_id
 string model_version
+string weights_sha256
+sensor_msgs/Image overlay_image
+sensor_msgs/Image mask_image
 float64 inference_time_ms
 float64 primary_confidence
 string result_json
