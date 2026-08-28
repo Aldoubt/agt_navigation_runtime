@@ -61,6 +61,60 @@ def test_headland_smoke_nav2_config_freezes_r020_and_unknown_blocking():
     assert global_costmap["inflation_layer"]["inflation_radius"] == 0.75
 
 
+def test_f4_unknown_clearance_contract_changes_only_unknown_inflation_policy():
+    baseline = yaml.safe_load(
+        (ROOT / "config" / "headland_planner_smoke_nav2.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    experimental = yaml.safe_load(
+        (
+            ROOT
+            / "config"
+            / "headland_planner_smoke_nav2_unknown_clearance.yaml"
+        ).read_text(encoding="utf-8")
+    )
+
+    baseline_planner = baseline["planner_server"]["ros__parameters"]
+    experimental_planner = experimental["planner_server"]["ros__parameters"]
+    assert experimental_planner == baseline_planner
+
+    baseline_costmap = baseline["global_costmap"]["global_costmap"]["ros__parameters"]
+    experimental_costmap = experimental["global_costmap"]["global_costmap"]["ros__parameters"]
+
+    for key in (
+        "resolution",
+        "track_unknown_space",
+        "robot_radius",
+        "footprint_padding",
+        "plugins",
+        "static_layer",
+        "always_send_full_costmap",
+    ):
+        assert experimental_costmap[key] == baseline_costmap[key]
+
+    baseline_inflation = baseline_costmap["inflation_layer"]
+    experimental_inflation = experimental_costmap["inflation_layer"]
+    assert baseline_inflation["plugin"] == experimental_inflation["plugin"]
+    assert baseline_inflation["cost_scaling_factor"] == experimental_inflation["cost_scaling_factor"]
+    assert baseline_inflation["inflation_radius"] == experimental_inflation["inflation_radius"] == 0.75
+    assert baseline_inflation["inflate_unknown"] is False
+    assert baseline_inflation["inflate_around_unknown"] is False
+    assert experimental_inflation["inflate_unknown"] is False
+    assert experimental_inflation["inflate_around_unknown"] is True
+
+
+def test_f4_launch_accepts_planner_params_and_contract_label():
+    source = (ROOT / "launch" / "headland_planner_smoke.launch.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'DeclareLaunchArgument("planner_params"' in source
+    assert 'DeclareLaunchArgument("planner_contract"' in source
+    assert 'LaunchConfiguration("planner_params")' in source
+    assert '"--planner-contract"' in source
+    assert 'LaunchConfiguration("planner_contract")' in source
+
+
 def test_headland_smoke_runner_calls_compute_path_without_motion_actions():
     source = (ROOT / "scripts" / "headland_planner_smoke.py").read_text(
         encoding="utf-8"
@@ -108,6 +162,25 @@ def test_headland_smoke_runner_strips_ros_launch_arguments_before_argparse():
     assert args.map_yaml == "/tmp/navigation_base_map.yaml"
     assert args.output == "/tmp/planner_smoke"
     assert args.planner_id == "GridBased"
+
+
+def test_f4_runner_parses_contract_label_for_result_provenance():
+    runner = _load_runner_module()
+    args = runner._parse_cli_args(
+        [
+            "--planner-pairs",
+            "/tmp/planner_pairs.yaml",
+            "--gap-diagnostics",
+            "/tmp/headland_gap_diagnostics.json",
+            "--map-yaml",
+            "/tmp/navigation_base_map.yaml",
+            "--output",
+            "/tmp/planner_smoke",
+            "--planner-contract",
+            "unknown_clearance",
+        ]
+    )
+    assert args.planner_contract == "unknown_clearance"
 
 
 def test_entrypoint_materialization_reconfigures_when_source_scripts_change():
