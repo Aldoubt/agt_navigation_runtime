@@ -39,6 +39,7 @@ def build_parser():
     parser.add_argument("--output", required=True)
     parser.add_argument("--planner-id", default="GridBased")
     parser.add_argument("--planner-action", default="/compute_path_to_pose")
+    parser.add_argument("--planner-contract", default="baseline_source_map")
     parser.add_argument("--server-timeout", type=float, default=30.0)
     parser.add_argument("--request-timeout", type=float, default=30.0)
     return parser
@@ -298,6 +299,7 @@ def main(argv=None):
     result["planner"] = {
         "planner_id": str(args.planner_id),
         "planner_action": str(args.planner_action),
+        "planner_contract": str(args.planner_contract),
         "allow_unknown": False,
         "motion_stack_started": False,
     }
