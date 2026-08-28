@@ -97,9 +97,7 @@ def generate_launch_description():
                     "can_interface": LaunchConfiguration("can_interface"),
                     "mapping_save_pcd": "true",
                     "mapping_pcd_save_interval": "-1",
-                    "mapping_pcd_output_dir": LaunchConfiguration(
-                        "mapping_output_dir"
-                    ),
+                    "mapping_pcd_output_dir": LaunchConfiguration("mapping_output_dir"),
                 }.items(),
             ),
         ]
