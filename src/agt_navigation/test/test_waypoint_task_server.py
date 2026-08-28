@@ -186,7 +186,7 @@ def test_legacy_task_file_is_disabled_by_default():
 def test_safety_readiness_requires_enabled_and_clear_estop(node):
     message = DiagnosticArray()
     status = DiagnosticStatus()
-    status.name = "agt_safety/tracked_controller"
+    status.name = "agt_safety/controller"
     status.values = [
         KeyValue(key="motion_enabled", value="true"),
         KeyValue(key="estop_latched", value="false"),
