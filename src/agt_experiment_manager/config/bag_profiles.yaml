@@ -56,6 +56,7 @@ profiles:
       - /agt/mapping/registered_points
       - /agt/localization/status
       - /agt/localization/global_pose
+      - /agt/perception/obstacle_cloud
       - /agt/navigation/status
       - /agt/navigation/cmd_vel_raw
       - /agt/navigation/cmd_vel
