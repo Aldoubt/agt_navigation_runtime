@@ -1,6 +1,10 @@
 from dataclasses import replace
 
-from agt_system_manager.readiness import Evidence, evaluate_navigation_readiness
+from agt_system_manager.readiness import (
+    Evidence,
+    authoritative_map_known,
+    evaluate_navigation_readiness,
+)
 
 
 def all_ready() -> Evidence:
@@ -48,6 +52,52 @@ def test_missing_active_map_is_fail_closed():
     )
     assert not result.ready
     assert result.blocker_codes == ("ACTIVE_MAP_UNKNOWN",)
+
+
+def test_explicit_no_active_tombstone_revokes_authoritative_map_identity():
+    known = authoritative_map_known(
+        received=True,
+        state=0,
+        unknown_state=0,
+        active=False,
+        valid=False,
+    )
+    result = evaluate_navigation_readiness(
+        replace(
+            all_ready(),
+            map_known=known,
+            map_ready=False,
+            map_id="",
+            map_version_id="",
+        )
+    )
+    assert not known
+    assert not result.ready
+    assert result.blocker_codes == ("ACTIVE_MAP_UNKNOWN",)
+
+
+def test_received_invalid_or_inactive_map_is_known_but_not_ready():
+    assert authoritative_map_known(
+        received=True,
+        state=4,
+        unknown_state=0,
+        active=False,
+        valid=False,
+    )
+    assert authoritative_map_known(
+        received=True,
+        state=3,
+        unknown_state=0,
+        active=False,
+        valid=True,
+    )
+    assert not authoritative_map_known(
+        received=False,
+        state=0,
+        unknown_state=0,
+        active=False,
+        valid=False,
+    )
 
 
 def test_non_ready_active_map_blocks_navigation():
