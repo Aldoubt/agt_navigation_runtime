@@ -61,6 +61,7 @@ def test_mock_launch_is_hardware_free_and_uses_installed_fixture_assets():
     assert 'FindPackageShare("agt_inspection")' in launch
     assert '"fixtures", "runtime", "maps"' in launch
     assert "install(DIRECTORY test/fixtures/" in cmake
+    assert "DESTINATION share/${PROJECT_NAME}/fixtures" in cmake
     assert "camera_calibration_id" in launch
     assert "camera_calibration_sha256" in launch
 
