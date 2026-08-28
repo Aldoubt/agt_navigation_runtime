@@ -117,7 +117,7 @@ def test_field_navigation_uses_frozen_assets_and_explicit_commissioning_goal_bri
     ):
         assert _declares_required_argument(source, name)
 
-    assert _declares_argument(source, "start_chassis", "true")
+    assert _declares_argument(source, "start_chassis", "false")
     assert _declares_argument(source, "chassis_operation_mode", "control")
     assert _declares_argument(source, "start_rviz", "true")
 
