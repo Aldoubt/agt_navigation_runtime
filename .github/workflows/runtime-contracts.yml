@@ -62,8 +62,10 @@ jobs:
           fi
       - name: Run runtime site-owner contracts
         run: |
-          if [ -d tests/site_runtime ]; then
+          if [ -d src/agt_site_runtime/test ]; then
+            PYTHONPATH=src/agt_site_runtime:src/agt_runtime_contracts python -m pytest -q src/agt_site_runtime/test
+          elif [ -d tests/site_runtime ]; then
             PYTHONPATH=src/agt_site_runtime:src/agt_runtime_contracts python -m pytest -q tests/site_runtime
           else
-            echo "tests/site_runtime not present yet; site-owner TDD has not reached that task"
+            echo "site-runtime tests not present yet; site-owner TDD has not reached that task"
           fi
