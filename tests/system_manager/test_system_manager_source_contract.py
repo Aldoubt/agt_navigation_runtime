@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 
 
@@ -13,6 +14,11 @@ CONFIG = PACKAGE / "config/system_manager.yaml"
 def test_system_manager_ros_package_files_exist():
     for path in (NODE, LAUNCH, CMAKE, PACKAGE_XML, CONFIG):
         assert path.is_file(), f"missing production system-manager file: {path}"
+
+
+def test_system_manager_python_sources_parse():
+    ast.parse(NODE.read_text(encoding="utf-8"))
+    ast.parse(LAUNCH.read_text(encoding="utf-8"))
 
 
 def test_system_manager_owns_authoritative_read_model_topics_and_services():
