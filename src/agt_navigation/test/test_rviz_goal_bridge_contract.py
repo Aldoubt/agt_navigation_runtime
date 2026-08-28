@@ -3,6 +3,7 @@ from pathlib import Path
 
 SRC_ROOT = Path(__file__).resolve().parents[2]
 NAVIGATION_LAUNCH = SRC_ROOT / "agt_navigation" / "launch" / "navigation.launch.py"
+FIELD_NAVIGATION_RVIZ = SRC_ROOT / "agt_navigation" / "config" / "field_navigation.rviz"
 
 
 def _declares_argument(source: str, name: str, default: str) -> bool:
@@ -35,3 +36,25 @@ def test_normal_navigation_keeps_direct_task_pose_goals_disabled():
     source = NAVIGATION_LAUNCH.read_text(encoding="utf-8")
 
     assert '"allow_direct_pose_goals": False' in source
+
+
+def test_field_navigation_rviz_has_required_displays_and_commissioning_tools():
+    assert FIELD_NAVIGATION_RVIZ.is_file(), "field_navigation.rviz must exist"
+    source = FIELD_NAVIGATION_RVIZ.read_text(encoding="utf-8")
+
+    required_fragments = (
+        "Fixed Frame: map",
+        "/agt/map/global_occupancy",
+        "/agt/mapping/registered_points",
+        "/plan",
+        "/global_costmap/costmap",
+        "/local_costmap/costmap",
+        "rviz_default_plugins/TF",
+        "rviz_default_plugins/RobotModel",
+        "rviz_default_plugins/SetInitialPose",
+        "rviz_default_plugins/SetGoal",
+        "/initialpose",
+        "/goal_pose",
+    )
+    for fragment in required_fragments:
+        assert fragment in source
