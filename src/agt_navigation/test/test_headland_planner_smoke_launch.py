@@ -1,9 +1,18 @@
 from pathlib import Path
+import importlib.util
 
 import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_runner_module():
+    script = ROOT / "scripts" / "headland_planner_smoke.py"
+    spec = importlib.util.spec_from_file_location("headland_planner_smoke_runner", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_headland_smoke_launch_is_planner_only_and_artifact_driven():
@@ -72,6 +81,33 @@ def test_headland_smoke_runner_calls_compute_path_without_motion_actions():
         "cmd_vel",
     ):
         assert forbidden not in source
+
+
+def test_headland_smoke_runner_strips_ros_launch_arguments_before_argparse():
+    runner = _load_runner_module()
+    args = runner._parse_cli_args(
+        [
+            "--planner-pairs",
+            "/tmp/planner_pairs.yaml",
+            "--gap-diagnostics",
+            "/tmp/headland_gap_diagnostics.json",
+            "--map-yaml",
+            "/tmp/navigation_base_map.yaml",
+            "--output",
+            "/tmp/planner_smoke",
+            "--planner-id",
+            "GridBased",
+            "--ros-args",
+            "-r",
+            "__node:=agt_headland_planner_smoke",
+        ]
+    )
+
+    assert args.planner_pairs == "/tmp/planner_pairs.yaml"
+    assert args.gap_diagnostics == "/tmp/headland_gap_diagnostics.json"
+    assert args.map_yaml == "/tmp/navigation_base_map.yaml"
+    assert args.output == "/tmp/planner_smoke"
+    assert args.planner_id == "GridBased"
 
 
 def test_headland_smoke_runner_is_installed_by_agt_navigation():
