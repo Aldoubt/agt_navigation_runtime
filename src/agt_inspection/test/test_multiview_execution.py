@@ -103,6 +103,7 @@ class Vision:
             primary_confidence=0.93,
             result_json=json.dumps(
                 {
+                    "count_target": "litchi_flower",
                     "raw_count": raw_count,
                     "instances": [
                         {"local_instance_id": f"I{index + 1:04d}"}
@@ -129,12 +130,33 @@ class VisualVision(Vision):
             primary_confidence=0.93,
             result_json=json.dumps(
                 {
+                    "count_target": "litchi_flower",
                     "raw_count": 1,
                     "instances": [{"local_instance_id": "I0001"}],
                 }
             ),
             overlay_bytes=b"overlay-jpeg-bytes",
             mask_bytes=b"mask-png-bytes",
+        )
+
+
+class WrongTargetVision(Vision):
+    async def inspect(self, point, capture, request_id):
+        del point, capture
+        self.events.append(("vision", request_id))
+        return VisionResult(
+            True,
+            model_id="mock-flower-seg",
+            model_version="1",
+            inference_time_ms=5.0,
+            primary_confidence=0.93,
+            result_json=json.dumps(
+                {
+                    "count_target": "tomato",
+                    "raw_count": 1,
+                    "instances": [{"local_instance_id": "I0001"}],
+                }
+            ),
         )
 
 
@@ -332,3 +354,19 @@ def test_single_view_failure_blocks_point_before_aggregation(tmp_path):
     assert result.success is False
     assert result.error_code == executor.ERROR_INFERENCE
     assert aggregator.calls == []
+
+
+def test_level1_count_target_must_match_task_before_evidence_or_aggregation(tmp_path):
+    events = []
+    wrong_target = WrongTargetVision(events)
+    executor, _, _, _, aggregator = make_executor(tmp_path, vision=wrong_target)
+
+    result = asyncio.run(executor.execute(task(), session_id="session_wrong_target"))
+
+    assert result.success is False
+    assert result.error_code == executor.ERROR_INFERENCE
+    assert "count_target" in result.message
+    assert "litchi_flower" in result.message
+    assert "tomato" in result.message
+    assert aggregator.calls == []
+    assert not list(tmp_path.rglob("points/P001/view_left/result.json"))
