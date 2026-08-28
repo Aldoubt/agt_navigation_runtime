@@ -116,6 +116,28 @@ class Vision:
         return True
 
 
+class VisualVision(Vision):
+    async def inspect(self, point, capture, request_id):
+        del point, capture
+        self.events.append(("vision", request_id))
+        return VisionResult(
+            True,
+            model_id="mock-flower-seg",
+            model_version="1",
+            weights_sha256=HASH_A,
+            inference_time_ms=5.0,
+            primary_confidence=0.93,
+            result_json=json.dumps(
+                {
+                    "raw_count": 1,
+                    "instances": [{"local_instance_id": "I0001"}],
+                }
+            ),
+            overlay_bytes=b"overlay-jpeg-bytes",
+            mask_bytes=b"mask-png-bytes",
+        )
+
+
 class ContextProvider:
     def snapshot(self, task, point, view, request_id):
         del request_id
@@ -257,6 +279,27 @@ def test_one_navigation_stop_executes_all_ordered_views_then_point_local_aggrega
         "unique_instance_count": 4,
         "ambiguous_instance_count": 1,
     }
+
+
+def test_visual_evidence_bytes_and_model_hash_are_handed_to_store(tmp_path):
+    events = []
+    executor, _, _, _, _ = make_executor(tmp_path, vision=VisualVision(events))
+
+    result = asyncio.run(executor.execute(task(), session_id="session_visual"))
+
+    assert result.success is True
+    view_root = (
+        tmp_path
+        / "litchi_flower_route_01"
+        / "session_visual"
+        / "points"
+        / "P001"
+        / "view_left"
+    )
+    assert (view_root / "overlay.bin").read_bytes() == b"overlay-jpeg-bytes"
+    assert (view_root / "mask.bin").read_bytes() == b"mask-png-bytes"
+    payload = json.loads((view_root / "result.json").read_text(encoding="utf-8"))
+    assert payload["vision"]["weights_sha256"] == HASH_A
 
 
 def test_aggregation_failure_is_nonblocking_and_preserves_level1_view_raw_report(tmp_path):
