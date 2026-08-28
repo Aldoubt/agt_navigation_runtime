@@ -5,7 +5,8 @@ planner_server:
     planner_plugins: [GridBased]
     GridBased:
       plugin: nav2_smac_planner/SmacPlanner2D
-      tolerance: 0.25
+      # Smoke tests validate the exported handoff cell itself; no goal snapping.
+      tolerance: 0.0
       downsample_costmap: false
       allow_unknown: false
       max_iterations: 1000000
