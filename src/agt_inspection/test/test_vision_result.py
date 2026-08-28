@@ -6,9 +6,26 @@ from agt_inspection.vision_result import Level1VisionResultError, parse_level1_r
 
 
 WEIGHTS = "sha256:" + "a" * 64
+_BASE_INSTANCES = [
+    {"local_instance_id": "I0001", "confidence": 0.91},
+    {"local_instance_id": "I0002", "confidence": 0.87},
+]
 
 
-def _payload(*, raw_count=2, model_id="flower-seg", model_version="1.2.3", weights_sha256=WEIGHTS):
+def _payload(
+    *,
+    raw_count=2,
+    model_id="flower-seg",
+    model_version="1.2.3",
+    weights_sha256=WEIGHTS,
+):
+    # The fixture must be able to construct malformed raw_count values so the
+    # production parser, rather than Python list slicing, is what rejects them.
+    if isinstance(raw_count, int) and not isinstance(raw_count, bool) and 0 <= raw_count <= len(_BASE_INSTANCES):
+        instances = _BASE_INSTANCES[:raw_count]
+    else:
+        instances = list(_BASE_INSTANCES)
+
     return {
         "schema_version": 1,
         "model": {
@@ -17,10 +34,7 @@ def _payload(*, raw_count=2, model_id="flower-seg", model_version="1.2.3", weigh
             "weights_sha256": weights_sha256,
         },
         "raw_count": raw_count,
-        "instances": [
-            {"local_instance_id": "I0001", "confidence": 0.91},
-            {"local_instance_id": "I0002", "confidence": 0.87},
-        ][:raw_count],
+        "instances": instances,
         "quality": {"valid": True, "reason": ""},
         "warnings": [],
     }
