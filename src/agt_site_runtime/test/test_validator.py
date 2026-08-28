@@ -14,10 +14,25 @@ SITE_SCHEMA = REPO_ROOT / "schemas/site_package.schema.json"
 FIXTURES = REPO_ROOT / "tests/contracts/fixtures"
 
 
-def _copy_candidate(tmp_path: Path, fixture: str, site_id: str = "greenhouse_test", revision: str = "r01") -> SiteCandidate:
-    root = tmp_path / "sites" / site_id / revision
-    shutil.copytree(FIXTURES / fixture, root)
-    return SiteCandidate(SiteKey(site_id, revision), root, root / "manifest.yaml")
+def _copy_candidate(
+    tmp_path: Path,
+    fixture: str,
+    site_id: str | None = None,
+    revision: str | None = None,
+) -> SiteCandidate:
+    source = FIXTURES / fixture
+    manifest = yaml.safe_load((source / "manifest.yaml").read_text(encoding="utf-8"))
+    manifest_site = manifest.get("site", {}) if isinstance(manifest, dict) else {}
+    deployed_site_id = site_id if site_id is not None else str(manifest_site.get("id", "missing-site"))
+    deployed_revision = revision if revision is not None else str(manifest_site.get("revision", "missing-revision"))
+
+    root = tmp_path / "sites" / deployed_site_id / deployed_revision
+    shutil.copytree(source, root)
+    return SiteCandidate(
+        SiteKey(deployed_site_id, deployed_revision),
+        root,
+        root / "manifest.yaml",
+    )
 
 
 def _validator() -> SiteValidator:
