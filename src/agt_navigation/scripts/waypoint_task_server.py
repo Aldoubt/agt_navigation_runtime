@@ -280,7 +280,7 @@ class WaypointTaskServer(Node):
         ready = False
         estop = False
         for status in message.status:
-            if status.name != "agt_safety/tracked_controller":
+            if status.name != "agt_safety/controller":
                 continue
             values = {item.key: item.value.lower() for item in status.values}
             estop = values.get("estop_latched") == "true"
