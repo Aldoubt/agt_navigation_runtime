@@ -37,6 +37,7 @@ class CaptureResult:
     message: str = ""
     image_bytes: bytes = b""
     image_uri: str = ""
+    image_suffix: str = ".bin"
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,8 @@ class VisionResult:
     result_json: str = "{}"
     overlay_bytes: bytes = b""
     mask_bytes: bytes = b""
+    overlay_suffix: str = ".bin"
+    mask_suffix: str = ".bin"
     canceled: bool = False
     cancel_confirmed: bool = False
 
