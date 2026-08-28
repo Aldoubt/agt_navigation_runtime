@@ -40,6 +40,11 @@ def build_parser():
     parser.add_argument("--planner-id", default="GridBased")
     parser.add_argument("--planner-action", default="/compute_path_to_pose")
     parser.add_argument("--planner-contract", default="baseline_source_map")
+    parser.add_argument(
+        "--result-mode",
+        choices=("expectation_match", "reference_probe"),
+        default="expectation_match",
+    )
     parser.add_argument("--server-timeout", type=float, default=30.0)
     parser.add_argument("--request-timeout", type=float, default=30.0)
     return parser
@@ -194,7 +199,8 @@ class HeadlandPlannerSmokeNode(Node):
         path = getattr(result, "path", None)
         poses = list(getattr(path, "poses", []) or [])
         path_xy = [
-            [float(item.pose.position.x), float(item.pose.position.y)] for item in poses
+            [float(item.pose.position.x), float(item.pose.position.y)]
+            for item in poses
         ]
         error_code = int(getattr(result, "error_code", 0))
         planning_time_ms = _duration_ms(getattr(result, "planning_time", None))
@@ -229,16 +235,29 @@ class HeadlandPlannerSmokeNode(Node):
 def _print_summary(result):
     summary = result["summary"]
     print("method:", result["method"])
+    print("result_mode:", result.get("result_mode", "expectation_match"))
     print("radius_m:", result["radius_m"])
     print("expected_requests:", summary["expected_request_count"])
     print("outcomes:", summary["outcome_count"])
     print("planner_success:", summary["planner_success"])
     print("planner_failure:", summary["planner_failure"])
+    print("infrastructure_error:", summary["infrastructure_error"])
+
+    if result.get("result_mode") == "reference_probe":
+        for key in (
+            "reference_positive_survives",
+            "reference_positive_rejected",
+            "reference_negative_plannable",
+            "reference_negative_rejected",
+        ):
+            print(f"{key}:", summary[key])
+        print("probe_valid:", summary["probe_valid"])
+        return
+
     print("expectation_met:", summary["expectation_met"])
     print("expectation_mismatch:", summary["expectation_mismatch"])
     print("unexpected_success:", summary["unexpected_success"])
     print("unexpected_failure:", summary["unexpected_failure"])
-    print("infrastructure_error:", summary["infrastructure_error"])
     if summary["expectation_mismatch"]:
         print("\nmismatches:")
         for item in result["results"]:
@@ -276,7 +295,7 @@ def main(argv=None):
             for index, request in enumerate(manifest["requests"], start=1):
                 node.get_logger().info(
                     f"[{index}/{len(manifest['requests'])}] {request['request_id']} "
-                    f"expected_success={request['expected_success']}"
+                    f"reference={request['expectation_class']}"
                 )
                 outcomes.append(
                     node.run_request(
@@ -290,7 +309,11 @@ def main(argv=None):
         if rclpy.ok():
             rclpy.shutdown()
 
-    result = finalize_smoke_results(manifest, outcomes)
+    result = finalize_smoke_results(
+        manifest,
+        outcomes,
+        result_mode=args.result_mode,
+    )
     result["sources"] = {
         "planner_pairs": str(planner_pairs_path),
         "gap_diagnostics": str(gap_path),
@@ -300,12 +323,16 @@ def main(argv=None):
         "planner_id": str(args.planner_id),
         "planner_action": str(args.planner_action),
         "planner_contract": str(args.planner_contract),
+        "result_mode": str(args.result_mode),
         "allow_unknown": False,
         "motion_stack_started": False,
     }
     write_smoke_bundle(result, map_yaml, output)
     print("output:", output)
     _print_summary(result)
+
+    if args.result_mode == "reference_probe":
+        return 0 if result["summary"]["probe_valid"] else 2
     return 0 if result["summary"]["all_expectations_met"] else 2
 
 
