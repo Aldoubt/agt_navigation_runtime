@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 PACKAGE = Path(__file__).resolve().parents[1]
-ROOT = PACKAGE.parents[1]
+SRC_ROOT = PACKAGE.parent
 
 
 def _read(relative: str) -> str:
@@ -10,8 +10,11 @@ def _read(relative: str) -> str:
 
 
 def test_mission_status_and_action_expose_return_home_and_report_uri():
-    status = (ROOT / "agt_interfaces" / "msg" / "MissionStatus.msg").read_text(encoding="utf-8")
-    action = (ROOT / "agt_interfaces" / "action" / "ExecuteMission.action").read_text(encoding="utf-8")
+    # Repository packages are siblings under <repo>/src/. Keep this test rooted
+    # at src instead of the repository root so it works in the normal checkout
+    # layout used by colcon/ament pytest.
+    status = (SRC_ROOT / "agt_interfaces" / "msg" / "MissionStatus.msg").read_text(encoding="utf-8")
+    action = (SRC_ROOT / "agt_interfaces" / "action" / "ExecuteMission.action").read_text(encoding="utf-8")
 
     assert "STEP_RETURN_HOME=5" in status
     assert "string report_uri" in action
