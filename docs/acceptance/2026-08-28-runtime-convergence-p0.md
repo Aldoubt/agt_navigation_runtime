@@ -1,24 +1,31 @@
 # Runtime Convergence P0 Acceptance — 2026-08-28
 
-## Status
+## Final status
 
 ```text
-Selected stable baseline: PASS
-Safety producer/consumer contract: PASS (cloud regression + ROS fixture guard)
-Pure readiness policy: PASS (cloud regression)
-System-manager source/read-model contract: PASS (cloud regression)
-Final cloud Runtime Contracts: PASS at 3abe8a9
-Local ROS 2 Humble full build: PASS on verification attempt #1 (26 packages)
-Local clean-Git-worktree build: PENDING (attempt #1 carried pre-existing local M/D changes)
-Local ROS package tests: RERUN REQUIRED after fixture fix
-System-manager launch --show-args: PASS
-System-manager no-motion runtime smoke: PENDING
-Overall P0 acceptance: PENDING LOCAL RERUN + RUNTIME SMOKE
+Selected stable baseline:                    PASS
+Safety producer/consumer contract:           PASS
+Pure readiness policy:                       PASS
+Authoritative agt_system_manager:            PASS
+System-manager executable/libexec install:   PASS
+Local ROS 2 Humble full build:               PASS (26 packages)
+Selected ROS package regression:             PASS (109 tests, 0 failures)
+Waypoint action stability follow-up:         PASS / no reproducible defect
+System-manager launch:                       PASS
+RobotState topic:                            PASS
+TaskReadiness topic:                         PASS
+GetRobotState service:                       PASS
+No-upstream fail-closed runtime smoke:        PASS
+Final cloud Runtime Contracts:               PASS
+
+P0 functional/runtime acceptance:            PASS
+Clean-source fresh-clone reproduction:        DEFERRED FOLLOW-UP
 ```
 
-This record intentionally distinguishes cloud/source evidence, a successful local build, and the remaining
-runtime acceptance gates. It also does not treat deletion of build/install/log as proof of a clean Git source
-workspace.
+P0 is frozen as functionally accepted on the target ROS 2 Humble workstation. A separate clean-source
+fresh-clone/worktree reproduction remains desirable because the first full-workspace verification was performed
+with pre-existing local modified/deleted source paths. Those local changes were intentionally preserved and were
+not reset as part of this acceptance.
 
 ## Baseline
 
@@ -38,50 +45,30 @@ e62261a57cc4bd16448526e31d9897a0ef48a577
 The baseline choice and deferred experimental branches are documented in
 `docs/audits/2026-08-28-runtime-baseline-audit.md`.
 
-## P0 deliverables
+## Accepted deliverables
 
 ### 1. Canonical safety diagnostic contract
 
-The generic V3 safety controller publishes:
+The generic V3 safety controller, waypoint execution path, ROUTE runtime-gate fixture, and cloud cross-package
+contract now use one canonical status identity:
 
 ```text
 agt_safety/controller
 ```
 
-The waypoint task server and ROUTE runtime-gate test fixture now consume/construct that same production
-status identity. The legacy `agt_safety/tracked_controller` identity is forbidden by the cloud execution
-contract guard.
+The legacy `agt_safety/tracked_controller` identity is forbidden by the execution contract guard.
 
-Initial RED evidence:
+Key TDD evidence:
 
-- GitHub Actions run `33144895532` (`Runtime Contracts` run #175)
-- V3-01 contracts: PASS
-- V3-02 odometry contracts: PASS
-- V3-03 execution contracts: FAIL on the new cross-package assertion
+- run #175 / `33144895532`: RED on the new cross-package safety assertion;
+- run #176: GREEN after producer/consumer alignment;
+- run #192 at `b70bf5228bd418cbd96aebcb70c7f41130c66304`: RED after extending the guard to the ROUTE fixture;
+- commit `3abe8a9fe0b9cd7259e939e65e1ac624f8ff34b4`: fixture aligned;
+- run #193: V3-01/V3-02/V3-03/system-manager cloud stages PASS.
 
-Initial GREEN evidence:
+### 2. Fail-closed readiness core
 
-- run #176 at `1bf0284ab8bb5263a84800391dfe16d4218d4332`: PASS
-- run #177 at `772efbe85070da2786b0ff1b9e0915d84d96eb8d`: PASS
-
-Local ROS verification exposed one missed fixture in
-`src/agt_navigation/test/test_navigation_capability_runtime_gates.py`. The fixture still emitted the legacy
-status name, so a safety-required ROUTE harness failed closed before its child FollowPath action started.
-Because construction failed before normal teardown, the remaining parameterized cases observed leftover action
-servers and produced cascading duplicate-goal / wrong-blocker symptoms.
-
-Regression strengthening evidence:
-
-- run #192 at `b70bf5228bd418cbd96aebcb70c7f41130c66304`: RED by design; V3-03 execution contracts reject the stale ROUTE fixture
-- commit `3abe8a9fe0b9cd7259e939e65e1ac624f8ff34b4`: fixture aligned to `agt_safety/controller`
-- run #193: PASS for V3-01, V3-02, V3-03 and system-manager cloud stages
-
-### 2. ROS-independent readiness policy
-
-Added `agt_system_manager.readiness` with immutable evidence/result models and deterministic
-fail-closed navigation blocker ordering.
-
-Required evidence covers:
+`agt_system_manager.readiness` owns deterministic navigation readiness evaluation. Required evidence covers:
 
 ```text
 required system health
@@ -108,20 +95,14 @@ CHASSIS_UNKNOWN
 CHASSIS_DISCONNECTED
 ```
 
-RED evidence:
+Key TDD evidence:
 
-- GitHub Actions run `33145126010` (#178)
-- V3-01/V3-02/V3-03 steps: PASS
-- new system-manager step: FAIL because the readiness module did not yet exist
-
-GREEN evidence:
-
-- run #180 after the core implementation: PASS
-- run #181 at `f4659ce8eb120b3aa615cfeae23da802a6df58dc`: PASS
+- run #178 / `33145126010`: RED because the readiness module did not exist;
+- runs #180/#181: GREEN after the pure readiness implementation.
 
 ### 3. Authoritative `agt_system_manager`
 
-Added a new ROS package:
+Accepted package:
 
 ```text
 src/agt_system_manager/
@@ -148,7 +129,7 @@ Read services:
 /agt/system/robot_state/get
 ```
 
-P0 input evidence:
+P0 evidence inputs:
 
 ```text
 /diagnostics
@@ -161,145 +142,104 @@ P0 input evidence:
 /agt/data/bags/status
 ```
 
-Heartbeat-like safety evidence is freshness-gated with monotonic receive time. State-like map,
-mission and bag snapshots remain known after receipt and expose their age in `RobotState`.
+The node is read-model aggregation only. It does not start algorithms, activate maps, publish velocity, execute
+shell commands, or contain operator Gateway/Web transport business logic.
 
-The node does not start algorithms, activate maps, publish velocity, execute shell commands, or contain an
-operator Web/Gateway dependency.
+### 4. Symlink-install executable contract
 
-`EvaluateTaskReadiness` P0 supports only `PROFILE_TASK_EXECUTION`. Unsupported profiles and
-`validate_task:=true` are rejected explicitly rather than silently claiming support. Navigation task
-file/revision/hash validation remains owned by the navigation task registry.
-
-RED evidence:
-
-- GitHub Actions run `33145287692` (#182): FAIL after adding the ROS source contract before the package existed
-
-GREEN/source evidence:
-
-- run #187 at the production node implementation: PASS
-- run #188 at `7d75949ec487f29bffe890f1138eeb42d6f49d4a`: PASS
-- run #190 at `a9c6ed3c6720e75759811b439ffc4a1a2dfa3233`: PASS, including Python AST parsing of the node/launch sources
-- run #193 at `3abe8a9fe0b9cd7259e939e65e1ac624f8ff34b4`: PASS after strengthening the Safety fixture contract
-
-Run #193 passed all cloud-capable workflow stages:
+Local runtime smoke initially exposed:
 
 ```text
-V3-01 contract tests                 PASS
-V3-02 odometry source contracts      PASS
-V3-03 execution source contracts     PASS
-runtime system-manager contracts     PASS
+executable 'system_manager_node.py' not found on the libexec directory
 ```
 
-## Local ROS 2 Humble verification attempt #1
+Root cause was the direct `install(PROGRAMS scripts/system_manager_node.py ...)` path under
+`colcon --symlink-install`, where a repository-created 0644 source file can remain non-executable behind an
+install symlink.
 
-Observed on the target Ubuntu/ROS2 workstation after deleting `build/`, `install/`, and `log/`:
+The fix reuses the established `agt_navigation` pattern: create a build-tree script copy with explicit executable
+permissions and install that generated copy.
+
+TDD evidence:
+
+- run #196 at `07c0e292b2a74f4b3310564263e214ca4a6d09d5`: RED on the new libexec executable contract;
+- commit `bba03211add2bb738d47eb0affa129b33178bbef`: generated executable-copy install;
+- run #197 / `33152229566`: all cloud Runtime Contracts PASS.
+
+## Local ROS 2 Humble acceptance
+
+### Full build
+
+A fresh build-artifact rebuild completed:
 
 ```text
 colcon build --symlink-install
 Summary: 26 packages finished
 ```
 
-No package build failed. Third-party/dependency stderr consisted of existing warnings such as PCL CMake policy
-and optional pcap/png feature warnings.
+No package build failed. Existing dependency warnings did not block the build.
 
-The source Git worktree was not clean when the convergence branch was selected. Pre-existing modified/deleted
-paths were present under `agt_bt_executor`, `agt_localization`, `agt_navigation`, and `agt_sensor_monitor`.
-Therefore attempt #1 proves a full fresh build-artifact rebuild, but not a clean-source-tree reproduction.
-Those local changes must be preserved rather than reset blindly.
+### Selected P0 regression
 
-Selected package test results before the fixture remediation:
+After the safety fixture remediation, the final selected package gate completed with:
 
 ```text
-agt_system_manager: PASS (1/1 CTest; readiness core passed)
-agt_safety:         PASS (1/1 CTest; 4 pytest cases passed)
-agt_navigation:     FAIL (13/14 CTest programs passed)
+agt_system_manager
+agt_navigation
+agt_safety
+
+Summary: 3 packages finished
+Summary: 109 tests, 0 errors, 0 failures, 0 skipped
+agt_navigation: 14/14 CTest targets passed
 ```
 
-The single failing CTest program was:
+### Waypoint action stability follow-up
+
+The previously observed `wait_for_server(timeout_sec=2.0)` failure could not be reproduced after the runtime-gate
+fixture remediation:
 
 ```text
-test_navigation_capability_runtime_gates
+single previously failing case:  6/6 PASS
+full pytest file:                10/10 PASS
+CTest target repeat:             20/20 PASS
 ```
 
-Inside that pytest file, three of five parameterized/runtime-gate cases failed. Root cause was the stale legacy
-Safety fixture described above, not a system-manager build or launch failure. The remote branch now contains the
-fixture fix at `3abe8a9fe0b9cd7259e939e65e1ac624f8ff34b4`, but the local ROS test suite must be rerun before the package
-test gate is promoted to PASS.
+No production timeout, ROS_DOMAIN_ID, or ActionServer behavior was changed without evidence. Detailed evidence is
+recorded in `docs/acceptance/2026-08-28-runtime-convergence-p0-waypoint-stability-followup.md`.
 
-The following launch argument check succeeded during attempt #1:
+### No-upstream fail-closed runtime smoke
 
-```bash
-ros2 launch agt_system_manager system_manager.launch.py --show-args
-```
+`ros2 launch agt_system_manager system_manager.launch.py` successfully started the production node after the
+libexec remediation.
 
-Resolved arguments included `system_manager_config` and `use_sim_time`; no package/import/config resolution
-error was reported.
-
-## Required local ROS 2 Humble rerun gate
-
-First preserve and inspect the pre-existing local source changes. Do not run `git reset --hard` or `git clean`.
-
-```bash
-cd ~/agt_navigation_runtime
-git status --short
-git diff > ~/agt_navigation_runtime_pre_convergence_worktree.patch
-
-git fetch origin
-git pull --ff-only origin feat/runtime-convergence-p0
-source /opt/ros/humble/setup.bash
-source install/setup.bash
-```
-
-Run the previously failing test first:
-
-```bash
-colcon test \
-  --packages-select agt_navigation \
-  --ctest-args -R test_navigation_capability_runtime_gates --output-on-failure
-colcon test-result --verbose
-```
-
-If that passes, rerun the complete selected P0 package gate:
-
-```bash
-colcon test \
-  --packages-select agt_system_manager agt_navigation agt_safety \
-  --event-handlers console_direct+
-colcon test-result --verbose
-```
-
-Expected gate:
+With no active-map, localization, safety, or chassis producers started, the authoritative read model reported:
 
 ```text
-agt_system_manager / agt_navigation / agt_safety tests: zero failures
+TaskReadiness.ready: false
+RobotState.navigation_ready: false
+RobotState.message: BLOCKED
+
+blocker_codes:
+- SYSTEM_HEALTH_UNKNOWN
+- ACTIVE_MAP_UNKNOWN
+- LOCALIZATION_UNKNOWN
+- SAFETY_UNKNOWN
+- CHASSIS_UNKNOWN
 ```
 
-A separate clean-source-tree reproduction can be performed later from a fresh clone/worktree after the current
-local modifications have been safely preserved.
+`/agt/system/robot_state`, `/agt/system/task_readiness`, and `/agt/system/robot_state/get` all returned the same
+fail-closed state. This proves missing evidence does not silently promote the robot to READY.
 
-Then perform the no-motion startup smoke:
+## Remaining non-blocking follow-up
 
-```bash
-ros2 launch agt_system_manager system_manager.launch.py
-```
-
-In another terminal:
-
-```bash
-source ~/agt_navigation_runtime/install/setup.bash
-ros2 topic echo /agt/system/robot_state --once
-ros2 topic echo /agt/system/task_readiness --once
-ros2 service call /agt/system/robot_state/get \
-  agt_interfaces/srv/GetRobotState "{include_details: true}"
-```
-
-With no upstream runtime producers started, the expected state is **BLOCKED**, with unknown/missing evidence
-reported explicitly. It must never start as READY by default.
+The first full-workspace build used fresh `build/`, `install/`, and `log/` artifacts but the Git source worktree
+contained pre-existing local M/D changes. A fresh clone/worktree reproduction should be performed later when those
+local changes can be preserved safely. This does not invalidate the completed target-machine P0 runtime smoke,
+but it remains an explicit reproducibility follow-up.
 
 ## Deferred next convergence slice
 
-P0 deliberately does not implement:
+P0 intentionally does not implement:
 
 1. production Site Package / map activation owner for `/agt/maps/active`;
 2. stable unified BUNKER bringup based on `agt_odometry`;
@@ -308,5 +248,5 @@ P0 deliberately does not implement:
 5. traversability algorithm upgrades;
 6. operator Gateway/HMI command transport.
 
-The next recommended slice is the Site/Map runtime owner followed by stable BUNKER unified bringup. Only after
-those providers are closed should the real operator Gateway be connected to `RobotState`/`TaskReadiness`.
+The next convergence slice is the Site/Map runtime owner, followed by stable BUNKER unified bringup. Only after
+those providers are closed should the real operator Gateway be attached to `RobotState` and `TaskReadiness`.
