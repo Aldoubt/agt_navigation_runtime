@@ -20,6 +20,18 @@ capture may legitimately contain zero `/agt/navigation/cmd_vel` messages; the of
 metadata gate therefore requires sensor/odom/TF/status evidence to be non-empty while treating
 command and GNSS evidence as optional unless GNSS is explicitly required.
 
+## Field navigation commissioning recorder flow
+
+`field_mapping.launch.py` and `field_navigation.launch.py` start Runtime components only; neither
+launch file owns or starts a rosbag subprocess. `agt_experiment_manager` remains the sole Runtime owner
+of rosbag recording and playback.
+
+For Phase A mapping/calibration capture, create and start the experiment, then start the explicit
+`field_mapping_baseline` profile before moving the robot. For Phase C navigation validation, create
+and start a separate experiment and start the explicit `field_navigation_baseline` profile before
+moving the robot. Stop the recording through `/agt/data/bags/manage` before completing, interrupting,
+or invalidating the experiment. Do not add a second `ros2 bag record` path to bringup wrappers.
+
 Unexpected recorder/player exits publish `ERROR`; restart recovery marks a persisted `RUNNING`
 experiment `INTERRUPTED`. A managed mapping Action may create an experiment and start an explicit
 profile through the same service, but no second recorder ownership boundary is introduced.
