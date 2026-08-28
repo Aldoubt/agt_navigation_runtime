@@ -412,6 +412,9 @@ class MultiviewInspectionExecutor(InspectionExecutor):
                         image_bytes=capture.image_bytes,
                         overlay_bytes=vision.overlay_bytes,
                         mask_bytes=vision.mask_bytes,
+                        image_suffix=capture.image_suffix,
+                        overlay_suffix=vision.overlay_suffix,
+                        mask_suffix=vision.mask_suffix,
                     )
                     observation["single_view_result_uri"] = result_uri
                     observations.append(observation)
