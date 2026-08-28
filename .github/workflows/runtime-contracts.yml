@@ -7,6 +7,7 @@ on:
       - 'feat/v3-01-*'
       - 'v3-02/**'
       - 'v3-03/**'
+      - 'feat/runtime-convergence-*'
   pull_request:
     paths:
       - 'profiles/platforms/**'
@@ -16,6 +17,7 @@ on:
       - 'tests/contracts/**'
       - 'tests/odometry/**'
       - 'tests/execution/**'
+      - 'tests/system_manager/**'
       - 'src/agt_interfaces/**'
       - 'src/agt_odometry/**'
       - 'src/agt_mapping/**'
@@ -26,6 +28,7 @@ on:
       - 'src/agt_chassis/**'
       - 'src/agt_chassis_bunker/**'
       - 'src/agt_chassis_mk_mini/**'
+      - 'src/agt_system_manager/**'
       - 'src/agt_experiment_manager/**'
       - 'requirements-contracts.txt'
       - '.github/workflows/runtime-contracts.yml'
@@ -46,3 +49,5 @@ jobs:
         run: python -m pytest -q tests/odometry
       - name: Run V3-03 execution source contracts
         run: python -m pytest -q tests/execution
+      - name: Run runtime system-manager contracts
+        run: PYTHONPATH=src/agt_system_manager python -m pytest -q tests/system_manager
