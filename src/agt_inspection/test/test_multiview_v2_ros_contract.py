@@ -90,3 +90,15 @@ def test_mock_level1_contract_contains_raw_count_and_local_instance_ids():
     assert '"local_instance_id": "I0001"' in vision
     assert '"local_instance_id": "I0002"' in vision
     assert '"local_instance_id": "I0003"' in vision
+
+
+def test_level1_ros_adapter_validates_model_identity_and_encodes_visual_payloads():
+    server = _read("scripts/inspection_task_server.py")
+
+    assert "from agt_inspection.image_codec import encode_jpeg, encode_png" in server
+    assert "parse_level1_result" in server
+    assert "parse_level1_result(" in server
+    assert "weights_sha256=str(result.weights_sha256)" in server
+    assert "overlay_bytes=encode_jpeg(result.overlay_image)" in server
+    assert "mask_bytes=encode_png(result.mask_image)" in server
+    assert "result_json=json.dumps(validated.payload" in server
