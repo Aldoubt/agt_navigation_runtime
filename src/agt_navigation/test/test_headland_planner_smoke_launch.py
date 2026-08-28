@@ -110,6 +110,12 @@ def test_headland_smoke_runner_strips_ros_launch_arguments_before_argparse():
     assert args.planner_id == "GridBased"
 
 
+def test_entrypoint_materialization_reconfigures_when_source_scripts_change():
+    source = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+    assert "CMAKE_CONFIGURE_DEPENDS" in source
+    assert 'scripts/${_script}' in source
+
+
 def test_headland_smoke_runner_is_installed_by_agt_navigation():
     source = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     assert "headland_planner_smoke.py" in source
