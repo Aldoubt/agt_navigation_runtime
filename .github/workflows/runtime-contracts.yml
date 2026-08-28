@@ -50,4 +50,9 @@ jobs:
       - name: Run V3-03 execution source contracts
         run: python -m pytest -q tests/execution
       - name: Run runtime system-manager contracts
-        run: PYTHONPATH=src/agt_system_manager python -m pytest -q tests/system_manager
+        run: |
+          if [ -d tests/system_manager ]; then
+            PYTHONPATH=src/agt_system_manager python -m pytest -q tests/system_manager
+          else
+            echo "tests/system_manager not present yet; convergence TDD has not reached that task"
+          fi
