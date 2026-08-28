@@ -94,13 +94,17 @@ def test_mock_level1_contract_contains_raw_count_and_local_instance_ids():
 
 def test_level1_ros_adapter_validates_model_identity_and_encodes_visual_payloads():
     server = _read("scripts/inspection_task_server.py")
+    compact = "".join(server.split())
 
-    assert "from agt_inspection.image_codec import encode_jpeg, encode_png" in server
-    assert "parse_level1_result" in server
-    assert "parse_level1_result(" in server
-    assert "weights_sha256=str(result.weights_sha256)" in server
-    assert "overlay_bytes = encode_jpeg(result.overlay_image)" in server
-    assert "mask_bytes = encode_png(result.mask_image)" in server
-    assert "overlay_bytes=overlay_bytes" in server
-    assert "mask_bytes=mask_bytes" in server
-    assert "result_json=json.dumps(validated.payload" in server
+    # Import grouping/order is intentionally irrelevant. The contract is that
+    # these codec functions and the strict Level-1 parser are used by the ROS boundary.
+    assert "fromagt_inspection.image_codecimport" in compact
+    assert "encode_jpeg" in compact
+    assert "encode_png" in compact
+    assert "parse_level1_result(" in compact
+    assert "weights_sha256=str(result.weights_sha256)" in compact
+    assert "overlay_bytes=encode_jpeg(result.overlay_image)" in compact
+    assert "mask_bytes=encode_png(result.mask_image)" in compact
+    assert "overlay_bytes=overlay_bytes" in compact
+    assert "mask_bytes=mask_bytes" in compact
+    assert "result_json=json.dumps(validated.payload" in compact
