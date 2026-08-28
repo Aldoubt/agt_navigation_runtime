@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import re
 import threading
 from typing import Callable
@@ -164,11 +164,7 @@ class SiteRuntimePolicy:
                 self._remember(client_request_id, key, validated)
                 return validated
 
-            active_summary = self._summary_builder(
-                self._registry.resolve(key),
-                self._validator.validate(self._registry.resolve(key)),
-                active=True,
-            )
+            active_summary = replace(validated.summary, active=True)
             try:
                 self._store.save(ActiveSelection(key.site_id, key.revision))
             except ActivationStoreError as exc:
@@ -218,8 +214,7 @@ class SiteRuntimePolicy:
             key = SiteKey(selection.site_id, selection.revision)
             candidate = self._registry.resolve(key)
             if candidate is None:
-                result = self._not_found(revoke_active=True)
-                return result
+                return self._not_found(revoke_active=True)
 
             validation = self._validator.validate(candidate)
             summary = self._summary_builder(candidate, validation, active=False)
@@ -234,7 +229,7 @@ class SiteRuntimePolicy:
                     revoke_active=True,
                 )
 
-            active_summary = self._summary_builder(candidate, validation, active=True)
+            active_summary = replace(summary, active=True)
             self._active_summary = active_summary
             return ActivationResult(
                 success=True,
