@@ -12,7 +12,9 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     nav_share = Path(get_package_share_directory("agt_navigation"))
-    default_planner_config = str(nav_share / "config" / "headland_planner_smoke_nav2.yaml")
+    default_planner_config = str(
+        nav_share / "config" / "headland_planner_smoke_nav2.yaml"
+    )
 
     runner = Node(
         package="agt_navigation",
@@ -34,6 +36,8 @@ def generate_launch_description():
             LaunchConfiguration("planner_action"),
             "--planner-contract",
             LaunchConfiguration("planner_contract"),
+            "--result-mode",
+            LaunchConfiguration("result_mode"),
             "--server-timeout",
             LaunchConfiguration("server_timeout_s"),
             "--request-timeout",
@@ -52,6 +56,9 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "planner_contract", default_value="baseline_source_map"
+            ),
+            DeclareLaunchArgument(
+                "result_mode", default_value="expectation_match"
             ),
             DeclareLaunchArgument("planner_id", default_value="GridBased"),
             DeclareLaunchArgument(
