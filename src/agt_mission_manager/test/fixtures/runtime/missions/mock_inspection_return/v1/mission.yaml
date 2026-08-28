@@ -1,0 +1,19 @@
+schema_version: 1
+mission_id: mock_inspection_return
+mission_version: v1
+content_sha256: sha256:825ea0ff78b237a64f5fea6419aac99117ff4bc870746d492410b7a1947c0ec0
+map_binding:
+  map_id: mock_map
+  map_version_id: v1
+  manifest_sha256: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+steps:
+  - id: inspect_multiview
+    type: INSPECTION_TASK
+    inspection_task_id: inspection_multiview_two_point
+    inspection_task_revision: 1
+    expected_content_sha256: sha256:aaa7c6b351e434dbcb2c903dcb4801a0a621c6fcf64ab0506de766528b7191cf
+  - id: return_home
+    type: RETURN_HOME
+    task_group_id: home_mock
+    task_group_revision: 1
+    expected_content_sha256: sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
