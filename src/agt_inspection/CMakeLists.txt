@@ -6,14 +6,40 @@ find_package(ament_cmake_python REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
 
+# GitHub contents writes may leave source scripts at mode 0644. Under
+# colcon --symlink-install, installing those source paths directly can expose
+# non-executable libexec targets. Materialize executable build-tree copies, as
+# already proven in agt_bringup.
+set(AGT_INSPECTION_SCRIPT_NAMES
+  inspection_task_server.py
+  mock_runtime_context.py
+  mock_waypoint_task_server.py
+  mock_gimbal_server.py
+  mock_camera_server.py
+  mock_vision_server.py
+  mock_view_aggregator_server.py
+)
+set(AGT_INSPECTION_GENERATED_SCRIPT_DIR
+  "${CMAKE_CURRENT_BINARY_DIR}/generated_scripts"
+)
+file(MAKE_DIRECTORY "${AGT_INSPECTION_GENERATED_SCRIPT_DIR}")
+set(AGT_INSPECTION_GENERATED_SCRIPTS "")
+foreach(script_name IN LISTS AGT_INSPECTION_SCRIPT_NAMES)
+  file(COPY
+    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/${script_name}"
+    DESTINATION "${AGT_INSPECTION_GENERATED_SCRIPT_DIR}"
+    FILE_PERMISSIONS
+      OWNER_READ OWNER_WRITE OWNER_EXECUTE
+      GROUP_READ GROUP_EXECUTE
+      WORLD_READ WORLD_EXECUTE
+  )
+  list(APPEND AGT_INSPECTION_GENERATED_SCRIPTS
+    "${AGT_INSPECTION_GENERATED_SCRIPT_DIR}/${script_name}"
+  )
+endforeach()
+
 install(PROGRAMS
-  scripts/inspection_task_server.py
-  scripts/mock_gimbal_server.py
-  scripts/mock_camera_server.py
-  scripts/mock_vision_server.py
-  scripts/mock_view_aggregator_server.py
-  scripts/mock_runtime_context.py
-  scripts/mock_waypoint_task_server.py
+  ${AGT_INSPECTION_GENERATED_SCRIPTS}
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -22,7 +48,7 @@ install(DIRECTORY launch
 )
 
 install(DIRECTORY test/fixtures/
-  DESTINATION share/${PROJECT_NAME}/fixtures
+  DESTINATION share/${PROJECT_NAME}/test/fixtures
 )
 
 if(BUILD_TESTING)
