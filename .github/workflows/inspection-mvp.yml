@@ -1,0 +1,43 @@
+name: Inspection MVP
+
+on:
+  push:
+    branches:
+      - 'feat/inspection-mvp-*'
+    paths:
+      - 'src/agt_inspection/**'
+      - 'src/agt_interfaces/**'
+      - 'src/agt_mission_manager/**'
+      - 'third_party/autolabor_c1_camera_gimbal/**'
+      - 'tests/inspection/**'
+      - 'docs/acceptance/2026-08-30-inspection-mvp-*'
+      - 'docs/runbooks/inspection-mvp-field.md'
+      - '.github/workflows/inspection-mvp.yml'
+  pull_request:
+    paths:
+      - 'src/agt_inspection/**'
+      - 'src/agt_interfaces/**'
+      - 'src/agt_mission_manager/**'
+      - 'third_party/autolabor_c1_camera_gimbal/**'
+      - 'tests/inspection/**'
+      - '.github/workflows/inspection-mvp.yml'
+
+jobs:
+  static-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install static test dependencies
+        run: python -m pip install pytest pyyaml
+      - name: Inspection selective-port contracts
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/inspection
+      - name: Compile inspection Python when present
+        run: |
+          if [ -d src/agt_inspection ]; then
+            python -m compileall -q src/agt_inspection
+          else
+            echo "agt_inspection not ported yet"
+          fi
