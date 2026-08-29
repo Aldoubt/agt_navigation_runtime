@@ -74,6 +74,23 @@ def test_route_binding_sidecar_uses_mutable_task_root_only():
     assert '/ "versions"\n            / task.map_binding.map_version_id\n            / "tasks"' not in capability
 
 
+def test_legacy_migration_is_explicit_dry_run_by_default_and_installed():
+    script = (NAV_PACKAGE / "scripts" / "migrate_legacy_task_store.py").read_text(
+        encoding="utf-8"
+    )
+    cmake = (NAV_PACKAGE / "CMakeLists.txt").read_text(encoding="utf-8")
+    migration = (
+        NAV_PACKAGE / "agt_navigation" / "legacy_task_migration.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'parser.add_argument(\n        "--apply"' in script
+    assert "dry_run=not args.apply" in script
+    assert "Runtime nodes never call this script automatically" in script
+    assert "migrate_legacy_task_store.py" in cmake
+    assert 'maps/<id>/versions/<rev>/tasks' in migration
+    assert "Runtime execution never falls back" in migration
+
+
 def test_navigation_launch_forwards_single_task_store_and_site_validation_inputs():
     source = (NAV_PACKAGE / "launch" / "navigation.launch.py").read_text(encoding="utf-8")
 
