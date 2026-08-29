@@ -17,6 +17,29 @@ MPPI /agt/navigation/cmd_vel_raw
   -> agt_chassis /agt/chassis/cmd_vel
 ```
 
+## 直接目标安全边界
+
+正式 `navigation.launch.py` 默认：
+
+```text
+enable_rviz_goal_bridge=false
+```
+
+因此生产 Runtime 不会仅因为 RViz/Qt 向 `/goal_pose` 发布 `PoseStamped` 就创建一个
+`NavigateToPose` 目标。正式任务运动入口保持：
+
+```text
+MissionManager
+  -> ExecuteWaypointTask
+  -> navigation_capability_server.py
+  -> Nav2
+```
+
+`navigation_capability_server.py` 自身仍保持 `allow_direct_pose_goals=False`。只有明确的非生产
+场景可以显式 opt-in：`offline_navigation.launch.py` 为离线仿真固定传入
+`enable_rviz_goal_bridge=true`；field commissioning 默认仍为 false，只有受控的单点验收才应
+显式传入 `enable_rviz_goal_bridge:=true`。不得把该开关写入正式生产 composition 的默认值。
+
 ## 无车离线闭环
 
 ```bash
@@ -42,14 +65,17 @@ ros2 launch agt_navigation offline_navigation.launch.py \
 
 此模式下向前目标应保持停车并最终由进度检查器中止；不要把该参数用于真实系统入口。
 
-也可向 Qt5 使用的 `/goal_pose` 发布 `geometry_msgs/PoseStamped`；`goal_pose_bridge.py`
-会转换为 NavigateToPose action，并在 `/agt/navigation/status` 发布桥接状态。
+离线入口也可向 Qt5 使用的 `/goal_pose` 发布 `geometry_msgs/PoseStamped`；这是因为
+`offline_navigation.launch.py` 明确 opt-in 了 `goal_pose_bridge.py`。桥会转换为
+`NavigateToPose` action，并在 `/agt/navigation/status` 发布桥接状态。该行为不是生产
+`navigation.launch.py` 的默认能力。
 
 ## Qt 多点任务
 
-新版 Task Library 可在无 Nav2/定位/底盘进程时编辑绑定地图版本的 schema-v1 任务组，保存到
-`runtime/maps/<map_id>/versions/<map_version_id>/tasks/`。它提供原子覆盖、备份、旧 JSON 导入、
-地图内容/几何失配和基础栅格任务点端点检查；相邻点的实际绕行由 planner-only 预览判断。完整操作见
+新版 Task Library 可在无 Nav2/定位/底盘进程时编辑绑定 Site 版本的 schema-v1 任务组，保存到
+`runtime/tasks/<map_id>/<map_version_id>/`。兼容接口中的 `map_id/map_version_id` 语义对应
+Site `id/revision`。Task Registry 提供原子覆盖、备份、旧 JSON 显式导入/迁移、Site
+内容/几何失配和基础栅格任务点端点检查；相邻点的实际绕行由 planner-only 预览判断。完整操作见
 [`docs/workflows/qt5_offline_task_group_editor.md`](../../docs/workflows/qt5_offline_task_group_editor.md)。
 
 维护版 Qt 的 **Start Task Chain** 已直接调用
@@ -107,6 +133,9 @@ ros2 topic echo /plan --once
 ros2 launch agt_navigation navigation.launch.py \
   map:=/absolute/path/to/navigation_map.yaml use_sim_time:=false
 ```
+
+正式入口的 `enable_rviz_goal_bridge` 默认保持 `false`。生产任务应通过 Mission/Task Action
+进入 Nav2，而不是直接向 `/goal_pose` 发目标。
 
 局部代价地图与 Collision Monitor 都订阅 `/agt/perception/obstacle_cloud`。实车运动前
 必须完成雷达外参、footprint、履带中心距、低矮障碍和制动距离验收；真实启动不会自动
