@@ -2,12 +2,14 @@
 
 from pathlib import Path
 
+from ament_index_python.packages import get_package_share_directory
 from agt_interfaces.srv import (
     ArchiveTaskGroup,
     GetTaskGroup,
     ListTaskGroups,
     PutTaskGroup,
 )
+from agt_navigation.site_task_binding import FilesystemSiteBindingResolver
 from agt_navigation.task_registry import TaskRegistry, TaskRegistryError
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
@@ -24,6 +26,7 @@ _ERROR_BY_CODE = {
     "MAP_NOT_READY": 5,
     "MAP_VERSION_MISMATCH": 5,
     "TASK_MAP_BINDING_MISMATCH": 5,
+    "TASK_SITE_BINDING_MISMATCH": 5,
     "TASK_NOT_SYNCED": 255,
 }
 
@@ -31,20 +34,70 @@ _ERROR_BY_CODE = {
 class TaskRegistryNode(Node):
     def __init__(self) -> None:
         super().__init__("agt_task_registry")
-        runtime_dir = Path(str(self.declare_parameter("runtime_dir", "runtime").value)).expanduser()
-        maps_root_value = str(self.declare_parameter("maps_root", "").value).strip()
-        maps_root = Path(maps_root_value).expanduser() if maps_root_value else runtime_dir / "maps"
+        runtime_dir = Path(
+            str(self.declare_parameter("runtime_dir", "runtime").value)
+        ).expanduser()
+        tasks_root_value = str(self.declare_parameter("tasks_root", "").value).strip()
+        tasks_root = (
+            Path(tasks_root_value).expanduser()
+            if tasks_root_value
+            else runtime_dir / "tasks"
+        )
+        sites_root = Path(
+            str(self.declare_parameter("sites_root", "/opt/agt/sites").value)
+        ).expanduser()
+        site_vehicle_profile = Path(
+            str(
+                self.declare_parameter(
+                    "site_vehicle_profile", "/opt/agt/profiles/bunker.yaml"
+                ).value
+            )
+        ).expanduser()
+
+        contracts_share = Path(get_package_share_directory("agt_runtime_contracts"))
+        schema_root = contracts_share / "schemas"
+        site_binding_resolver = FilesystemSiteBindingResolver(
+            sites_root=sites_root,
+            vehicle_profile=site_vehicle_profile,
+            vehicle_schema=schema_root / "vehicle_profile.schema.json",
+            site_schema=schema_root / "site_package.schema.json",
+        )
         self._registry = TaskRegistry(
-            maps_root,
-            maximum_task_bytes=int(self.declare_parameter("maximum_task_bytes", 1024 * 1024).value),
+            tasks_root,
+            site_binding_resolver=site_binding_resolver,
+            maximum_task_bytes=int(
+                self.declare_parameter("maximum_task_bytes", 1024 * 1024).value
+            ),
             backup_count=int(self.declare_parameter("backup_count", 5).value),
-            recent_request_limit=int(self.declare_parameter("recent_request_limit", 256).value),
+            recent_request_limit=int(
+                self.declare_parameter("recent_request_limit", 256).value
+            ),
         )
         group = MutuallyExclusiveCallbackGroup()
-        self.create_service(ListTaskGroups, "/agt/navigation/tasks/list", self._list, callback_group=group)
-        self.create_service(GetTaskGroup, "/agt/navigation/tasks/get", self._get, callback_group=group)
-        self.create_service(PutTaskGroup, "/agt/navigation/tasks/put", self._put, callback_group=group)
-        self.create_service(ArchiveTaskGroup, "/agt/navigation/tasks/archive", self._archive, callback_group=group)
+        self.create_service(
+            ListTaskGroups,
+            "/agt/navigation/tasks/list",
+            self._list,
+            callback_group=group,
+        )
+        self.create_service(
+            GetTaskGroup,
+            "/agt/navigation/tasks/get",
+            self._get,
+            callback_group=group,
+        )
+        self.create_service(
+            PutTaskGroup,
+            "/agt/navigation/tasks/put",
+            self._put,
+            callback_group=group,
+        )
+        self.create_service(
+            ArchiveTaskGroup,
+            "/agt/navigation/tasks/archive",
+            self._archive,
+            callback_group=group,
+        )
 
     @staticmethod
     def _fill_error(response, exc: TaskRegistryError):
@@ -58,7 +111,9 @@ class TaskRegistryNode(Node):
 
     def _list(self, request, response):
         try:
-            tasks = self._registry.list_tasks(str(request.map_id), str(request.map_version_id))
+            tasks = self._registry.list_tasks(
+                str(request.map_id), str(request.map_version_id)
+            )
             response.success = True
             response.error_code = ListTaskGroups.Response.ERROR_NONE
             response.map_id = str(request.map_id)
