@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 
 from agt_operator_gateway.preflight import (
     EXPECTED_API_VERSION,
+    classify_write_probe_status,
     validate_gateway_payloads,
     validate_robot_state_topic_type,
 )
@@ -30,6 +31,31 @@ def _http_json(base_url: str, path: str, timeout_s: float) -> dict[str, Any]:
             return json.loads(response.read().decode('utf-8'))
     except HTTPError as error:
         raise RuntimeError(f'HTTP {error.code} from {path}') from error
+    except URLError as error:
+        raise RuntimeError(f'cannot reach {path}: {error.reason}') from error
+
+
+def _http_unauthenticated_post_status(
+    base_url: str,
+    path: str,
+    timeout_s: float,
+) -> int:
+    """Probe only the write guard; never provide credentials or a valid command."""
+    url = f"{base_url.rstrip('/')}{path}"
+    request = Request(
+        url,
+        data=b'{}',
+        headers={
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        },
+        method='POST',
+    )
+    try:
+        with urlopen(request, timeout=timeout_s) as response:
+            return int(getattr(response, 'status', 200))
+    except HTTPError as error:
+        return int(error.code)
     except URLError as error:
         raise RuntimeError(f'cannot reach {path}: {error.reason}') from error
 
@@ -121,6 +147,73 @@ def _check_http(gateway: str, timeout_s: float) -> tuple[list[dict[str, Any]], l
     return checks, errors
 
 
+def _check_write_surface(
+    gateway: str,
+    timeout_s: float,
+    *,
+    expect_write_enabled: bool,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    paths = {
+        'start': '/api/v1/mission/start',
+        'pause': '/api/v1/mission/pause',
+        'resume': '/api/v1/mission/resume',
+        'cancel': '/api/v1/mission/cancel',
+    }
+    checks: list[dict[str, Any]] = []
+    errors: list[str] = []
+    states: set[str] = set()
+
+    for name, path in paths.items():
+        try:
+            status = _http_unauthenticated_post_status(gateway, path, timeout_s)
+            state, probe_errors = classify_write_probe_status(status)
+            checks.append({
+                'name': f'gateway_write_{name}',
+                'ok': not probe_errors,
+                'httpStatus': status,
+                'state': state,
+                'detail': 'unauthenticated guard probe; no command credentials supplied',
+            })
+            errors.extend(f'{name}: {error}' for error in probe_errors)
+            if not probe_errors:
+                states.add(state)
+        except RuntimeError as error:
+            checks.append({
+                'name': f'gateway_write_{name}',
+                'ok': False,
+                'detail': str(error),
+            })
+            errors.append(f'{name} write endpoint probe failed: {error}')
+
+    if len(states) > 1:
+        errors.append(
+            'mission write endpoints disagree on guard state: '
+            + ', '.join(sorted(states))
+        )
+        write_state = 'inconsistent'
+    elif states:
+        write_state = next(iter(states))
+    else:
+        write_state = 'unknown'
+
+    if expect_write_enabled and write_state != 'enabled_auth_required':
+        errors.append(
+            'write API was expected to be enabled, but unauthenticated probes '
+            f'reported {write_state}'
+        )
+
+    checks.append({
+        'name': 'gateway_write_surface',
+        'ok': (
+            write_state in {'disabled', 'enabled_auth_required'}
+            and (not expect_write_enabled or write_state == 'enabled_auth_required')
+        ),
+        'state': write_state,
+        'expectWriteEnabled': expect_write_enabled,
+    })
+    return checks, errors
+
+
 def _write_report(path: str | None, report: dict[str, Any]) -> None:
     encoded = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
     if path:
@@ -138,11 +231,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--robot-state-topic', default='/agt/system/robot_state')
     parser.add_argument('--timeout-s', type=float, default=5.0)
     parser.add_argument('--skip-ros', action='store_true')
+    parser.add_argument('--skip-write-probe', action='store_true')
+    parser.add_argument('--expect-write-enabled', action='store_true')
     parser.add_argument('--json-output', default='')
     args = parser.parse_args(argv)
 
     if args.timeout_s <= 0.0:
         parser.error('--timeout-s must be > 0')
+    if args.skip_write_probe and args.expect_write_enabled:
+        parser.error('--expect-write-enabled cannot be used with --skip-write-probe')
 
     checks: list[dict[str, Any]] = []
     errors: list[str] = []
@@ -160,12 +257,23 @@ def main(argv: list[str] | None = None) -> int:
     checks.extend(http_checks)
     errors.extend(http_errors)
 
+    if not args.skip_write_probe:
+        write_checks, write_errors = _check_write_surface(
+            args.gateway,
+            args.timeout_s,
+            expect_write_enabled=bool(args.expect_write_enabled),
+        )
+        checks.extend(write_checks)
+        errors.extend(write_errors)
+
     report = {
         'schema': 'agt.operator.gateway.preflight/v1',
         'timestampMs': int(time() * 1000),
         'gateway': args.gateway,
         'robotStateTopic': args.robot_state_topic,
         'rosChecksSkipped': bool(args.skip_ros),
+        'writeProbeSkipped': bool(args.skip_write_probe),
+        'expectWriteEnabled': bool(args.expect_write_enabled),
         'success': not errors,
         'checks': checks,
         'errors': errors,
