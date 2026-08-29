@@ -154,7 +154,7 @@ def evaluate_navigation_readiness(evidence: Evidence) -> ReadinessResult:
 
     if not evidence.navigation_known:
         blockers.append("NAVIGATION_UNKNOWN")
-    elif not _navigation_identity_matches(evidence):
+    elif evidence.map_known and not _navigation_identity_matches(evidence):
         blockers.append("NAVIGATION_MAP_MISMATCH")
     elif not evidence.navigation_ready:
         blockers.append("NAVIGATION_NOT_ACTIVE")
