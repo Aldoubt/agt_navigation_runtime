@@ -34,6 +34,11 @@ def generate_launch_description():
             DeclareLaunchArgument("map", default_value=str(share / "maps" / "offline_test.yaml")),
             DeclareLaunchArgument("runtime_dir", default_value="runtime"),
             DeclareLaunchArgument("maps_root", default_value=""),
+            DeclareLaunchArgument("tasks_root", default_value=""),
+            DeclareLaunchArgument("sites_root", default_value="/opt/agt/sites"),
+            DeclareLaunchArgument(
+                "site_vehicle_profile", default_value="/opt/agt/profiles/bunker.yaml"
+            ),
             DeclareLaunchArgument("map_id", default_value=""),
             DeclareLaunchArgument("map_version_id", default_value=""),
             DeclareLaunchArgument("current_map_yaml_sha256", default_value=""),
@@ -152,7 +157,9 @@ def generate_launch_description():
                     {
                         "use_sim_time": use_sim_time,
                         "runtime_dir": LaunchConfiguration("runtime_dir"),
-                        "maps_root": LaunchConfiguration("maps_root"),
+                        "tasks_root": LaunchConfiguration("tasks_root"),
+                        "sites_root": LaunchConfiguration("sites_root"),
+                        "site_vehicle_profile": LaunchConfiguration("site_vehicle_profile"),
                     }
                 ],
             ),
