@@ -8,3 +8,7 @@ agt_operator_gateway:
     runtime_freshness_ms: 1500
     offline_after_ms: 5000
     stream_poll_s: 0.05
+    # P0 is read-only, so wildcard browser access is acceptable for LAN bring-up.
+    # Before enabling any write API, replace this with explicit HMI origins.
+    cors_allowed_origins:
+      - '*'
