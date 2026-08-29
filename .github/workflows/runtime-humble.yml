@@ -1,0 +1,145 @@
+name: Runtime Humble
+
+on:
+  push:
+    branches:
+      - 'feat/runtime-navigation-convergence-*'
+    paths:
+      - 'src/agt_interfaces/**'
+      - 'src/agt_runtime_contracts/**'
+      - 'src/agt_site_runtime/**'
+      - 'src/agt_site_navigation/**'
+      - 'src/agt_system_manager/**'
+      - 'src/agt_navigation/**'
+      - 'src/agt_safety/**'
+      - 'src/agt_operator_gateway/**'
+      - 'tests/humble/**'
+      - '.github/workflows/runtime-humble.yml'
+      - 'docs/superpowers/plans/2026-08-29-p1-08-humble-convergence-regression.md'
+  pull_request:
+    paths:
+      - 'src/agt_interfaces/**'
+      - 'src/agt_runtime_contracts/**'
+      - 'src/agt_site_runtime/**'
+      - 'src/agt_site_navigation/**'
+      - 'src/agt_system_manager/**'
+      - 'src/agt_navigation/**'
+      - 'src/agt_safety/**'
+      - 'src/agt_operator_gateway/**'
+      - 'tests/humble/**'
+      - '.github/workflows/runtime-humble.yml'
+
+jobs:
+  humble-core:
+    runs-on: ubuntu-22.04
+    container:
+      image: ros:humble-ros-base-jammy
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      ROS_DISTRO: humble
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Humble build tools
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-colcon-common-extensions \
+            python3-rosdep \
+            python3-pip \
+            python3-pytest \
+            python3-yaml \
+            python3-jsonschema
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Resolve selected-core ROS dependencies
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          rosdep init 2>/dev/null || true
+          rosdep update
+          rosdep install --from-paths \
+            src/agt_interfaces \
+            src/agt_runtime_contracts \
+            src/agt_site_runtime \
+            src/agt_site_navigation \
+            src/agt_system_manager \
+            src/agt_navigation \
+            src/agt_safety \
+            src/agt_operator_gateway \
+            --ignore-src --rosdistro humble -r -y
+
+      - name: Build convergence core on Humble
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          colcon build \
+            --event-handlers console_direct+ \
+            --packages-select \
+              agt_interfaces \
+              agt_runtime_contracts \
+              agt_site_runtime \
+              agt_site_navigation \
+              agt_system_manager \
+              agt_navigation \
+              agt_safety \
+              agt_operator_gateway
+
+      - name: Test convergence core on Humble
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          source install/setup.bash
+          colcon test \
+            --event-handlers console_direct+ \
+            --packages-select \
+              agt_interfaces \
+              agt_runtime_contracts \
+              agt_site_runtime \
+              agt_site_navigation \
+              agt_system_manager \
+              agt_navigation \
+              agt_safety \
+              agt_operator_gateway
+          colcon test-result --verbose
+
+      - name: Humble generated-interface and fail-closed smoke
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          source install/setup.bash
+          python3 - <<'PY'
+          from agt_interfaces.msg import NavigationRuntimeStatus, SiteNavigationBinding
+          from agt_site_navigation.resolver import (
+              ActiveSiteNavigationResolver,
+              SiteNavigationBindingError,
+          )
+
+          assert NavigationRuntimeStatus.STATE_READY == 2
+          assert SiteNavigationBinding.STATE_READY == 1
+
+          resolver = ActiveSiteNavigationResolver(
+              sites_root='/tmp/agt-no-sites',
+              vehicle_profile='/tmp/agt-no-profile.yaml',
+              vehicle_schema='/tmp/agt-no-vehicle-schema.json',
+              site_schema='/tmp/agt-no-site-schema.json',
+          )
+          try:
+              resolver.resolve(None)
+          except SiteNavigationBindingError as exc:
+              assert exc.code == 'NO_ACTIVE_SITE', exc.code
+          else:
+              raise AssertionError('missing Active Site must fail closed')
+          PY
+
+      - name: Humble installed production RViz-goal guard smoke
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          source install/setup.bash
+          NAV_SHARE="$(ros2 pkg prefix --share agt_navigation)"
+          grep -F 'DeclareLaunchArgument("enable_rviz_goal_bridge", default_value="false")' \
+            "$NAV_SHARE/launch/navigation.launch.py"
+          grep -F 'condition=IfCondition(LaunchConfiguration("enable_rviz_goal_bridge"))' \
+            "$NAV_SHARE/launch/navigation.launch.py"
