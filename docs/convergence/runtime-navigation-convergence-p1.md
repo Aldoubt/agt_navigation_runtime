@@ -24,7 +24,7 @@ Legend:
 | P1-03 | decouple Task Registry from Site assets | [x] | [x] | [ ] | N/A |
 | P1-04 | Active Site -> navigation binding | [x] | [x] | [ ] | [ ] |
 | P1-05 | NavigationRuntimeStatus + SystemManager gate | [x] | [x] | [ ] | [ ] |
-| P1-06 | selectively port field commissioning flow | [ ] | [ ] | [ ] | [ ] |
+| P1-06 | selectively port field commissioning flow | [x] | [x] | [ ] | [ ] |
 | P1-07 | production RViz direct-goal guard | [ ] | [ ] | [ ] | [ ] |
 | P1-08 | full ROS 2 convergence regression | [ ] | [ ] | [ ] | N/A |
 | P1-09 | BUNKER + MID360 field acceptance | [ ] | N/A | [ ] | [ ] |
@@ -37,6 +37,7 @@ docs/acceptance/2026-08-29-runtime-navigation-p1-02-site-runtime-integration.md
 docs/acceptance/2026-08-29-runtime-navigation-p1-03-task-registry-decoupling.md
 docs/acceptance/2026-08-29-runtime-navigation-p1-04-active-site-navigation-binding.md
 docs/acceptance/2026-08-29-runtime-navigation-p1-05-navigation-runtime-readiness.md
+docs/acceptance/2026-08-29-runtime-navigation-p1-06-field-commissioning.md
 ```
 
 Current completed evidence boundary:
@@ -59,6 +60,11 @@ P1-05 Code:   COMPLETE
 P1-05 STATIC: PASS
 P1-05 HUMBLE: PENDING
 P1-05 FIELD:  PENDING
+
+P1-06 Code:   COMPLETE
+P1-06 STATIC: PASS
+P1-06 HUMBLE: PENDING
+P1-06 FIELD:  PENDING
 ```
 
 Do not infer ROS 2 Humble or field acceptance from cloud/static evidence.
@@ -73,7 +79,7 @@ Do not continue feature development on old parallel branches after their require
 | `feat/operator-gateway-p1-mission-control` | ancestor of hardware base | inherited | no separate merge needed |
 | `feat/hardware-bringup-p0` | direct P1 base | inherited | monitor-first BUNKER/MID360 hardware baseline |
 | `feat/runtime-site-owner-p01` | integrated in P1-02 | freeze | source head `3969b152...`; merged by PR #3 |
-| `feat/field-navigation-baseline` | divergent feature line | selective port in P1-06 | do not merge complete history |
+| `feat/field-navigation-baseline` | selectively ported in P1-06 | freeze | commissioning workflow ported; divergent history is not a runtime dependency |
 | `feat/nav2-planner-smoke-harness` | older planner smoke line | freeze | superseded by headland smoke line |
 | `feat/headland-planner-smoke` | planner acceptance tooling | selective port later only if required | never a production dependency |
 | `feat/bunker-rtabmap-slope-nav` | alternate/experimental line | defer/freeze | do not enter current product line |
@@ -263,7 +269,74 @@ Detailed record:
 docs/acceptance/2026-08-29-runtime-navigation-p1-05-navigation-runtime-readiness.md
 ```
 
-## 7. Merge rules
+## 7. Completed P1-06 field commissioning record
+
+P1-06 selectively ports the useful field workflow from `feat/field-navigation-baseline` into the current Site Package + NavigationRuntimeStatus architecture without whole-merging the divergent branch.
+
+The accepted flow is:
+
+```text
+mutable commissioning run
+  -> agt_experiment_manager / field_mapping_commissioning bag
+  -> agt_field_commissioning Phase A FAST-LIVO2 mapper
+  -> normal ROS shutdown save
+  -> finalize_mapping_run.py + SHA256 evidence
+  -> external offline reconstruction/export
+  -> immutable Site Package 1.0
+  -> deploy a new revision under sites_root
+  -> agt_site_runtime /agt/maps/validate
+  -> agt_site_runtime /agt/maps/activate (revalidates before persistence)
+  -> /agt/maps/active
+  -> agt_field_commissioning frozen-Site Phase C
+  -> SiteNavigationBinding + Localization + Nav2 + NavigationRuntimeStatus
+```
+
+New/updated product assets:
+
+```text
+src/agt_field_commissioning/
+docs/runbooks/field-navigation-commissioning.md
+src/agt_experiment_manager/config/bag_profiles.yaml :: field_mapping_commissioning
+tests/commissioning/
+```
+
+P1-06 keeps normal Runtime FAST-LIVO2 PCD persistence disabled. Commissioning writes only below a unique mutable `runtime/commissioning/<site>/<run>/` root and cannot be used directly as a navigation map. Phase C exposes no manual `global_map_pcd` or `navigation_map` launch arguments; it consumes only a persisted, revalidated Active Site and Site-derived hashes/paths.
+
+ExperimentManager remains the sole rosbag process owner. Site Runtime remains the sole Site validation/activation authority. GlobalCorrectionManager remains the sole `map -> odom` correction authority. Nav2 lifecycle manager remains transition owner.
+
+TDD evidence:
+
+```text
+Runtime Contracts #341 (33241740091): expected RED
+P1 commissioning group: 4 failed, 20 passed
+failure scope: missing runbook + missing dedicated commissioning bag profile only
+
+Runtime Contracts #347 (33241896575): PASS
+P1 commissioning group: 24 passed
+```
+
+Full #347 group counts:
+
+```text
+V3-01 contracts:               19 passed
+V3-02 odometry:                 9 passed
+V3-03 execution:               18 passed
+SystemManager:                 36 passed
+Site Runtime owner:            45 passed
+P1 task-storage:               52 passed
+P1 site-navigation:            26 passed
+P1 field commissioning:        24 passed
+```
+
+Detailed record:
+
+```text
+docs/acceptance/2026-08-29-runtime-navigation-p1-06-field-commissioning.md
+```
+
+P1-06 does not claim ROS 2 Humble or real-vehicle acceptance. Production RViz direct-goal guarding is intentionally P1-07.
+
+## 8. Merge rules
 
 ### Rule A — one canonical implementation branch
 
@@ -328,7 +401,7 @@ Each selective port must document:
 
 P1 is not the place to add another SLAM/localization/planner/controller stack.
 
-## 8. Expected runtime data flow
+## 9. Expected runtime data flow
 
 ```text
 Site Package install
@@ -363,7 +436,7 @@ Mission / ExecuteWaypointTask
   -> MAP or ROUTE backend
 ```
 
-## 9. P1 acceptance invariants
+## 10. P1 acceptance invariants
 
 1. There is exactly one canonical `map -> odom` authority.
 2. Runtime never navigates against a map still being commissioned/generated.
@@ -378,7 +451,7 @@ Mission / ExecuteWaypointTask
 11. `agt_site_navigation` may observe lifecycle state but may not transition Nav2 lifecycle nodes.
 12. `RobotState.navigation_ready` must equal final SystemManager aggregate readiness, not a subsystem-local flag.
 
-## 10. Merge-to-main gate
+## 11. Merge-to-main gate
 
 Do not merge this convergence branch to `main` merely because source exists.
 
@@ -393,14 +466,14 @@ Minimum software merge gate:
 
 Preferred field release gate additionally requires P1-09.
 
-## 11. Next action
+## 12. Next action
 
 The only active development slice is now:
 
 ```text
-P1-06 — selectively port field commissioning flow
+P1-07 — production RViz direct-goal guard
 ```
 
-P1-06 must selectively port the accepted field mapping/navigation commissioning capabilities from `feat/field-navigation-baseline` into the current Site Package + NavigationRuntimeStatus architecture. Do not whole-merge the divergent branch.
+P1-07 must ensure a standard production Runtime cannot bypass Mission/Gateway/task ownership by sending an RViz/Nav2 pose goal directly. Any commissioning-only direct-goal path must be explicit, guarded and disabled by default in production composition.
 
-Do not begin P1-07 until P1-06 has its own tests and acceptance note.
+Do not begin P1-08 until P1-07 has its own tests and acceptance note.
