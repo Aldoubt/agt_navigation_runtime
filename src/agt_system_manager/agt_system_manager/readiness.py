@@ -25,9 +25,16 @@ class Evidence:
     map_ready: bool
     map_id: str
     map_version_id: str
+    map_hash: str
     localization_known: bool
     localization_tracking: bool
     localization_map_id: str
+    navigation_known: bool
+    navigation_ready: bool
+    navigation_site_id: str
+    navigation_site_revision: str
+    navigation_site_hash: str
+    navigation_map_identity_match: bool
     safety_known: bool
     motion_enabled: bool
     estop_latched: bool
@@ -52,6 +59,9 @@ _MESSAGES = {
     "LOCALIZATION_UNKNOWN": "localization status has not been established",
     "LOCALIZATION_NOT_TRACKING": "localization is not accepted TRACKING",
     "LOCALIZATION_MAP_MISMATCH": "localization map identity does not match the active map",
+    "NAVIGATION_UNKNOWN": "authoritative navigation runtime status has not been established",
+    "NAVIGATION_NOT_ACTIVE": "navigation runtime is not READY with all required lifecycle nodes active",
+    "NAVIGATION_MAP_MISMATCH": "navigation runtime identity does not match the active Site/localization binding",
     "SAFETY_UNKNOWN": "safety status has not been established",
     "MOTION_DISABLED": "motion is not explicitly enabled by the safety controller",
     "ESTOP_LATCHED": "the emergency-stop latch is active",
@@ -105,6 +115,18 @@ def overall_health_state(components: tuple[ComponentEvidence, ...]) -> int:
     return STATE_OK
 
 
+def _navigation_identity_matches(evidence: Evidence) -> bool:
+    if not evidence.map_known:
+        return False
+    if not evidence.navigation_map_identity_match:
+        return False
+    return bool(
+        evidence.navigation_site_id == evidence.map_id
+        and evidence.navigation_site_revision == evidence.map_version_id
+        and evidence.navigation_site_hash == evidence.map_hash
+    )
+
+
 def evaluate_navigation_readiness(evidence: Evidence) -> ReadinessResult:
     blockers: list[str] = []
 
@@ -129,6 +151,13 @@ def evaluate_navigation_readiness(evidence: Evidence) -> ReadinessResult:
         and evidence.localization_map_id != evidence.map_id
     ):
         blockers.append("LOCALIZATION_MAP_MISMATCH")
+
+    if not evidence.navigation_known:
+        blockers.append("NAVIGATION_UNKNOWN")
+    elif not _navigation_identity_matches(evidence):
+        blockers.append("NAVIGATION_MAP_MISMATCH")
+    elif not evidence.navigation_ready:
+        blockers.append("NAVIGATION_NOT_ACTIVE")
 
     if not evidence.safety_known:
         blockers.append("SAFETY_UNKNOWN")
