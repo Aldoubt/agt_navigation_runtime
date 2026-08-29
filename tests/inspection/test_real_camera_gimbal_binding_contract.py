@@ -34,3 +34,12 @@ def test_capture_context_fails_closed_without_real_stamp_or_gimbal_feedback():
     assert 'raise ValueError("actual gimbal feedback is unavailable")' in source
     assert "view.gimbal.pan_rad" not in source
     assert "view.gimbal.tilt_rad" not in source
+
+
+def test_camera_gimbal_backend_rejects_new_goals_until_health_is_fresh_ready():
+    source = SERVER.read_text(encoding="utf-8")
+    assert "camera_gimbal_interfaces.msg import CapabilityHealth" in source
+    assert "CameraGimbalHealthGate" in source
+    assert '"/camera_gimbal/health"' in source
+    assert "self._camera_gimbal_health.ready(time.monotonic())" in source
+    assert "GoalResponse.REJECT" in source
