@@ -9,6 +9,7 @@ on:
       - 'v3-03/**'
       - 'feat/runtime-convergence-*'
       - 'feat/runtime-site-*'
+      - 'feat/runtime-navigation-convergence-*'
   pull_request:
     paths:
       - 'profiles/platforms/**'
