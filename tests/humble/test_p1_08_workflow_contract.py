@@ -46,6 +46,19 @@ def test_workflow_installs_rosdeps_and_builds_selected_core():
         assert package in text
 
 
+def test_workflow_keeps_apt_metadata_available_for_rosdep():
+    text = _workflow_text()
+    rosdep_index = text.index("rosdep install")
+    cleanup_index = text.find("rm -rf /var/lib/apt/lists/*")
+
+    if cleanup_index != -1 and cleanup_index < rosdep_index:
+        between = text[cleanup_index:rosdep_index]
+        assert "apt-get update" in between, (
+            "APT metadata was deleted before rosdep install without refreshing it; "
+            "rosdep apt dependencies will be reported as unavailable"
+        )
+
+
 def test_workflow_runs_colcon_tests_and_fails_on_test_failures():
     text = _workflow_text()
 
