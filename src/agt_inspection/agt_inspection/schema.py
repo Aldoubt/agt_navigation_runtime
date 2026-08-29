@@ -69,7 +69,7 @@ STABILIZATION_KEYS = {
 }
 GIMBAL_KEYS = {"pan_rad", "tilt_rad", "timeout_s", "settle_duration_s"}
 CAMERA_KEYS = {"camera_id", "capture_count", "capture_interval_s"}
-VISION_KEYS = {"task_id", "model_profile", "minimum_confidence", "timeout_s"}
+VISION_KEYS = {"task_id", "model_profile", "minimum_confidence", "timeout_s", "execution_mode"}
 RETRY_KEYS = {"navigation", "gimbal", "capture", "inference"}
 
 
@@ -236,8 +236,14 @@ def _parse_camera(raw: Mapping[str, Any], index: int) -> CameraPolicy:
 
 
 def _parse_vision(raw: Mapping[str, Any], index: int) -> VisionPolicy:
-    vision_raw = _mapping(raw["vision"], f"point {index}.vision")
+    vision_raw = dict(_mapping(raw["vision"], f"point {index}.vision"))
+    vision_raw.setdefault("execution_mode", "INLINE")
     _exact_keys(vision_raw, VISION_KEYS, f"point {index}.vision")
+    execution_mode = vision_raw["execution_mode"]
+    if execution_mode not in {"INLINE", "DEFERRED"}:
+        raise InspectionTaskError(
+            f"point {index}.vision.execution_mode must be INLINE or DEFERRED"
+        )
     confidence = _finite(
         vision_raw["minimum_confidence"], f"point {index}.vision.minimum_confidence"
     )
@@ -254,8 +260,8 @@ def _parse_vision(raw: Mapping[str, Any], index: int) -> VisionPolicy:
         timeout_s=_positive(
             vision_raw["timeout_s"], f"point {index}.vision.timeout_s", maximum=3600.0
         ),
+        execution_mode=execution_mode,
     )
-
 
 def _parse_retry(raw: Mapping[str, Any], index: int) -> RetryPolicy:
     retry_raw = _mapping(raw["retry"], f"point {index}.retry")

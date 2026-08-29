@@ -174,10 +174,21 @@ class InspectionEvidenceStore:
         if value.get("view_id") != view:
             raise MultiviewEvidenceError("observation view_id does not match storage path")
 
-        vision = _mapping(value.get("vision"), "observation.vision")
-        raw_count = vision.get("raw_count")
-        if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 0:
-            raise MultiviewEvidenceError("observation.vision.raw_count must be non-negative integer")
+        vision_status = str(value.get("vision_status", "INLINE_COMPLETE"))
+        vision = _mapping(value.get("vision", {}), "observation.vision")
+        if vision_status == "PENDING_OFFLINE":
+            if "raw_count" in vision:
+                raise MultiviewEvidenceError(
+                    "deferred observation must not contain vision.raw_count"
+                )
+        elif vision_status == "INLINE_COMPLETE":
+            raw_count = vision.get("raw_count")
+            if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 0:
+                raise MultiviewEvidenceError(
+                    "observation.vision.raw_count must be non-negative integer"
+                )
+        else:
+            raise MultiviewEvidenceError(f"unsupported vision_status: {vision_status}")
 
         view_root = session_root / "points" / point / view
         view_root.mkdir(parents=True, exist_ok=False)
@@ -307,6 +318,7 @@ class InspectionEvidenceStore:
         total_raw = 0
         total_unique = 0
         total_ambiguous = 0
+        deferred_views = 0
 
         for point_root in point_dirs:
             point_id = point_root.name
@@ -320,6 +332,9 @@ class InspectionEvidenceStore:
                 pose = _mapping(value.get("robot_pose_map", {}), "robot_pose_map")
                 gimbal = _mapping(value.get("gimbal", {}), "gimbal")
                 vision = _mapping(value.get("vision", {}), "vision")
+                is_deferred = value.get("vision_status") == "PENDING_OFFLINE"
+                if is_deferred:
+                    deferred_views += 1
                 view_rows.append(
                     {
                         "point_id": point_id,
@@ -330,14 +345,21 @@ class InspectionEvidenceStore:
                         "robot_yaw": pose.get("yaw", ""),
                         "pan_rad": gimbal.get("pan_rad", ""),
                         "tilt_rad": gimbal.get("tilt_rad", ""),
-                        "raw_count": vision.get("raw_count", 0),
+                        "raw_count": "" if is_deferred else vision.get("raw_count", ""),
                         "model_id": vision.get("model_id", ""),
                         "model_version": vision.get("model_version", ""),
                         "inference_time_ms": vision.get("inference_time_ms", ""),
                     }
                 )
 
-            raw_from_views = sum(int(_mapping(item.get("vision", {}), "vision").get("raw_count", 0)) for item in views)
+            point_deferred = any(
+                item.get("vision_status") == "PENDING_OFFLINE" for item in views
+            )
+            raw_from_views = sum(
+                int(_mapping(item.get("vision", {}), "vision")["raw_count"])
+                for item in views
+                if item.get("vision_status") != "PENDING_OFFLINE"
+            )
             aggregation_path = point_root / "aggregation" / "result.json"
             aggregation_failure_path = point_root / "aggregation" / "failure.json"
             aggregation = None
@@ -364,7 +386,7 @@ class InspectionEvidenceStore:
                             }
                         )
             else:
-                raw_count = raw_from_views
+                raw_count = None if point_deferred else raw_from_views
                 unique_count = ""
                 ambiguous_count = ""
                 if aggregation_failure_path.is_file():
@@ -372,12 +394,13 @@ class InspectionEvidenceStore:
                         aggregation_failure_path.read_text(encoding="utf-8")
                     )
 
-            total_raw += int(raw_count)
+            if raw_count is not None:
+                total_raw += int(raw_count)
             point_rows.append(
                 {
                     "point_id": point_id,
                     "views": len(views),
-                    "raw_count": raw_count,
+                    "raw_count": "" if raw_count is None else raw_count,
                     "unique_count": unique_count,
                     "ambiguous_count": ambiguous_count,
                 }
@@ -394,16 +417,24 @@ class InspectionEvidenceStore:
                 }
             )
 
-        if not point_dirs or aggregated_points == 0:
-            count_mode = "VIEW_RAW"
+        if deferred_views:
+            count_mode = "PENDING_OFFLINE"
+            raw_total: int | None = None
             unique_total: int | None = None
             ambiguous_total: int | None = None
+        elif not point_dirs or aggregated_points == 0:
+            count_mode = "VIEW_RAW"
+            raw_total = total_raw
+            unique_total = None
+            ambiguous_total = None
         elif aggregated_points == len(point_dirs):
             count_mode = "POINT_DEDUP"
+            raw_total = total_raw
             unique_total = total_unique
             ambiguous_total = total_ambiguous
         else:
             count_mode = "MIXED"
+            raw_total = total_raw
             unique_total = None
             ambiguous_total = None
 
@@ -418,7 +449,7 @@ class InspectionEvidenceStore:
             "count_mode": count_mode,
             "points": point_documents,
             "totals": {
-                "raw_instance_count": total_raw,
+                "raw_instance_count": raw_total,
                 "unique_instance_count": unique_total,
                 "ambiguous_instance_count": ambiguous_total,
             },

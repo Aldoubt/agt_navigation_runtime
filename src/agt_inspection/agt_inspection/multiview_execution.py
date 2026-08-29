@@ -170,6 +170,19 @@ class MultiviewInspectionExecutor(InspectionExecutor):
             raise ValueError("Level-1 result_json.raw_count must be a non-negative integer")
         return raw_count, payload
 
+    def _capture_context(
+        self,
+        task: InspectionTask,
+        point: InspectionPoint,
+        view: InspectionView,
+        request_id: str,
+    ) -> dict[str, Any]:
+        context = dict(self._context_provider.snapshot(task, point, view, request_id))
+        for key in ("capture_stamp", "robot_pose_map", "gimbal", "camera"):
+            if key not in context:
+                raise ValueError(f"capture context is missing required field: {key}")
+        return context
+
     def _build_observation(
         self,
         task: InspectionTask,
@@ -182,11 +195,8 @@ class MultiviewInspectionExecutor(InspectionExecutor):
         raw_count, payload = self._level1_payload(
             vision, expected_count_target=task.count_target
         )
-        context = dict(self._context_provider.snapshot(task, point, view, request_id))
-        for key in ("capture_stamp", "robot_pose_map", "gimbal", "camera"):
-            if key not in context:
-                raise ValueError(f"capture context is missing required field: {key}")
-        observation = {
+        context = self._capture_context(task, point, view, request_id)
+        return {
             "schema_version": 1,
             "view_id": view.id,
             "capture_id": request_id,
@@ -197,6 +207,7 @@ class MultiviewInspectionExecutor(InspectionExecutor):
             "camera_pose_valid": bool(context.get("camera_pose_valid", False)),
             "camera_pose_map": context.get("camera_pose_map", {}),
             "evidence": {"image": capture.image_uri} if capture.image_uri else {},
+            "vision_status": "INLINE_COMPLETE",
             "vision": {
                 "model_id": vision.model_id,
                 "model_version": vision.model_version,
@@ -208,7 +219,31 @@ class MultiviewInspectionExecutor(InspectionExecutor):
             },
             "warnings": list(context.get("warnings", [])),
         }
-        return observation
+
+    def _build_deferred_observation(
+        self,
+        task: InspectionTask,
+        point: InspectionPoint,
+        view: InspectionView,
+        request_id: str,
+        capture: CaptureResult,
+    ) -> dict[str, Any]:
+        context = self._capture_context(task, point, view, request_id)
+        return {
+            "schema_version": 1,
+            "view_id": view.id,
+            "capture_id": request_id,
+            "capture_stamp": context["capture_stamp"],
+            "robot_pose_map": context["robot_pose_map"],
+            "gimbal": context["gimbal"],
+            "camera": context["camera"],
+            "camera_pose_valid": bool(context.get("camera_pose_valid", False)),
+            "camera_pose_map": context.get("camera_pose_map", {}),
+            "evidence": {"image": capture.image_uri} if capture.image_uri else {},
+            "vision_status": "PENDING_OFFLINE",
+            "vision": {"status": "PENDING_OFFLINE"},
+            "warnings": list(context.get("warnings", [])),
+        }
 
     async def _run_aggregator(
         self,
@@ -377,6 +412,30 @@ class MultiviewInspectionExecutor(InspectionExecutor):
                             message=capture.message or "capture failed",
                         )
 
+                    if point.vision.execution_mode == "DEFERRED":
+                        try:
+                            observation = self._build_deferred_observation(
+                                task, point, view, request_id, capture
+                            )
+                        except ValueError as exc:
+                            return self._finish_v2(
+                                root,
+                                success=False,
+                                error_code=InspectionErrorCode.INTERNAL,
+                                message=str(exc),
+                            )
+                        self._stage("SAVING_RESULT", view_point)
+                        result_uri = self._multiview_store.write_view(
+                            point.id,
+                            view.id,
+                            observation,
+                            image_bytes=capture.image_bytes,
+                            image_suffix=capture.image_suffix,
+                        )
+                        observation["single_view_result_uri"] = result_uri
+                        observations.append(observation)
+                        continue
+
                     vision = await self._retry_vision(view_point, capture, request_id)
                     if vision.canceled:
                         return self._finish_v2(
@@ -429,7 +488,11 @@ class MultiviewInspectionExecutor(InspectionExecutor):
                     observation["single_view_result_uri"] = result_uri
                     observations.append(observation)
 
-                if point.aggregation is not None and point.aggregation.enabled:
+                if (
+                    point.vision.execution_mode == "INLINE"
+                    and point.aggregation is not None
+                    and point.aggregation.enabled
+                ):
                     self._stage("AGGREGATING_VIEWS", point)
                     aggregation = await self._run_aggregator(task, point, observations)
                     if aggregation.canceled:

@@ -52,6 +52,7 @@ class VisionPolicy:
     model_profile: str
     minimum_confidence: float
     timeout_s: float
+    execution_mode: str = "INLINE"
 
 
 @dataclass(frozen=True)
