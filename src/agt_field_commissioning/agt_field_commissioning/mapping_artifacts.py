@@ -23,7 +23,9 @@ class CommissioningRunPaths:
 
 
 def _validate_identity_token(value: str, field_name: str) -> str:
-    value = str(value).strip()
+    value = str(value)
+    if value != value.strip():
+        raise ValueError(f"invalid {field_name}: surrounding whitespace is not allowed")
     if value in {"", ".", ".."} or _IDENTITY_RE.fullmatch(value) is None:
         raise ValueError(f"invalid {field_name}: {value!r}")
     return value
