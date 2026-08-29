@@ -42,7 +42,7 @@ class NavigationCapabilityServer(_BASE.WaypointTaskServer):
     def __init__(self, route_snapshot_provider=None, **kwargs):
         super().__init__(**kwargs)
         self._route_snapshot_provider_override = route_snapshot_provider
-        self._route_resolver = RouteTaskResolver(self.maps_root)
+        self._route_resolver = RouteTaskResolver(self.maps_root, self.tasks_root)
         self._route_executor = None
         self._localization_correction_generation = 0
 
@@ -98,14 +98,7 @@ class NavigationCapabilityServer(_BASE.WaypointTaskServer):
             )
 
     def _route_binding_path(self, task) -> Path:
-        return (
-            self.maps_root.expanduser().resolve()
-            / task.map_binding.map_id
-            / "versions"
-            / task.map_binding.map_version_id
-            / "tasks"
-            / f"{task.task_group_id}.route.yaml"
-        )
+        return self._route_resolver.binding_path(task)
 
     def _formal_task_has_route_binding(self, request) -> bool:
         if not self._is_formal_goal(request):
