@@ -92,6 +92,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_headland_planner_smoke_g1 test/test_headland_planner_smoke_g1.py
   )
+  ament_add_pytest_test(
+    test_headland_planner_smoke_g1_4 test/test_headland_planner_smoke_g1_4.py
+  )
   ament_add_pytest_test(test_route_runtime test/test_route_runtime.py)
   ament_add_pytest_test(
     test_nav2_follow_path_adapter test/test_nav2_follow_path_adapter.py
