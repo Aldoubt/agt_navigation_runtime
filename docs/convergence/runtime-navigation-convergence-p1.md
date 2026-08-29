@@ -22,7 +22,7 @@ Legend:
 | P1-01 | branch + design + merge/status docs | [x] | [x] | N/A | N/A |
 | P1-02 | integrate Site Runtime owner | [x] | [x] | [ ] | N/A |
 | P1-03 | decouple Task Registry from Site assets | [x] | [x] | [ ] | N/A |
-| P1-04 | Active Site -> navigation binding | [ ] | [ ] | [ ] | [ ] |
+| P1-04 | Active Site -> navigation binding | [x] | [x] | [ ] | [ ] |
 | P1-05 | NavigationRuntimeStatus + SystemManager gate | [ ] | [ ] | [ ] | [ ] |
 | P1-06 | selectively port field commissioning flow | [ ] | [ ] | [ ] | [ ] |
 | P1-07 | production RViz direct-goal guard | [ ] | [ ] | [ ] | [ ] |
@@ -35,6 +35,7 @@ Acceptance records:
 ```text
 docs/acceptance/2026-08-29-runtime-navigation-p1-02-site-runtime-integration.md
 docs/acceptance/2026-08-29-runtime-navigation-p1-03-task-registry-decoupling.md
+docs/acceptance/2026-08-29-runtime-navigation-p1-04-active-site-navigation-binding.md
 ```
 
 Current completed evidence boundary:
@@ -47,6 +48,11 @@ P1-02 HUMBLE: PENDING
 P1-03 Code:   COMPLETE
 P1-03 STATIC: PASS
 P1-03 HUMBLE: PENDING
+
+P1-04 Code:   COMPLETE
+P1-04 STATIC: PASS
+P1-04 HUMBLE: PENDING
+P1-04 FIELD:  PENDING
 ```
 
 Do not infer ROS 2 Humble or field acceptance from cloud/static evidence.
@@ -136,13 +142,70 @@ Runtime Contracts #281 (33237868775): PASS
 P1 task-storage group: 52 passed
 ```
 
-The detailed behavior, RED/GREEN evidence and Humble handoff are recorded in:
+Detailed record:
 
 ```text
 docs/acceptance/2026-08-29-runtime-navigation-p1-03-task-registry-decoupling.md
 ```
 
-## 5. Merge rules
+## 5. Completed P1-04 Active Site binding record
+
+P1-04 adds a thin read-only package:
+
+```text
+agt_site_navigation
+```
+
+Authority flow:
+
+```text
+agt_site_runtime
+  -> /agt/maps/active
+  -> agt_site_navigation
+       re-resolve exact Site candidate
+       re-run SiteValidator
+       rebuild canonical SiteSummary
+       compare identity/hash/path evidence
+  -> /agt/navigation/site_binding
+```
+
+Typed output:
+
+```text
+agt_interfaces/msg/SiteNavigationBinding
+```
+
+The binding contains exact Site id/revision/hash plus resolved navigation YAML/image and localization PCD paths/hashes. It is reliable + transient-local and fails closed to UNKNOWN/BLOCKED/ERROR when Active Site authority is absent, revoked, changed, missing or corrupted.
+
+P1-04 explicitly does **not** own:
+
+```text
+map -> odom
+localization startup
+Nav2 lifecycle transitions
+Mission execution
+cmd_vel / FollowPath / FollowWaypoints
+filesystem mutation
+NavigationRuntimeStatus
+```
+
+Static acceptance code head and evidence:
+
+```text
+52ca77e785c8e5c90684fbed4c0b58feb5f2484b
+Runtime Contracts #298 (33238275311): PASS
+P1 active-site navigation binding group: 10 passed
+```
+
+A Humble-only generated-interface smoke is registered in `agt_interfaces` but remains unexecuted until local ROS 2 verification.
+
+Detailed record:
+
+```text
+docs/acceptance/2026-08-29-runtime-navigation-p1-04-active-site-navigation-binding.md
+```
+
+## 6. Merge rules
 
 ### Rule A — one canonical implementation branch
 
@@ -166,6 +229,7 @@ agt_operator_gateway
 agt_hardware_bringup
 agt_site_runtime
 agt_runtime_contracts
+agt_site_navigation
 ```
 
 No subsystem may replace another subsystem's ownership.
@@ -187,15 +251,15 @@ Each selective port must document:
 
 P1 is not a place to add new localization/planner/controller stacks. Algorithm changes require a separate future milestone after P1 acceptance.
 
-## 6. Canonical ownership after P1
+## 7. Canonical ownership after current P1 progress
 
 ```text
 agt_site_runtime
   owns: deployed Site discovery / validation / active Site authority
 
-agt_site_navigation (planned P1-04)
-  owns: Active Site -> resolved localization/navigation asset binding
-        + navigation runtime lifecycle evidence
+agt_site_navigation
+  owns: Active Site -> exact resolved localization/navigation asset binding
+  does not own lifecycle readiness or map -> odom
 
 agt_localization + GlobalCorrectionManager
   owns: relocalization evidence and unique map -> odom correction authority
@@ -215,20 +279,24 @@ agt_hardware_bringup
 Task Registry
   owns: mutable versioned task definitions below tasks_root
         + persisted Site-content binding for those task definitions
+
+P1-05 planned authority
+  owns: NavigationRuntimeStatus aggregation and SystemManager navigation_ready gate
 ```
 
-## 7. Expected runtime data flow
+## 8. Expected runtime data flow
 
 ```text
 Site Package install
   -> agt_site_runtime validate + activate
   -> /agt/maps/active
   -> agt_site_navigation resolve exact assets
-  -> localization starts/binds exact PCD
+  -> /agt/navigation/site_binding
+  -> localization binds exact PCD
   -> GlobalCorrectionManager TRACKING / map -> odom
   -> Nav2 required lifecycle nodes ACTIVE
-  -> NavigationRuntimeStatus READY
-  -> agt_system_manager navigation_ready=true
+  -> NavigationRuntimeStatus READY            # P1-05
+  -> agt_system_manager navigation_ready=true # P1-05
   -> MissionManager may start a bound versioned task
   -> navigation_capability_server
   -> Nav2
@@ -257,9 +325,18 @@ Mission / ExecuteWaypointTask
   -> MAP or ROUTE backend
 ```
 
-P1-04 must now bind the Active Site authority to concrete localization/Nav2 runtime assets and lifecycle evidence.
+Asset-binding boundary implemented by P1-04:
 
-## 8. P1 acceptance invariants
+```text
+/agt/maps/active
+  -> canonical deployed Site revalidation
+  -> deterministic absolute YAML/image/PCD binding
+  -> /agt/navigation/site_binding
+```
+
+P1-05 must now aggregate this binding with localization and Nav2 lifecycle evidence into one fail-closed navigation readiness authority for SystemManager.
+
+## 9. P1 acceptance invariants
 
 The following must remain true throughout implementation:
 
@@ -273,8 +350,9 @@ The following must remain true throughout implementation:
 8. Software acceptance and real-vehicle acceptance are recorded separately.
 9. Mutable task edits never mutate or become part of immutable Site package integrity.
 10. Legacy map-local tasks are migrated explicitly; Runtime never uses an implicit fallback path.
+11. `agt_site_navigation` may resolve assets but may not publish TF or claim Nav2 lifecycle readiness.
 
-## 9. Per-slice documentation template
+## 10. Per-slice documentation template
 
 At the end of every implementation slice, add a dated report using this structure:
 
@@ -318,7 +396,7 @@ IMPLEMENTED / STATIC VERIFIED / HUMBLE VERIFIED / FIELD VERIFIED / BLOCKED
 
 Then update the table at the top of this file.
 
-## 10. Merge-to-main gate
+## 11. Merge-to-main gate
 
 Do not merge this convergence branch to `main` merely because source code exists.
 
@@ -335,12 +413,12 @@ Preferred field release gate additionally requires P1-09.
 
 Inspection integration P1-10 may either be included before main merge or follow immediately after navigation release, but it must not destabilize the accepted navigation ownership model.
 
-## 11. Next action
+## 12. Next action
 
 The only active development slice is now:
 
 ```text
-P1-04 — Active Site -> navigation binding
+P1-05 — NavigationRuntimeStatus + SystemManager gate
 ```
 
-P1-04 must resolve the authoritative Active Site into the exact localization and Nav2 assets/lifecycle state without creating a second Site authority or a second `map -> odom` correction owner. Do not begin P1-05 until P1-04 has its own tests and acceptance note.
+P1-05 must consume `SiteNavigationBinding` plus localization/Nav2 lifecycle evidence and expose one fail-closed readiness contract without moving Site authority out of `agt_site_runtime` or creating another `map -> odom` owner. Do not begin P1-06 until P1-05 has its own tests and acceptance note.
