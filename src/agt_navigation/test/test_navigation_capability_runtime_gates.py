@@ -62,7 +62,7 @@ def _localization_message(*, ready: bool, generation=None) -> LocalizationStatus
     message.error_code = LocalizationStatus.ERROR_NONE
     message.status_stale = False
     message.map_id = "site"
-    message.map_hash = "sha256:pcd"
+    message.map_hash = HELPERS._digest("3")
     message.correction_generation = (1 if ready else 0) if generation is None else generation
     return message
 
@@ -103,6 +103,7 @@ class RuntimeHarness:
                     "require_task_readiness", value=bool(require_task_readiness)
                 ),
                 Parameter("maps_root", value=str(tmp_path)),
+                Parameter("tasks_root", value=str(tmp_path / "tasks")),
                 Parameter("execution_vehicle_profile", value=str(self.profile)),
                 Parameter("route_controller_id_forward", value="RouteForward"),
                 Parameter("route_controller_id_reverse", value="RouteReverse"),

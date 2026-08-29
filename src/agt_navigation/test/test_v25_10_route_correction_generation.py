@@ -50,7 +50,7 @@ def _localization(generation: int) -> LocalizationStatus:
     message.error_code = LocalizationStatus.ERROR_NONE
     message.status_stale = False
     message.map_id = "site"
-    message.map_hash = "sha256:pcd"
+    message.map_hash = HELPERS._digest("3")
     message.correction_generation = int(generation)
     return message
 
@@ -94,6 +94,7 @@ def test_localization_generation_reprojects_only_next_route_segment(tmp_path):
             Parameter("require_localization_valid", value=True),
             Parameter("require_task_readiness", value=False),
             Parameter("maps_root", value=str(tmp_path)),
+            Parameter("tasks_root", value=str(tmp_path / "tasks")),
             Parameter("execution_vehicle_profile", value=str(profile)),
             Parameter("route_controller_id_forward", value="RouteForward"),
             Parameter("route_controller_id_reverse", value="RouteReverse"),

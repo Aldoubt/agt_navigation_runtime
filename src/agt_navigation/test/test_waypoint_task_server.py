@@ -39,6 +39,7 @@ def node(tmp_path):
             Parameter("allow_legacy_local_task_file", value=True),
             Parameter("allow_direct_pose_goals", value=True),
             Parameter("maps_root", value=str(tmp_path)),
+            Parameter("tasks_root", value=str(tmp_path / "tasks")),
         ]
     )
     try:
@@ -57,20 +58,16 @@ def _request(loop=False, count=1):
     return request
 
 
+def _digest(char):
+    return "sha256:" + char * 64
+
+
 def _versioned_task(root, revision=1, version_id="v1"):
-    version = root / "site" / "versions" / version_id
-    (version / "tasks").mkdir(parents=True, exist_ok=True)
-    (version / "manifest.yaml").write_text(
-        "\n".join(
-            (
-                "schema_version: 1",
-                "map_id: site",
-                f"map_version_id: {version_id}",
-                "state: READY",
-            )
-        ),
-        encoding="utf-8",
-    )
+    # P1 canonical mutable Task Library:
+    # runtime/tasks/<site_id>/<site_revision>/
+    version = root / "tasks" / "site" / version_id
+    version.mkdir(parents=True, exist_ok=True)
+
     task = TaskGroup(
         task_group_id="route",
         name="Route",
@@ -81,9 +78,9 @@ def _versioned_task(root, revision=1, version_id="v1"):
         map_binding=MapBinding(
             "site",
             version_id,
-            map_yaml_sha256="sha256:yaml",
-            map_image_sha256="sha256:image",
-            localization_pcd_sha256="sha256:pcd",
+            map_yaml_sha256=_digest("1"),
+            map_image_sha256=_digest("2"),
+            localization_pcd_sha256=_digest("3"),
             resolution=1.0,
             width=2,
             height=2,
@@ -92,11 +89,48 @@ def _versioned_task(root, revision=1, version_id="v1"):
         points=[Waypoint("wp_0001", "A", 10.5, 20.5, 0.0)],
     )
     task.content_sha256 = task.canonical_hash()
-    (version / "tasks" / "route.json").write_text(
-        json.dumps(task.to_dict(), ensure_ascii=False), encoding="utf-8"
+
+    (version / "route.json").write_text(
+        json.dumps(task.to_dict(), ensure_ascii=False),
+        encoding="utf-8",
     )
+
+    # Task Registry requires an exact persisted Site identity sidecar.
+    (version / "site_binding.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "map_id": "site",
+                "map_version_id": version_id,
+                "map_hash": _digest("a"),
+                "manifest_sha256": _digest("b"),
+                "navigation_yaml_sha256": _digest("1"),
+                "navigation_image_sha256": _digest("2"),
+                "localization_pcd_sha256": _digest("3"),
+            }
+        ),
+        encoding="utf-8",
+    )
+
     return task
 
+
+def _formal_active_site(version_id="v1"):
+    message = MapVersionSummary()
+    message.active = True
+    message.valid = True
+    message.state = MapVersionSummary.STATE_READY
+
+    message.map_id = "site"
+    message.map_version_id = version_id
+
+    message.map_hash = _digest("a")
+    message.manifest_sha256 = _digest("b")
+    message.navigation_yaml_sha256 = _digest("1")
+    message.navigation_image_sha256 = _digest("2")
+    message.localization_pcd_sha256 = _digest("3")
+
+    return message
 
 def _formal_request(task, version_id="v1"):
     request = ExecuteWaypointTask.Goal()
@@ -233,6 +267,7 @@ def test_portable_pose_input_requires_map_frame(node):
 
 def test_formal_task_id_loads_from_robot_registry(node, tmp_path):
     task = _versioned_task(tmp_path)
+    node._active_map_callback(_formal_active_site())
     request = _formal_request(task)
     points, binding, loaded = node._load_points_and_binding(request)
     assert [point.name for point in points] == ["A"]
@@ -247,6 +282,7 @@ def test_formal_task_id_loads_from_robot_registry(node, tmp_path):
 
 def test_formal_task_rejects_content_hash_mismatch(node, tmp_path):
     task = _versioned_task(tmp_path)
+    node._active_map_callback(_formal_active_site())
     request = _formal_request(task)
     request.expected_content_sha256 = "sha256:" + "0" * 64
     with pytest.raises(SERVER.Blocked) as exc:

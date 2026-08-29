@@ -22,6 +22,7 @@ set(AGT_NAVIGATION_ENTRYPOINTS
   execute_waypoint_task.py
   goal_pose_bridge.py
   localization_navigation_gate.py
+  p1_09a_collision_monitor_gate.py
   migrate_legacy_task_store.py
   navigation_capability_server.py
   route_controller_smoke.py
@@ -101,6 +102,10 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_localization_navigation_gate
     test/test_localization_navigation_gate.py
+  )
+  ament_add_pytest_test(
+    test_p1_09a_collision_monitor_gate
+    test/test_p1_09a_collision_monitor_gate.py
   )
 endif()
 

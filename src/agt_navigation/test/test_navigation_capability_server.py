@@ -34,13 +34,28 @@ def _wait(future, timeout=4.0):
     return future.result()
 
 
-def _prepare_assets(root: Path):
-    version = root / "site" / "versions" / "map_v1"
-    (version / "tasks").mkdir(parents=True)
-    route_dir = version / "routes" / "route_main" / "1"
-    route_dir.mkdir(parents=True)
+def _digest(char):
+    return "sha256:" + char * 64
 
-    map_content = "sha256:" + "a" * 64
+
+def _prepare_assets(root: Path):
+    # Immutable Site/map assets stay under maps_root.
+    version = root / "site" / "versions" / "map_v1"
+    version.mkdir(parents=True, exist_ok=True)
+
+    # Mutable Task Library is independent from Site assets.
+    task_version = root / "tasks" / "site" / "map_v1"
+    task_version.mkdir(parents=True, exist_ok=True)
+
+    route_dir = version / "routes" / "route_main" / "1"
+    route_dir.mkdir(parents=True, exist_ok=True)
+
+    map_content = _digest("a")
+    manifest_hash = _digest("b")
+    yaml_hash = _digest("1")
+    image_hash = _digest("2")
+    pcd_hash = _digest("3")
+
     (version / "manifest.yaml").write_text(
         yaml.safe_dump(
             {
@@ -81,9 +96,9 @@ def _prepare_assets(root: Path):
         map_binding=MapBinding(
             "site",
             "map_v1",
-            map_yaml_sha256="sha256:yaml",
-            map_image_sha256="sha256:image",
-            localization_pcd_sha256="sha256:pcd",
+            map_yaml_sha256=yaml_hash,
+            map_image_sha256=image_hash,
+            localization_pcd_sha256=pcd_hash,
             resolution=1.0,
             width=2,
             height=2,
@@ -92,8 +107,26 @@ def _prepare_assets(root: Path):
         points=[Waypoint("wp_1", "A", 10.5, 20.5, 0.0)],
     )
     task.content_sha256 = task.canonical_hash()
-    (version / "tasks" / "inspection.json").write_text(
-        json.dumps(task.to_dict(), ensure_ascii=False), encoding="utf-8"
+
+    (task_version / "inspection.json").write_text(
+        json.dumps(task.to_dict(), ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    (task_version / "site_binding.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "map_id": "site",
+                "map_version_id": "map_v1",
+                "map_hash": map_content,
+                "manifest_sha256": manifest_hash,
+                "navigation_yaml_sha256": yaml_hash,
+                "navigation_image_sha256": image_hash,
+                "localization_pcd_sha256": pcd_hash,
+            }
+        ),
+        encoding="utf-8",
     )
 
     route_csv = route_dir / "route.csv"
@@ -105,6 +138,7 @@ def _prepare_assets(root: Path):
         "3,s001,10.5,20.5,3.141592654,R,0.15,0.0,1.0,headland,stop_b\n",
         encoding="utf-8",
     )
+
     route_yaml = route_dir / "route.yaml"
     route_yaml.write_text(
         yaml.safe_dump(
@@ -129,7 +163,9 @@ def _prepare_assets(root: Path):
         ),
         encoding="utf-8",
     )
-    (version / "tasks" / "inspection.route.yaml").write_text(
+
+    # ROUTE binding belongs to mutable Task Library.
+    (task_version / "inspection.route.yaml").write_text(
         yaml.safe_dump(
             {
                 "schema_version": 1,
@@ -150,8 +186,8 @@ def _prepare_assets(root: Path):
         ),
         encoding="utf-8",
     )
-    return task, profile, version
 
+    return task, profile, task_version
 
 def _set_active_map(server):
     current = OccupancyGrid()
@@ -170,11 +206,12 @@ def _set_active_map(server):
     active.state = MapVersionSummary.STATE_READY
     active.map_id = "site"
     active.map_version_id = "map_v1"
-    active.navigation_yaml_sha256 = "sha256:yaml"
-    active.navigation_image_sha256 = "sha256:image"
-    active.localization_pcd_sha256 = "sha256:pcd"
+    active.map_hash = _digest("a")
+    active.manifest_sha256 = _digest("b")
+    active.navigation_yaml_sha256 = _digest("1")
+    active.navigation_image_sha256 = _digest("2")
+    active.localization_pcd_sha256 = _digest("3")
     server._active_map_callback(active)
-
 
 def _formal_request(task, request_id):
     request = ExecuteWaypointTask.Goal()
@@ -207,6 +244,7 @@ def test_execute_waypoint_task_selects_route_follow_path_without_follow_waypoint
             Parameter("require_localization_valid", value=False),
             Parameter("require_task_readiness", value=False),
             Parameter("maps_root", value=str(tmp_path)),
+            Parameter("tasks_root", value=str(tmp_path / "tasks")),
             Parameter("execution_vehicle_profile", value=str(profile)),
             Parameter("route_controller_id_forward", value="RouteForward"),
             Parameter("route_controller_id_reverse", value="RouteReverse"),
@@ -270,7 +308,7 @@ def test_execute_waypoint_task_selects_route_follow_path_without_follow_waypoint
 
 def test_task_without_route_binding_preserves_map_follow_waypoints_backend(tmp_path):
     task, _profile, version = _prepare_assets(tmp_path)
-    (version / "tasks" / "inspection.route.yaml").unlink()
+    (version / "inspection.route.yaml").unlink()
     if not rclpy.ok():
         rclpy.init()
 
@@ -281,6 +319,7 @@ def test_task_without_route_binding_preserves_map_follow_waypoints_backend(tmp_p
             Parameter("require_localization_valid", value=False),
             Parameter("require_task_readiness", value=False),
             Parameter("maps_root", value=str(tmp_path)),
+            Parameter("tasks_root", value=str(tmp_path / "tasks")),
         ],
     )
     _set_active_map(task_server)

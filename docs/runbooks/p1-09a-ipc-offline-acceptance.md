@@ -357,45 +357,55 @@ ros2 topic echo /agt/odometry/odometry
 
 ## 7. Gate E — Collision Monitor 离线阻停
 
+这是 Gate E 的 canonical acceptance path。不要再手工依赖 `ros2 topic echo` 来做最终判定。
+
 重新启动离线场景：
 
 ```bash
 ros2 launch agt_navigation offline_navigation.launch.py \
   synthetic_obstacle_enabled:=true \
   synthetic_obstacle_x:=0.7 \
+  synthetic_obstacle_y:=0.0 \
   2>&1 | tee "$P1_EVIDENCE/offline_collision_monitor.log"
 ```
 
-检查合成障碍：
+另一个终端运行 checker：
 
 ```bash
-ros2 topic echo --once /agt/perception/obstacle_cloud
-```
+source /opt/ros/humble/setup.bash
+source install/setup.bash
 
-再次发送前向目标：
-
-```bash
-ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
-  "{pose: {header: {frame_id: map}, pose: {position: {x: 1.0, y: 0.0}, orientation: {w: 1.0}}}}" \
-  --feedback
-```
-
-同时观察：
-
-```bash
-ros2 topic echo /agt/odometry/odometry
+ros2 run agt_navigation p1_09a_collision_monitor_gate.py \
+  2>&1 | tee "$P1_EVIDENCE/p1_09a_collision_monitor_gate.log"
 ```
 
 通过标准：
 
-```text
-[ ] obstacle_cloud 中存在车前合成障碍
-[ ] Collision Monitor 阻止持续前进
-[ ] 机器人不会穿过合成障碍完成目标
-[ ] 最终由导航进度/恢复逻辑中止或保持受控停止
+```bash
+grep -E '^GATE_E_' "$P1_EVIDENCE/p1_09a_collision_monitor_gate.log"
 ```
 
-本 Gate 的目标是验证软件阻停链，不评价真实制动距离。
+必须看到：
+
+```bash
+GATE_E_OBSTACLE_PRESENT=PASS
+GATE_E_RAW_COMMAND=PASS
+GATE_E_COLLISION_STOP=PASS
+GATE_E_SAFETY_STOP=PASS
+GATE_E_ODOM_STOP=PASS
+GATE_E=PASS
+```
+
+并且日志里应包含实际观测值：
+
+```text
+raw_max_linear
+filtered_max_linear_after_settle
+safety_max_linear_after_settle
+odom_displacement
+```
+
+本 Gate 的目标是验证 Collision Monitor + Safety Controller 的离线截停链，并确认机器人没有明显位移。
 
 ---
 

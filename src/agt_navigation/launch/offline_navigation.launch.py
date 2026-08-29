@@ -43,12 +43,20 @@ def generate_launch_description():
             ),
             Node(
                 package="agt_safety",
-                executable="tracked_safety_controller.py",
-                name="agt_tracked_safety_controller",
+                executable="safety_controller.py",
+                name="agt_safety_controller",
                 output="screen",
                 parameters=[
-                    str(safety_share / "config" / "bunker_safety.yaml"),
-                    {"startup_motion_enabled": True},
+                    str(safety_share / "config" / "safety.yaml"),
+                    {
+                        # Offline acceptance has no real localization or
+                        # sensor-health authority. Keep the production safety
+                        # controller and velocity limits, but disable only
+                        # those external readiness gates for simulation.
+                        "startup_motion_enabled": True,
+                        "require_localization_valid": False,
+                        "require_sensor_input_ready": False,
+                    },
                 ],
             ),
             IncludeLaunchDescription(
