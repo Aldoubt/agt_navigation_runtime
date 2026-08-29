@@ -5,6 +5,7 @@ on:
     branches:
       - feat/operator-gateway-p0
       - feat/operator-gateway-p1-mission-control
+      - feat/operator-gateway-control-lease
     paths:
       - 'src/agt_operator_gateway/**'
       - 'src/agt_interfaces/msg/**'
