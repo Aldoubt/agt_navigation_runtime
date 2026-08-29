@@ -34,10 +34,11 @@ jobs:
         run: python -m pip install pytest pyyaml
       - name: Inspection selective-port contracts
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/inspection
-      - name: Compile inspection Python when present
+      - name: Inspection pure-Python regression baseline
         run: |
-          if [ -d src/agt_inspection ]; then
-            python -m compileall -q src/agt_inspection
-          else
-            echo "agt_inspection not ported yet"
-          fi
+          PYTHONPATH=src/agt_inspection PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+            python -m pytest -q \
+              src/agt_inspection/test/test_schema_v2.py \
+              src/agt_inspection/test/test_multiview_execution.py
+      - name: Compile inspection Python when present
+        run: python -m compileall -q src/agt_inspection
