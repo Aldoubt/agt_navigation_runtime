@@ -21,6 +21,7 @@ on:
       - 'tests/execution/**'
       - 'tests/system_manager/**'
       - 'tests/site_runtime/**'
+      - 'tests/navigation/**'
       - 'src/agt_interfaces/**'
       - 'src/agt_runtime_contracts/**'
       - 'src/agt_site_runtime/**'
@@ -69,4 +70,12 @@ jobs:
             PYTHONPATH=src/agt_site_runtime:src/agt_runtime_contracts python -m pytest -q tests/site_runtime
           else
             echo "site-runtime tests not present yet; site-owner TDD has not reached that task"
+          fi
+      - name: Run P1 task-storage contracts
+        run: |
+          if [ -f src/agt_navigation/test/test_site_task_binding.py ]; then
+            PYTHONPATH=src/agt_navigation:src/agt_site_runtime:src/agt_runtime_contracts \
+              python -m pytest -q src/agt_navigation/test/test_site_task_binding.py
+          else
+            echo "P1 task-storage tests not present yet"
           fi
