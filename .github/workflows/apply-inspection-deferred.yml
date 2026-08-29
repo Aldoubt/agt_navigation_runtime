@@ -1,0 +1,140 @@
+name: Apply Inspection Deferred Patch
+
+on:
+  push:
+    branches:
+      - feat/inspection-mvp-convergence
+    paths:
+      - .github/workflows/apply-inspection-deferred.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/inspection-mvp-convergence
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install test dependencies
+        run: python -m pip install pytest pyyaml
+      - name: Apply minimal deferred-vision implementation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # 1) Model: append execution_mode so old positional construction remains valid.
+          path = Path('src/agt_inspection/agt_inspection/model.py')
+          source = path.read_text(encoding='utf-8')
+          old = '''@dataclass(frozen=True)\nclass VisionPolicy:\n    task_id: str\n    model_profile: str\n    minimum_confidence: float\n    timeout_s: float\n'''
+          new = '''@dataclass(frozen=True)\nclass VisionPolicy:\n    task_id: str\n    model_profile: str\n    minimum_confidence: float\n    timeout_s: float\n    execution_mode: str = "INLINE"\n'''
+          if old not in source:
+              raise SystemExit('VisionPolicy patch anchor not found')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+
+          # 2) Schema: optional field, parser default INLINE, explicit enum validation.
+          path = Path('src/agt_inspection/agt_inspection/schema.py')
+          source = path.read_text(encoding='utf-8')
+          source = source.replace(
+              'VISION_KEYS = {"task_id", "model_profile", "minimum_confidence", "timeout_s"}',
+              'VISION_KEYS = {"task_id", "model_profile", "minimum_confidence", "timeout_s", "execution_mode"}',
+              1,
+          )
+          start = source.index('def _parse_vision(')
+          end = source.index('\ndef _parse_retry(', start)
+          replacement = '''def _parse_vision(raw: Mapping[str, Any], index: int) -> VisionPolicy:\n    vision_raw = dict(_mapping(raw["vision"], f"point {index}.vision"))\n    vision_raw.setdefault("execution_mode", "INLINE")\n    _exact_keys(vision_raw, VISION_KEYS, f"point {index}.vision")\n    execution_mode = vision_raw["execution_mode"]\n    if execution_mode not in {"INLINE", "DEFERRED"}:\n        raise InspectionTaskError(\n            f"point {index}.vision.execution_mode must be INLINE or DEFERRED"\n        )\n    confidence = _finite(\n        vision_raw["minimum_confidence"], f"point {index}.vision.minimum_confidence"\n    )\n    if confidence < 0.0 or confidence > 1.0:\n        raise InspectionTaskError(\n            f"point {index}.vision.minimum_confidence must be in [0, 1]"\n        )\n    return VisionPolicy(\n        task_id=_component(vision_raw["task_id"], f"point {index}.vision.task_id"),\n        model_profile=_component(\n            vision_raw["model_profile"], f"point {index}.vision.model_profile"\n        ),\n        minimum_confidence=confidence,\n        timeout_s=_positive(\n            vision_raw["timeout_s"], f"point {index}.vision.timeout_s", maximum=3600.0\n        ),\n        execution_mode=execution_mode,\n    )\n\n'''
+          source = source[:start] + replacement + source[end + 1:]
+          path.write_text(source, encoding='utf-8')
+
+          # 3) Multiview execution: capture-only evidence path in DEFERRED mode.
+          path = Path('src/agt_inspection/agt_inspection/multiview_execution.py')
+          source = path.read_text(encoding='utf-8')
+          start = source.index('    def _build_observation(')
+          end = source.index('    async def _run_aggregator(', start)
+          replacement = '''    def _capture_context(\n        self,\n        task: InspectionTask,\n        point: InspectionPoint,\n        view: InspectionView,\n        request_id: str,\n    ) -> dict[str, Any]:\n        context = dict(self._context_provider.snapshot(task, point, view, request_id))\n        for key in ("capture_stamp", "robot_pose_map", "gimbal", "camera"):\n            if key not in context:\n                raise ValueError(f"capture context is missing required field: {key}")\n        return context\n\n    def _build_observation(\n        self,\n        task: InspectionTask,\n        point: InspectionPoint,\n        view: InspectionView,\n        request_id: str,\n        capture: CaptureResult,\n        vision: VisionResult,\n    ) -> dict[str, Any]:\n        raw_count, payload = self._level1_payload(\n            vision, expected_count_target=task.count_target\n        )\n        context = self._capture_context(task, point, view, request_id)\n        return {\n            "schema_version": 1,\n            "view_id": view.id,\n            "capture_id": request_id,\n            "capture_stamp": context["capture_stamp"],\n            "robot_pose_map": context["robot_pose_map"],\n            "gimbal": context["gimbal"],\n            "camera": context["camera"],\n            "camera_pose_valid": bool(context.get("camera_pose_valid", False)),\n            "camera_pose_map": context.get("camera_pose_map", {}),\n            "evidence": {"image": capture.image_uri} if capture.image_uri else {},\n            "vision_status": "INLINE_COMPLETE",\n            "vision": {\n                "model_id": vision.model_id,\n                "model_version": vision.model_version,\n                "weights_sha256": vision.weights_sha256,\n                "raw_count": raw_count,\n                "inference_time_ms": vision.inference_time_ms,\n                "primary_confidence": vision.primary_confidence,\n                "result_json": payload,\n            },\n            "warnings": list(context.get("warnings", [])),\n        }\n\n    def _build_deferred_observation(\n        self,\n        task: InspectionTask,\n        point: InspectionPoint,\n        view: InspectionView,\n        request_id: str,\n        capture: CaptureResult,\n    ) -> dict[str, Any]:\n        context = self._capture_context(task, point, view, request_id)\n        return {\n            "schema_version": 1,\n            "view_id": view.id,\n            "capture_id": request_id,\n            "capture_stamp": context["capture_stamp"],\n            "robot_pose_map": context["robot_pose_map"],\n            "gimbal": context["gimbal"],\n            "camera": context["camera"],\n            "camera_pose_valid": bool(context.get("camera_pose_valid", False)),\n            "camera_pose_map": context.get("camera_pose_map", {}),\n            "evidence": {"image": capture.image_uri} if capture.image_uri else {},\n            "vision_status": "PENDING_OFFLINE",\n            "vision": {"status": "PENDING_OFFLINE"},\n            "warnings": list(context.get("warnings", [])),\n        }\n\n'''
+          source = source[:start] + replacement + source[end:]
+
+          start = source.index('                    vision = await self._retry_vision')
+          end = source.index('\n                if point.aggregation is not None and point.aggregation.enabled:', start)
+          replacement = '''                    if point.vision.execution_mode == "DEFERRED":\n                        try:\n                            observation = self._build_deferred_observation(\n                                task, point, view, request_id, capture\n                            )\n                        except ValueError as exc:\n                            return self._finish_v2(\n                                root,\n                                success=False,\n                                error_code=InspectionErrorCode.INTERNAL,\n                                message=str(exc),\n                            )\n                        self._stage("SAVING_RESULT", view_point)\n                        result_uri = self._multiview_store.write_view(\n                            point.id,\n                            view.id,\n                            observation,\n                            image_bytes=capture.image_bytes,\n                            image_suffix=capture.image_suffix,\n                        )\n                        observation["single_view_result_uri"] = result_uri\n                        observations.append(observation)\n                        continue\n\n                    vision = await self._retry_vision(view_point, capture, request_id)\n                    if vision.canceled:\n                        return self._finish_v2(\n                            root,\n                            success=False,\n                            error_code=InspectionErrorCode.CANCELED,\n                            message="canceled",\n                            canceled=True,\n                        )\n                    if vision.error_code == int(InspectionErrorCode.INTERNAL):\n                        return self._finish_v2(\n                            root,\n                            success=False,\n                            error_code=InspectionErrorCode.INTERNAL,\n                            message=vision.message,\n                        )\n                    if not vision.success or vision.primary_confidence < point.vision.minimum_confidence:\n                        return self._finish_v2(\n                            root,\n                            success=False,\n                            error_code=InspectionErrorCode.INFERENCE,\n                            message=vision.message\n                            or "single-view inference failed or below confidence threshold",\n                        )\n\n                    try:\n                        observation = self._build_observation(\n                            task, point, view, request_id, capture, vision\n                        )\n                    except ValueError as exc:\n                        return self._finish_v2(\n                            root,\n                            success=False,\n                            error_code=InspectionErrorCode.INFERENCE,\n                            message=str(exc),\n                        )\n\n                    self._stage("SAVING_RESULT", view_point)\n                    result_uri = self._multiview_store.write_view(\n                        point.id,\n                        view.id,\n                        observation,\n                        image_bytes=capture.image_bytes,\n                        overlay_bytes=vision.overlay_bytes,\n                        mask_bytes=vision.mask_bytes,\n                        image_suffix=capture.image_suffix,\n                        overlay_suffix=vision.overlay_suffix,\n                        mask_suffix=vision.mask_suffix,\n                    )\n                    observation["single_view_result_uri"] = result_uri\n                    observations.append(observation)\n'''
+          source = source[:start] + replacement + source[end:]
+          source = source.replace(
+              '                if point.aggregation is not None and point.aggregation.enabled:',
+              '                if (\n                    point.vision.execution_mode == "INLINE"\n                    and point.aggregation is not None\n                    and point.aggregation.enabled\n                ):',
+              1,
+          )
+          path.write_text(source, encoding='utf-8')
+
+          # 4) Evidence store/report: PENDING_OFFLINE is valid and count fields stay nullable.
+          path = Path('src/agt_inspection/agt_inspection/multiview_evidence.py')
+          source = path.read_text(encoding='utf-8')
+          old = '''        vision = _mapping(value.get("vision"), "observation.vision")\n        raw_count = vision.get("raw_count")\n        if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 0:\n            raise MultiviewEvidenceError("observation.vision.raw_count must be non-negative integer")\n'''
+          new = '''        vision_status = str(value.get("vision_status", "INLINE_COMPLETE"))\n        vision = _mapping(value.get("vision", {}), "observation.vision")\n        if vision_status == "PENDING_OFFLINE":\n            if "raw_count" in vision:\n                raise MultiviewEvidenceError(\n                    "deferred observation must not contain vision.raw_count"\n                )\n        elif vision_status == "INLINE_COMPLETE":\n            raw_count = vision.get("raw_count")\n            if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 0:\n                raise MultiviewEvidenceError(\n                    "observation.vision.raw_count must be non-negative integer"\n                )\n        else:\n            raise MultiviewEvidenceError(f"unsupported vision_status: {vision_status}")\n'''
+          if old not in source:
+              raise SystemExit('write_view vision validation anchor not found')
+          source = source.replace(old, new, 1)
+          source = source.replace(
+              '        total_ambiguous = 0\n',
+              '        total_ambiguous = 0\n        deferred_views = 0\n',
+              1,
+          )
+          old = '''                vision = _mapping(value.get("vision", {}), "vision")\n                view_rows.append(\n                    {\n                        "point_id": point_id,\n                        "view_id": value.get("view_id", view_root.name),\n                        "capture_stamp": value.get("capture_stamp", ""),\n                        "robot_x": pose.get("x", ""),\n                        "robot_y": pose.get("y", ""),\n                        "robot_yaw": pose.get("yaw", ""),\n                        "pan_rad": gimbal.get("pan_rad", ""),\n                        "tilt_rad": gimbal.get("tilt_rad", ""),\n                        "raw_count": vision.get("raw_count", 0),\n                        "model_id": vision.get("model_id", ""),\n                        "model_version": vision.get("model_version", ""),\n                        "inference_time_ms": vision.get("inference_time_ms", ""),\n                    }\n                )\n\n            raw_from_views = sum(int(_mapping(item.get("vision", {}), "vision").get("raw_count", 0)) for item in views)\n'''
+          new = '''                vision = _mapping(value.get("vision", {}), "vision")\n                is_deferred = value.get("vision_status") == "PENDING_OFFLINE"\n                if is_deferred:\n                    deferred_views += 1\n                view_rows.append(\n                    {\n                        "point_id": point_id,\n                        "view_id": value.get("view_id", view_root.name),\n                        "capture_stamp": value.get("capture_stamp", ""),\n                        "robot_x": pose.get("x", ""),\n                        "robot_y": pose.get("y", ""),\n                        "robot_yaw": pose.get("yaw", ""),\n                        "pan_rad": gimbal.get("pan_rad", ""),\n                        "tilt_rad": gimbal.get("tilt_rad", ""),\n                        "raw_count": "" if is_deferred else vision.get("raw_count", ""),\n                        "model_id": vision.get("model_id", ""),\n                        "model_version": vision.get("model_version", ""),\n                        "inference_time_ms": vision.get("inference_time_ms", ""),\n                    }\n                )\n\n            point_deferred = any(\n                item.get("vision_status") == "PENDING_OFFLINE" for item in views\n            )\n            raw_from_views = sum(\n                int(_mapping(item.get("vision", {}), "vision")["raw_count"])\n                for item in views\n                if item.get("vision_status") != "PENDING_OFFLINE"\n            )\n'''
+          if old not in source:
+              raise SystemExit('build_report view anchor not found')
+          source = source.replace(old, new, 1)
+          source = source.replace(
+              '''            else:\n                raw_count = raw_from_views\n                unique_count = ""\n                ambiguous_count = ""\n''',
+              '''            else:\n                raw_count = None if point_deferred else raw_from_views\n                unique_count = ""\n                ambiguous_count = ""\n''',
+              1,
+          )
+          source = source.replace(
+              '            total_raw += int(raw_count)\n',
+              '            if raw_count is not None:\n                total_raw += int(raw_count)\n',
+              1,
+          )
+          source = source.replace(
+              '                    "raw_count": raw_count,\n',
+              '                    "raw_count": "" if raw_count is None else raw_count,\n',
+              1,
+          )
+          old = '''        if not point_dirs or aggregated_points == 0:\n            count_mode = "VIEW_RAW"\n            unique_total: int | None = None\n            ambiguous_total: int | None = None\n        elif aggregated_points == len(point_dirs):\n            count_mode = "POINT_DEDUP"\n            unique_total = total_unique\n            ambiguous_total = total_ambiguous\n        else:\n            count_mode = "MIXED"\n            unique_total = None\n            ambiguous_total = None\n'''
+          new = '''        if deferred_views:\n            count_mode = "PENDING_OFFLINE"\n            raw_total: int | None = None\n            unique_total: int | None = None\n            ambiguous_total: int | None = None\n        elif not point_dirs or aggregated_points == 0:\n            count_mode = "VIEW_RAW"\n            raw_total = total_raw\n            unique_total = None\n            ambiguous_total = None\n        elif aggregated_points == len(point_dirs):\n            count_mode = "POINT_DEDUP"\n            raw_total = total_raw\n            unique_total = total_unique\n            ambiguous_total = total_ambiguous\n        else:\n            count_mode = "MIXED"\n            raw_total = total_raw\n            unique_total = None\n            ambiguous_total = None\n'''
+          if old not in source:
+              raise SystemExit('count mode anchor not found')
+          source = source.replace(old, new, 1)
+          source = source.replace(
+              '                "raw_instance_count": total_raw,\n',
+              '                "raw_instance_count": raw_total,\n',
+              1,
+          )
+          path.write_text(source, encoding='utf-8')
+          PY
+      - name: Run deferred + existing inspection regressions
+        run: |
+          PYTHONPATH=src/agt_inspection PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+            python -m pytest -q \
+              src/agt_inspection/test/test_schema_v2.py \
+              src/agt_inspection/test/test_multiview_execution.py \
+              src/agt_inspection/test/test_deferred_vision.py
+          python -m compileall -q src/agt_inspection
+      - name: Commit verified implementation and remove one-shot workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/apply-inspection-deferred.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A \
+            src/agt_inspection/agt_inspection/model.py \
+            src/agt_inspection/agt_inspection/schema.py \
+            src/agt_inspection/agt_inspection/multiview_execution.py \
+            src/agt_inspection/agt_inspection/multiview_evidence.py \
+            .github/workflows/apply-inspection-deferred.yml
+          git commit -m 'feat(inspection): support deferred offline vision mode'
+          git push origin HEAD:feat/inspection-mvp-convergence
