@@ -19,8 +19,8 @@ def test_runbook_freezes_ordered_commissioning_flow():
         "finalize_mapping_run.py",
         "offline reconstruction/export",
         "Site Package 1.0",
-        "/agt/maps/validate",
         "deploy under sites_root",
+        "/agt/maps/validate",
         "/agt/maps/activate",
         "Phase C navigation",
     )
