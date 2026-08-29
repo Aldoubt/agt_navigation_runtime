@@ -1,0 +1,10 @@
+agt_operator_gateway:
+  ros__parameters:
+    host: 0.0.0.0
+    port: 8765
+    robot_id: agt-robot
+    robot_name: AGT Robot
+    robot_state_topic: /agt/system/robot_state
+    runtime_freshness_ms: 1500
+    offline_after_ms: 5000
+    stream_poll_s: 0.05
