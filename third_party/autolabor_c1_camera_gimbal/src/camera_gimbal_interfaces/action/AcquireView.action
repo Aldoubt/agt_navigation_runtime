@@ -1,0 +1,46 @@
+# Public capability goal: move gimbal, verify stable arrival, then capture a fresh frame.
+float64 heading
+float64 roll
+float64 pitch
+float64 tolerance
+float64 timeout
+uint32 stable_samples
+float64 settle_time
+float64 image_timeout
+bool save_image
+string tag
+---
+uint16 ERROR_OK=0
+uint16 ERROR_INVALID_GOAL=100
+uint16 ERROR_BUSY=101
+uint16 ERROR_GIMBAL_UNAVAILABLE=200
+uint16 ERROR_GIMBAL_REJECTED=201
+uint16 ERROR_GIMBAL_FAILED=202
+uint16 ERROR_CAMERA_UNAVAILABLE=300
+uint16 ERROR_IMAGE_TIMEOUT=301
+uint16 ERROR_IMAGE_SAVE_FAILED=302
+uint16 ERROR_CANCELED=400
+uint16 ERROR_INTERNAL=900
+bool success
+uint16 error_code
+string message
+builtin_interfaces/Time reached_stamp
+builtin_interfaces/Time image_stamp
+float64 actual_heading
+float64 actual_roll
+float64 actual_pitch
+string image_path
+string tag
+---
+uint8 STATE_WAITING_GIMBAL=0
+uint8 STATE_MOVING=1
+uint8 STATE_SETTLING=2
+uint8 STATE_WAITING_IMAGE=3
+uint8 STATE_SAVING=4
+uint8 state
+string stage
+float64 current_heading
+float64 current_roll
+float64 current_pitch
+float64 max_error
+uint32 stable_count

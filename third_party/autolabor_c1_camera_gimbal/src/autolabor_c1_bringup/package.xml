@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>autolabor_c1_bringup</name>
+  <version>2.0.0</version>
+  <description>ROS2 Humble bringup and acceptance tools for Autolabor C1 camera and pan-tilt unit.</description>
+  <maintainer email="autolabor@autolabor.com.cn">autolabor</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>action_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>camera_gimbal_capability</exec_depend>
+  <exec_depend>camera_gimbal_interfaces</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>pantilt_camera_serial</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>rviz_default_plugins</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>usb_cam</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

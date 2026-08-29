@@ -1,0 +1,7 @@
+<library path="rviz_pantilt_plugin">
+  <class name="rviz_pantilt_plugin/PantiltRvizPanel"
+         type="autolabor_plugin::PantiltRvizPanel"
+         base_class_type="rviz_common::Panel">
+    <description>Control the pan-tilt unit and show verified motion state in RViz2.</description>
+  </class>
+</library>

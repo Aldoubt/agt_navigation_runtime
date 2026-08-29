@@ -1,0 +1,11 @@
+/**:
+  ros__parameters:
+    port_name: /dev/ttyUSB0
+    baud_rate: 115200
+    query_rate: 10.0
+    feedback_timeout: 1.0
+    write_timeout: 0.5
+    default_tolerance: 1.5
+    max_tolerance: 10.0
+    default_stable_samples: 3
+    frame_id: gimbal_link

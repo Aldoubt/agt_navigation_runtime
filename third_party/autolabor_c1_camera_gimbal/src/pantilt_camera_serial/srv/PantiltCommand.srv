@@ -1,0 +1,12 @@
+string command_name
+float64[] data
+---
+uint8 STATUS_OK=0
+uint8 STATUS_INVALID_ARGUMENT=1
+uint8 STATUS_UNKNOWN_COMMAND=2
+uint8 STATUS_SERIAL_DISCONNECTED=3
+uint8 STATUS_SERIAL_WRITE_FAILED=4
+uint8 STATUS_BUSY=5
+bool success
+uint8 status_code
+string message
