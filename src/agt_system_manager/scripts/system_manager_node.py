@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import copy
-import time
 import threading
+import time
 
 from agt_interfaces.msg import (
     BagSessionSummary,
@@ -12,6 +12,7 @@ from agt_interfaces.msg import (
     LocalizationStatus,
     MapVersionSummary,
     MissionStatus,
+    NavigationRuntimeStatus,
     RobotState,
     SystemHealth,
     TaskReadiness,
@@ -52,6 +53,9 @@ class SystemManager(Node):
         self._localization_timeout_s = float(
             self.declare_parameter("localization_status_timeout_s", 10.0).value
         )
+        self._navigation_timeout_s = float(
+            self.declare_parameter("navigation_status_timeout_s", 2.0).value
+        )
         self._safety_timeout_s = float(
             self.declare_parameter("safety_status_timeout_s", 1.0).value
         )
@@ -73,6 +77,7 @@ class SystemManager(Node):
             self._publish_rate_hz,
             self._sensor_timeout_s,
             self._localization_timeout_s,
+            self._navigation_timeout_s,
             self._safety_timeout_s,
             self._chassis_timeout_s,
         ) <= 0.0:
@@ -88,6 +93,8 @@ class SystemManager(Node):
         self._active_map_seen = float("-inf")
         self._localization = None
         self._localization_seen = float("-inf")
+        self._navigation_status = None
+        self._navigation_seen = float("-inf")
         self._mission = None
         self._mission_seen = float("-inf")
         self._safety_status = None
@@ -132,6 +139,12 @@ class SystemManager(Node):
             "/agt/localization/status",
             self._localization_callback,
             20,
+        )
+        self.create_subscription(
+            NavigationRuntimeStatus,
+            "/agt/navigation/runtime_status",
+            self._navigation_status_callback,
+            latched,
         )
         self.create_subscription(
             MissionStatus,
@@ -243,7 +256,11 @@ class SystemManager(Node):
         message = self._active_map
         return authoritative_map_known(
             received=message is not None,
-            state=int(message.state) if message is not None else MapVersionSummary.STATE_UNKNOWN,
+            state=(
+                int(message.state)
+                if message is not None
+                else MapVersionSummary.STATE_UNKNOWN
+            ),
             unknown_state=MapVersionSummary.STATE_UNKNOWN,
             active=bool(message.active) if message is not None else False,
             valid=bool(message.valid) if message is not None else False,
@@ -254,6 +271,11 @@ class SystemManager(Node):
             self._localization = copy.deepcopy(message)
             self._localization_seen = time.monotonic()
 
+    def _navigation_status_callback(self, message: NavigationRuntimeStatus) -> None:
+        with self._lock:
+            self._navigation_status = copy.deepcopy(message)
+            self._navigation_seen = time.monotonic()
+
     def _mission_callback(self, message: MissionStatus) -> None:
         with self._lock:
             self._mission = copy.deepcopy(message)
@@ -261,7 +283,7 @@ class SystemManager(Node):
 
     def _safety_callback(self, message: DiagnosticArray) -> None:
         for status in message.status:
-            if status.name != "agt_safety/controller":
+            if status.name != self._safety_status_name:
                 continue
             with self._lock:
                 self._safety_status = copy.deepcopy(status)
@@ -371,14 +393,20 @@ class SystemManager(Node):
 
         if not sensor_known:
             health.blocker_codes = ["SENSOR_INPUT_UNKNOWN"]
-            health.blocker_messages = ["required sensor health evidence is missing or stale"]
+            health.blocker_messages = [
+                "required sensor health evidence is missing or stale"
+            ]
         elif sensor.state == ComponentHealth.STATE_ERROR:
             health.blocker_codes = ["SENSOR_INPUT_UNHEALTHY"]
-            health.blocker_messages = [sensor.detail or "required sensor streams are unhealthy"]
+            health.blocker_messages = [
+                sensor.detail or "required sensor streams are unhealthy"
+            ]
 
         if chassis.state in (ComponentHealth.STATE_WARN, ComponentHealth.STATE_ERROR):
             health.warning_codes = ["CHASSIS_DIAGNOSTIC_WARNING"]
-            health.warning_messages = [chassis.detail or "chassis diagnostic warning"]
+            health.warning_messages = [
+                chassis.detail or "chassis diagnostic warning"
+            ]
 
         return health, sensor_known
 
@@ -394,6 +422,7 @@ class SystemManager(Node):
         )
         map_id = self._active_map.map_id if map_known else ""
         map_version_id = self._active_map.map_version_id if map_known else ""
+        map_hash = self._active_map.map_hash if map_known else ""
 
         localization_known = self._is_fresh(
             now, self._localization_seen, self._localization_timeout_s
@@ -407,6 +436,29 @@ class SystemManager(Node):
             and not self._localization.status_stale
         )
         localization_map_id = self._localization.map_id if localization_known else ""
+
+        navigation_known = self._is_fresh(
+            now, self._navigation_seen, self._navigation_timeout_s
+        ) and self._navigation_status is not None
+        navigation_ready = bool(
+            navigation_known
+            and self._navigation_status.state == NavigationRuntimeStatus.STATE_READY
+        )
+        navigation_site_id = (
+            self._navigation_status.site_id if navigation_known else ""
+        )
+        navigation_site_revision = (
+            self._navigation_status.site_revision if navigation_known else ""
+        )
+        navigation_site_hash = (
+            self._navigation_status.site_hash if navigation_known else ""
+        )
+        navigation_identity_known = bool(
+            navigation_known and self._navigation_status.map_identity_known
+        )
+        navigation_map_identity_match = bool(
+            navigation_known and self._navigation_status.map_identity_match
+        )
 
         safety_known = self._is_fresh(
             now, self._safety_seen, self._safety_timeout_s
@@ -429,9 +481,17 @@ class SystemManager(Node):
                 map_ready=map_ready,
                 map_id=map_id,
                 map_version_id=map_version_id,
+                map_hash=map_hash,
                 localization_known=localization_known,
                 localization_tracking=localization_tracking,
                 localization_map_id=localization_map_id,
+                navigation_known=navigation_known,
+                navigation_ready=navigation_ready,
+                navigation_site_id=navigation_site_id,
+                navigation_site_revision=navigation_site_revision,
+                navigation_site_hash=navigation_site_hash,
+                navigation_identity_known=navigation_identity_known,
+                navigation_map_identity_match=navigation_map_identity_match,
                 safety_known=safety_known,
                 motion_enabled=motion_enabled,
                 estop_latched=estop_latched,
@@ -454,7 +514,9 @@ class SystemManager(Node):
         readiness.blocker_messages = list(result.blocker_messages)
         if health.overall_state == SystemHealth.STATE_WARN:
             readiness.warning_codes = ["SYSTEM_HEALTH_WARN"]
-            readiness.warning_messages = ["runtime health contains non-blocking warnings"]
+            readiness.warning_messages = [
+                "runtime health contains non-blocking warnings"
+            ]
         return readiness, result
 
     def _build_robot_state(
@@ -498,8 +560,23 @@ class SystemManager(Node):
             state.mission_freshness_s = self._age(now, self._mission_seen)
             state.mission = copy.deepcopy(self._mission)
 
-        state.nav2_state = RobotState.NAV2_UNKNOWN
-        state.nav2_freshness_s = 0.0
+        navigation_fresh = self._is_fresh(
+            now, self._navigation_seen, self._navigation_timeout_s
+        ) and self._navigation_status is not None
+        state.nav2_freshness_s = self._age(now, self._navigation_seen)
+        if not navigation_fresh:
+            state.nav2_state = RobotState.NAV2_UNKNOWN
+        elif self._navigation_status.state == NavigationRuntimeStatus.STATE_READY:
+            state.nav2_state = RobotState.NAV2_ACTIVE
+        elif self._navigation_status.state == NavigationRuntimeStatus.STATE_ERROR:
+            state.nav2_state = RobotState.NAV2_ERROR
+        elif self._navigation_status.state in (
+            NavigationRuntimeStatus.STATE_STARTING,
+            NavigationRuntimeStatus.STATE_BLOCKED,
+        ):
+            state.nav2_state = RobotState.NAV2_INACTIVE
+        else:
+            state.nav2_state = RobotState.NAV2_UNKNOWN
 
         safety_fresh = self._is_fresh(now, self._safety_seen, self._safety_timeout_s)
         if safety_fresh and self._safety_status is not None:
@@ -508,7 +585,6 @@ class SystemManager(Node):
             state.safety_motion_enabled = values.get("motion_enabled") == "true"
             state.emergency_stop = values.get("emergency_stop") == "true"
             state.estop_latched = values.get("estop_latched") == "true"
-            state.navigation_ready = values.get("navigation_ready") == "true"
             state.safety_freshness_s = self._age(now, self._safety_seen)
 
         chassis_fresh = self._is_fresh(
@@ -528,6 +604,7 @@ class SystemManager(Node):
             state.bag_freshness_s = self._age(now, self._bag_seen)
             state.bag_session = copy.deepcopy(self._bag_status)
 
+        state.navigation_ready = bool(readiness_result.ready)
         state.error_code = 0
         state.blocker_codes = list(readiness_result.blocker_codes)
         state.blocker_messages = list(readiness_result.blocker_messages)
