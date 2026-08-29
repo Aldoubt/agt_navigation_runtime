@@ -24,6 +24,7 @@ def all_ready() -> Evidence:
         navigation_site_id="greenhouse_01",
         navigation_site_revision="v1",
         navigation_site_hash="site-content-hash",
+        navigation_identity_known=True,
         navigation_map_identity_match=True,
         safety_known=True,
         motion_enabled=True,
@@ -159,6 +160,19 @@ def test_non_ready_navigation_runtime_blocks_navigation():
     assert result.blocker_codes == ("NAVIGATION_NOT_ACTIVE",)
 
 
+def test_navigation_identity_not_yet_established_is_not_a_mismatch():
+    result = evaluate_navigation_readiness(
+        replace(
+            all_ready(),
+            navigation_ready=False,
+            navigation_identity_known=False,
+            navigation_map_identity_match=False,
+        )
+    )
+    assert not result.ready
+    assert result.blocker_codes == ("NAVIGATION_NOT_ACTIVE",)
+
+
 def test_navigation_runtime_site_identity_must_match_active_site():
     result = evaluate_navigation_readiness(
         replace(all_ready(), navigation_site_revision="v2")
@@ -225,6 +239,7 @@ def test_blockers_have_deterministic_system_to_actuator_order():
             navigation_site_id="",
             navigation_site_revision="",
             navigation_site_hash="",
+            navigation_identity_known=False,
             navigation_map_identity_match=False,
             safety_known=False,
             motion_enabled=False,
