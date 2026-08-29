@@ -32,3 +32,30 @@ def test_production_task_persistence_has_no_legacy_map_tree_writer():
     for fragment in legacy_fragments:
         assert fragment not in task_registry
         assert fragment not in task_group
+
+
+def test_task_registry_ros_node_uses_tasks_root_and_deployed_site_resolver():
+    source = (NAV_PACKAGE / "scripts" / "task_registry_node.py").read_text(encoding="utf-8")
+
+    assert 'declare_parameter("tasks_root", "")' in source
+    assert 'declare_parameter("sites_root", "/opt/agt/sites")' in source
+    assert 'declare_parameter("site_vehicle_profile", "/opt/agt/profiles/bunker.yaml")' in source
+    assert "FilesystemSiteBindingResolver" in source
+    assert "site_binding_resolver=site_binding_resolver" in source
+    assert "TaskRegistry(\n            tasks_root," in source
+    assert "TaskRegistry(\n            maps_root," not in source
+
+
+def test_navigation_launch_forwards_single_task_store_and_site_validation_inputs():
+    source = (NAV_PACKAGE / "launch" / "navigation.launch.py").read_text(encoding="utf-8")
+
+    assert 'DeclareLaunchArgument("tasks_root", default_value="")' in source
+    assert 'DeclareLaunchArgument("sites_root", default_value="/opt/agt/sites")' in source
+    assert (
+        'DeclareLaunchArgument("site_vehicle_profile", default_value="/opt/agt/profiles/bunker.yaml")'
+        in source
+    )
+    task_registry = source[source.index('executable="task_registry_node.py"'):]
+    assert '"tasks_root": LaunchConfiguration("tasks_root")' in task_registry
+    assert '"sites_root": LaunchConfiguration("sites_root")' in task_registry
+    assert '"site_vehicle_profile": LaunchConfiguration("site_vehicle_profile")' in task_registry
