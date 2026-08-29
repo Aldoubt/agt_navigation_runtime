@@ -36,6 +36,7 @@ from agt_inspection.image_codec import ImageCodecError, encode_jpeg, encode_png
 from agt_inspection.multiview_evidence import InspectionEvidenceStore
 from agt_inspection.multiview_execution import MultiviewInspectionExecutor
 from agt_inspection.repository import InspectionRepository
+from agt_inspection.ros_camera_gimbal import RosCameraGimbalAcquireRunner
 from agt_inspection.ros_multiview import RosViewAggregatorRunner, RosViewContextProvider
 from agt_inspection.schema import InspectionTaskError
 from agt_inspection.vision_result import Level1VisionResultError, parse_level1_result
@@ -346,6 +347,12 @@ class InspectionTaskServer(Node):
             self.declare_parameter("capture_localization_timeout_s", 2.0).value
         )
 
+        self._view_backend = str(
+            self.declare_parameter("view_backend", "legacy").value
+        )
+        if self._view_backend not in {"legacy", "camera_gimbal"}:
+            raise ValueError("view_backend must be legacy or camera_gimbal")
+
         image_cache: dict[str, Image] = {}
         self._navigation = WaypointTaskRunner(self)
         self._gimbal = GimbalRunner(self)
@@ -353,10 +360,17 @@ class InspectionTaskServer(Node):
         self._vision = VisionRunner(self, image_cache)
         self._stationary = ChassisStationaryProvider(self)
         self._view_aggregator = RosViewAggregatorRunner(self)
+        self._view_acquirer = None
+        context_camera_runner = self._camera
+        context_gimbal_runner = self._gimbal
+        if self._view_backend == "camera_gimbal":
+            self._view_acquirer = RosCameraGimbalAcquireRunner(self)
+            context_camera_runner = self._view_acquirer
+            context_gimbal_runner = self._view_acquirer
         self._view_context = RosViewContextProvider(
             self,
-            camera_runner=self._camera,
-            gimbal_runner=self._gimbal,
+            camera_runner=context_camera_runner,
+            gimbal_runner=context_gimbal_runner,
             camera_calibration_id=camera_calibration_id,
             camera_calibration_sha256=camera_calibration_sha256,
             localization_timeout_s=localization_timeout_s,
@@ -469,6 +483,15 @@ class InspectionTaskServer(Node):
                 expected_content_sha256=request.expected_content_sha256,
             )
             self._active_task = task
+            if self._view_backend == "camera_gimbal":
+                if task.schema_version != 2:
+                    raise InspectionTaskError(
+                        "camera_gimbal view backend requires schema_version 2"
+                    )
+                if any(point.vision.execution_mode != "DEFERRED" for point in task.points):
+                    raise InspectionTaskError(
+                        "camera_gimbal view backend currently requires DEFERRED vision mode"
+                    )
             self._navigation.bind(
                 request.map_id, request.map_version_id, self._active_session_id
             )
@@ -485,6 +508,7 @@ class InspectionTaskServer(Node):
                     evidence_store=InspectionEvidenceStore(self._evidence_root),
                     aggregator=self._view_aggregator,
                     context_provider=self._view_context,
+                    view_acquirer=self._view_acquirer,
                     monotonic=time.monotonic,
                     stage_callback=self._publish_stage,
                 )

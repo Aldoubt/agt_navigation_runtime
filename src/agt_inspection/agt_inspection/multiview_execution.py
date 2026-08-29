@@ -16,6 +16,24 @@ from .model import InspectionPoint, InspectionTask, InspectionView
 
 
 @dataclass(frozen=True)
+class ViewAcquireResult:
+    success: bool
+    error_code: int = 0
+    message: str = ""
+    capture: CaptureResult | None = None
+    canceled: bool = False
+    cancel_confirmed: bool = False
+
+
+class ViewAcquirer(Protocol):
+    async def acquire(
+        self, point: InspectionPoint, view: InspectionView, request_id: str
+    ) -> ViewAcquireResult: ...
+
+    async def cancel(self) -> bool: ...
+
+
+@dataclass(frozen=True)
 class AggregationResult:
     success: bool
     error_code: int = 0
@@ -112,6 +130,7 @@ class MultiviewInspectionExecutor(InspectionExecutor):
         evidence_store: MultiviewEvidenceStore,
         aggregator: ViewAggregator | None,
         context_provider: ViewContextProvider,
+        view_acquirer: ViewAcquirer | None = None,
         monotonic: Callable[[], float],
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         stage_callback: Callable[[str, str], None] | None = None,
@@ -134,6 +153,7 @@ class MultiviewInspectionExecutor(InspectionExecutor):
         self._multiview_store = evidence_store
         self._aggregator = aggregator
         self._context_provider = context_provider
+        self._view_acquirer = view_acquirer
 
     @staticmethod
     def _session_document(task: InspectionTask, session_id: str) -> dict[str, Any]:
@@ -244,6 +264,74 @@ class MultiviewInspectionExecutor(InspectionExecutor):
             "vision": {"status": "PENDING_OFFLINE"},
             "warnings": list(context.get("warnings", [])),
         }
+
+    async def _retry_view_acquisition(
+        self,
+        point: InspectionPoint,
+        view: InspectionView,
+        request_id: str,
+    ) -> ViewAcquireResult:
+        if self._view_acquirer is None:
+            return ViewAcquireResult(
+                False,
+                error_code=int(InspectionErrorCode.INTERNAL),
+                message="atomic view acquirer is unavailable",
+            )
+        gimbal_retries = 0
+        capture_retries = 0
+        while True:
+            if self._cancel_requested:
+                return ViewAcquireResult(
+                    False,
+                    error_code=int(InspectionErrorCode.CANCELED),
+                    message="canceled",
+                    canceled=True,
+                    cancel_confirmed=True,
+                )
+            self._stage("ACQUIRING_VIEW", point)
+            child = asyncio.create_task(
+                self._view_acquirer.acquire(point, view, request_id)
+            )
+            while not child.done():
+                if self._cancel_requested:
+                    request_confirmed = bool(await self._view_acquirer.cancel())
+                    result = await child
+                    if request_confirmed and result.canceled and result.cancel_confirmed:
+                        return result
+                    return ViewAcquireResult(
+                        False,
+                        error_code=int(InspectionErrorCode.INTERNAL),
+                        message="atomic view child did not confirm cancellation",
+                    )
+                await asyncio.sleep(0)
+            result = await child
+            if result.success:
+                if result.capture is None or not result.capture.success:
+                    return ViewAcquireResult(
+                        False,
+                        error_code=int(InspectionErrorCode.INTERNAL),
+                        message="atomic view succeeded without a valid capture",
+                    )
+                return result
+            if result.canceled or result.error_code in (
+                int(InspectionErrorCode.CANCELED),
+                int(InspectionErrorCode.INTERNAL),
+                int(InspectionErrorCode.INVALID_TASK),
+            ):
+                return result
+            if (
+                result.error_code == int(InspectionErrorCode.GIMBAL)
+                and gimbal_retries < point.retry.gimbal
+            ):
+                gimbal_retries += 1
+                continue
+            if (
+                result.error_code == int(InspectionErrorCode.CAPTURE)
+                and capture_retries < point.retry.capture
+            ):
+                capture_retries += 1
+                continue
+            return result
 
     async def _run_aggregator(
         self,
@@ -362,55 +450,81 @@ class MultiviewInspectionExecutor(InspectionExecutor):
                 observations: list[dict[str, Any]] = []
                 for view in point.views:
                     view_point = replace(point, gimbal=view.gimbal)
-                    gimbal = await self._retry_gimbal(view_point)
-                    if gimbal.canceled:
-                        return self._finish_v2(
-                            root,
-                            success=False,
-                            error_code=InspectionErrorCode.CANCELED,
-                            message="canceled",
-                            canceled=True,
-                        )
-                    if not gimbal.success:
-                        code = (
-                            InspectionErrorCode.INTERNAL
-                            if gimbal.error_code == int(InspectionErrorCode.INTERNAL)
-                            else InspectionErrorCode.GIMBAL
-                        )
-                        return self._finish_v2(
-                            root,
-                            success=False,
-                            error_code=code,
-                            message=gimbal.message or "gimbal move failed",
-                        )
-
-                    self._stage("WAITING_GIMBAL_STABLE", view_point)
-                    if not await self._sleep_cancelable(view.gimbal.settle_duration_s):
-                        return self._finish_v2(
-                            root,
-                            success=False,
-                            error_code=InspectionErrorCode.CANCELED,
-                            message="canceled",
-                            canceled=True,
-                        )
-
                     request_id = f"{session_id}:{point.id}:{view.id}"
-                    capture = await self._retry_capture(view_point, 1, request_id)
-                    if self._cancel_requested or capture.error_code == int(InspectionErrorCode.CANCELED):
-                        return self._finish_v2(
-                            root,
-                            success=False,
-                            error_code=InspectionErrorCode.CANCELED,
-                            message="canceled",
-                            canceled=True,
+                    if self._view_acquirer is not None:
+                        acquired = await self._retry_view_acquisition(
+                            view_point, view, request_id
                         )
-                    if not capture.success:
-                        return self._finish_v2(
-                            root,
-                            success=False,
-                            error_code=InspectionErrorCode.CAPTURE,
-                            message=capture.message or "capture failed",
-                        )
+                        if acquired.canceled or acquired.error_code == int(InspectionErrorCode.CANCELED):
+                            return self._finish_v2(
+                                root,
+                                success=False,
+                                error_code=InspectionErrorCode.CANCELED,
+                                message=acquired.message or "canceled",
+                                canceled=True,
+                            )
+                        if not acquired.success or acquired.capture is None:
+                            code = (
+                                InspectionErrorCode(acquired.error_code)
+                                if acquired.error_code in {int(item) for item in InspectionErrorCode}
+                                else InspectionErrorCode.INTERNAL
+                            )
+                            return self._finish_v2(
+                                root,
+                                success=False,
+                                error_code=code,
+                                message=acquired.message or "atomic view acquisition failed",
+                            )
+                        capture = acquired.capture
+                    else:
+                        gimbal = await self._retry_gimbal(view_point)
+                        if gimbal.canceled:
+                            return self._finish_v2(
+                                root,
+                                success=False,
+                                error_code=InspectionErrorCode.CANCELED,
+                                message="canceled",
+                                canceled=True,
+                            )
+                        if not gimbal.success:
+                            code = (
+                                InspectionErrorCode.INTERNAL
+                                if gimbal.error_code == int(InspectionErrorCode.INTERNAL)
+                                else InspectionErrorCode.GIMBAL
+                            )
+                            return self._finish_v2(
+                                root,
+                                success=False,
+                                error_code=code,
+                                message=gimbal.message or "gimbal move failed",
+                            )
+
+                        self._stage("WAITING_GIMBAL_STABLE", view_point)
+                        if not await self._sleep_cancelable(view.gimbal.settle_duration_s):
+                            return self._finish_v2(
+                                root,
+                                success=False,
+                                error_code=InspectionErrorCode.CANCELED,
+                                message="canceled",
+                                canceled=True,
+                            )
+
+                        capture = await self._retry_capture(view_point, 1, request_id)
+                        if self._cancel_requested or capture.error_code == int(InspectionErrorCode.CANCELED):
+                            return self._finish_v2(
+                                root,
+                                success=False,
+                                error_code=InspectionErrorCode.CANCELED,
+                                message="canceled",
+                                canceled=True,
+                            )
+                        if not capture.success:
+                            return self._finish_v2(
+                                root,
+                                success=False,
+                                error_code=InspectionErrorCode.CAPTURE,
+                                message=capture.message or "capture failed",
+                            )
 
                     if point.vision.execution_mode == "DEFERRED":
                         try:

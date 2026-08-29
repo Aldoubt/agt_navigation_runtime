@@ -120,7 +120,7 @@ class RosViewContextProvider:
     def snapshot(self, task, point, view, request_id: str) -> Mapping[str, Any]:
         stamp = self._camera_runner.capture_stamp(request_id)
         if stamp is None:
-            stamp = self._node.get_clock().now().to_msg()
+            raise ValueError("capture timestamp is unavailable")
         localization = self._accepted_localization(stamp)
         if localization.map_id and localization.map_id != task.map_binding.map_id:
             raise ValueError("capture-time localization map does not match inspection map")
@@ -131,12 +131,15 @@ class RosViewContextProvider:
 
         gimbal = self._gimbal_runner.last_feedback()
         if gimbal is None:
-            gimbal_pan = view.gimbal.pan_rad
-            gimbal_tilt = view.gimbal.tilt_rad
-            gimbal_feedback_valid = False
+            raise ValueError("actual gimbal feedback is unavailable")
+        if len(gimbal) == 3:
+            gimbal_pan, gimbal_tilt, gimbal_roll = gimbal
+            roll_feedback_valid = True
         else:
             gimbal_pan, gimbal_tilt = gimbal
-            gimbal_feedback_valid = True
+            gimbal_roll = None
+            roll_feedback_valid = False
+        gimbal_feedback_valid = True
 
         warnings = []
         if not self._camera_calibration_id or not self._camera_calibration_sha256:
@@ -155,7 +158,9 @@ class RosViewContextProvider:
             "gimbal": {
                 "pan_rad": float(gimbal_pan),
                 "tilt_rad": float(gimbal_tilt),
+                "roll_rad": None if gimbal_roll is None else float(gimbal_roll),
                 "feedback_valid": gimbal_feedback_valid,
+                "roll_feedback_valid": roll_feedback_valid,
             },
             "camera": {
                 "camera_id": point.camera.camera_id,
