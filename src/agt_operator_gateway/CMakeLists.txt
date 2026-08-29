@@ -29,6 +29,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_interface_compatibility test/test_interface_compatibility.py)
   ament_add_pytest_test(test_command_guard test/test_command_guard.py)
   ament_add_pytest_test(test_mission_command_http test/test_mission_command_http.py)
+  ament_add_pytest_test(test_control_lease_http test/test_control_lease_http.py)
   ament_add_pytest_test(test_mission_ros_contract test/test_mission_ros_contract.py)
 endif()
 
