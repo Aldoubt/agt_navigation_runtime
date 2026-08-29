@@ -38,6 +38,16 @@ class RobotStateAdapter(Node):
         self._stream_poll_s = float(
             self.declare_parameter('stream_poll_s', 0.05).value
         )
+        raw_origins = self.declare_parameter(
+            'cors_allowed_origins', ['*']
+        ).value
+        self._cors_allowed_origins = tuple(
+            dict.fromkeys(
+                str(origin).strip()
+                for origin in raw_origins
+                if str(origin).strip()
+            )
+        )
 
         if (
             not self._host
@@ -88,6 +98,10 @@ class RobotStateAdapter(Node):
     @property
     def stream_poll_s(self) -> float:
         return self._stream_poll_s
+
+    @property
+    def cors_allowed_origins(self) -> tuple[str, ...]:
+        return self._cors_allowed_origins
 
     def _robot_state_callback(self, message: RobotState) -> None:
         self._store.update(
