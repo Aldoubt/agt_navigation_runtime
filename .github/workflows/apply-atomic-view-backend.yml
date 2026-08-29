@@ -1,0 +1,140 @@
+name: Apply Atomic View Backend
+
+on:
+  push:
+    branches:
+      - feat/inspection-mvp-convergence
+    paths:
+      - .github/workflows/apply-atomic-view-backend.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/inspection-mvp-convergence
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install test dependencies
+        run: python -m pip install pytest pyyaml
+      - name: Apply atomic backend integration
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Multiview executor: optional atomic view backend.
+          path = Path('src/agt_inspection/agt_inspection/multiview_execution.py')
+          source = path.read_text(encoding='utf-8')
+          anchor = '''@dataclass(frozen=True)\nclass AggregationResult:\n'''
+          if anchor not in source:
+              raise SystemExit('AggregationResult anchor missing')
+          insert = '''@dataclass(frozen=True)\nclass ViewAcquireResult:\n    success: bool\n    error_code: int = 0\n    message: str = ""\n    capture: CaptureResult | None = None\n    canceled: bool = False\n    cancel_confirmed: bool = False\n\n\nclass ViewAcquirer(Protocol):\n    async def acquire(\n        self, point: InspectionPoint, view: InspectionView, request_id: str\n    ) -> ViewAcquireResult: ...\n\n    async def cancel(self) -> bool: ...\n\n\n'''
+          source = source.replace(anchor, insert + anchor, 1)
+          old = '''        context_provider: ViewContextProvider,\n        monotonic: Callable[[], float],\n'''
+          new = '''        context_provider: ViewContextProvider,\n        view_acquirer: ViewAcquirer | None = None,\n        monotonic: Callable[[], float],\n'''
+          if old not in source:
+              raise SystemExit('constructor signature anchor missing')
+          source = source.replace(old, new, 1)
+          old = '''        self._aggregator = aggregator\n        self._context_provider = context_provider\n'''
+          new = '''        self._aggregator = aggregator\n        self._context_provider = context_provider\n        self._view_acquirer = view_acquirer\n'''
+          source = source.replace(old, new, 1)
+          method_anchor = '    async def _run_aggregator(\n'
+          idx = source.index(method_anchor)
+          method = '''    async def _retry_view_acquisition(\n        self,\n        point: InspectionPoint,\n        view: InspectionView,\n        request_id: str,\n    ) -> ViewAcquireResult:\n        if self._view_acquirer is None:\n            return ViewAcquireResult(\n                False,\n                error_code=int(InspectionErrorCode.INTERNAL),\n                message="atomic view acquirer is unavailable",\n            )\n        gimbal_retries = 0\n        capture_retries = 0\n        while True:\n            if self._cancel_requested:\n                return ViewAcquireResult(\n                    False,\n                    error_code=int(InspectionErrorCode.CANCELED),\n                    message="canceled",\n                    canceled=True,\n                    cancel_confirmed=True,\n                )\n            self._stage("ACQUIRING_VIEW", point)\n            child = asyncio.create_task(\n                self._view_acquirer.acquire(point, view, request_id)\n            )\n            while not child.done():\n                if self._cancel_requested:\n                    request_confirmed = bool(await self._view_acquirer.cancel())\n                    result = await child\n                    if request_confirmed and result.canceled and result.cancel_confirmed:\n                        return result\n                    return ViewAcquireResult(\n                        False,\n                        error_code=int(InspectionErrorCode.INTERNAL),\n                        message="atomic view child did not confirm cancellation",\n                    )\n                await asyncio.sleep(0)\n            result = await child\n            if result.success:\n                if result.capture is None or not result.capture.success:\n                    return ViewAcquireResult(\n                        False,\n                        error_code=int(InspectionErrorCode.INTERNAL),\n                        message="atomic view succeeded without a valid capture",\n                    )\n                return result\n            if result.canceled or result.error_code in (\n                int(InspectionErrorCode.CANCELED),\n                int(InspectionErrorCode.INTERNAL),\n                int(InspectionErrorCode.INVALID_TASK),\n            ):\n                return result\n            if (\n                result.error_code == int(InspectionErrorCode.GIMBAL)\n                and gimbal_retries < point.retry.gimbal\n            ):\n                gimbal_retries += 1\n                continue\n            if (\n                result.error_code == int(InspectionErrorCode.CAPTURE)\n                and capture_retries < point.retry.capture\n            ):\n                capture_retries += 1\n                continue\n            return result\n\n'''
+          source = source[:idx] + method + source[idx:]
+
+          start_text = '''                    view_point = replace(point, gimbal=view.gimbal)\n                    gimbal = await self._retry_gimbal(view_point)\n'''
+          start = source.index(start_text)
+          end_marker = '''                    if point.vision.execution_mode == "DEFERRED":\n'''
+          end = source.index(end_marker, start)
+          replacement = '''                    view_point = replace(point, gimbal=view.gimbal)\n                    request_id = f"{session_id}:{point.id}:{view.id}"\n                    if self._view_acquirer is not None:\n                        acquired = await self._retry_view_acquisition(\n                            view_point, view, request_id\n                        )\n                        if acquired.canceled or acquired.error_code == int(InspectionErrorCode.CANCELED):\n                            return self._finish_v2(\n                                root,\n                                success=False,\n                                error_code=InspectionErrorCode.CANCELED,\n                                message=acquired.message or "canceled",\n                                canceled=True,\n                            )\n                        if not acquired.success or acquired.capture is None:\n                            code = (\n                                InspectionErrorCode(acquired.error_code)\n                                if acquired.error_code in {int(item) for item in InspectionErrorCode}\n                                else InspectionErrorCode.INTERNAL\n                            )\n                            return self._finish_v2(\n                                root,\n                                success=False,\n                                error_code=code,\n                                message=acquired.message or "atomic view acquisition failed",\n                            )\n                        capture = acquired.capture\n                    else:\n                        gimbal = await self._retry_gimbal(view_point)\n                        if gimbal.canceled:\n                            return self._finish_v2(\n                                root,\n                                success=False,\n                                error_code=InspectionErrorCode.CANCELED,\n                                message="canceled",\n                                canceled=True,\n                            )\n                        if not gimbal.success:\n                            code = (\n                                InspectionErrorCode.INTERNAL\n                                if gimbal.error_code == int(InspectionErrorCode.INTERNAL)\n                                else InspectionErrorCode.GIMBAL\n                            )\n                            return self._finish_v2(\n                                root,\n                                success=False,\n                                error_code=code,\n                                message=gimbal.message or "gimbal move failed",\n                            )\n\n                        self._stage("WAITING_GIMBAL_STABLE", view_point)\n                        if not await self._sleep_cancelable(view.gimbal.settle_duration_s):\n                            return self._finish_v2(\n                                root,\n                                success=False,\n                                error_code=InspectionErrorCode.CANCELED,\n                                message="canceled",\n                                canceled=True,\n                            )\n\n                        capture = await self._retry_capture(view_point, 1, request_id)\n                        if self._cancel_requested or capture.error_code == int(InspectionErrorCode.CANCELED):\n                            return self._finish_v2(\n                                root,\n                                success=False,\n                                error_code=InspectionErrorCode.CANCELED,\n                                message="canceled",\n                                canceled=True,\n                            )\n                        if not capture.success:\n                            return self._finish_v2(\n                                root,\n                                success=False,\n                                error_code=InspectionErrorCode.CAPTURE,\n                                message=capture.message or "capture failed",\n                            )\n\n'''
+          source = source[:start] + replacement + source[end:]
+          path.write_text(source, encoding='utf-8')
+
+          # Evidence context: no timestamp or gimbal target fallback.
+          path = Path('src/agt_inspection/agt_inspection/ros_multiview.py')
+          source = path.read_text(encoding='utf-8')
+          source = source.replace(
+              '''        stamp = self._camera_runner.capture_stamp(request_id)\n        if stamp is None:\n            stamp = self._node.get_clock().now().to_msg()\n''',
+              '''        stamp = self._camera_runner.capture_stamp(request_id)\n        if stamp is None:\n            raise ValueError("capture timestamp is unavailable")\n''',
+              1,
+          )
+          old = '''        gimbal = self._gimbal_runner.last_feedback()\n        if gimbal is None:\n            gimbal_pan = view.gimbal.pan_rad\n            gimbal_tilt = view.gimbal.tilt_rad\n            gimbal_feedback_valid = False\n        else:\n            gimbal_pan, gimbal_tilt = gimbal\n            gimbal_feedback_valid = True\n'''
+          new = '''        gimbal = self._gimbal_runner.last_feedback()\n        if gimbal is None:\n            raise ValueError("actual gimbal feedback is unavailable")\n        if len(gimbal) == 3:\n            gimbal_pan, gimbal_tilt, gimbal_roll = gimbal\n            roll_feedback_valid = True\n        else:\n            gimbal_pan, gimbal_tilt = gimbal\n            gimbal_roll = None\n            roll_feedback_valid = False\n        gimbal_feedback_valid = True\n'''
+          if old not in source:
+              raise SystemExit('gimbal context fallback anchor missing')
+          source = source.replace(old, new, 1)
+          source = source.replace(
+              '''                "tilt_rad": float(gimbal_tilt),\n                "feedback_valid": gimbal_feedback_valid,\n''',
+              '''                "tilt_rad": float(gimbal_tilt),\n                "roll_rad": None if gimbal_roll is None else float(gimbal_roll),\n                "feedback_valid": gimbal_feedback_valid,\n                "roll_feedback_valid": roll_feedback_valid,\n''',
+              1,
+          )
+          path.write_text(source, encoding='utf-8')
+
+          # Server: explicit backend selection and shared atomic runner/context.
+          path = Path('src/agt_inspection/scripts/inspection_task_server.py')
+          source = path.read_text(encoding='utf-8')
+          source = source.replace(
+              'from agt_inspection.repository import InspectionRepository\n',
+              'from agt_inspection.repository import InspectionRepository\nfrom agt_inspection.ros_camera_gimbal import RosCameraGimbalAcquireRunner\n',
+              1,
+          )
+          param_anchor = '''        localization_timeout_s = float(\n            self.declare_parameter("capture_localization_timeout_s", 2.0).value\n        )\n\n'''
+          replacement = param_anchor + '''        self._view_backend = str(\n            self.declare_parameter("view_backend", "legacy").value\n        )\n        if self._view_backend not in {"legacy", "camera_gimbal"}:\n            raise ValueError("view_backend must be legacy or camera_gimbal")\n\n'''
+          if param_anchor not in source:
+              raise SystemExit('server parameter anchor missing')
+          source = source.replace(param_anchor, replacement, 1)
+          old = '''        self._view_aggregator = RosViewAggregatorRunner(self)\n        self._view_context = RosViewContextProvider(\n            self,\n            camera_runner=self._camera,\n            gimbal_runner=self._gimbal,\n            camera_calibration_id=camera_calibration_id,\n            camera_calibration_sha256=camera_calibration_sha256,\n            localization_timeout_s=localization_timeout_s,\n        )\n'''
+          new = '''        self._view_aggregator = RosViewAggregatorRunner(self)\n        self._view_acquirer = None\n        context_camera_runner = self._camera\n        context_gimbal_runner = self._gimbal\n        if self._view_backend == "camera_gimbal":\n            self._view_acquirer = RosCameraGimbalAcquireRunner(self)\n            context_camera_runner = self._view_acquirer\n            context_gimbal_runner = self._view_acquirer\n        self._view_context = RosViewContextProvider(\n            self,\n            camera_runner=context_camera_runner,\n            gimbal_runner=context_gimbal_runner,\n            camera_calibration_id=camera_calibration_id,\n            camera_calibration_sha256=camera_calibration_sha256,\n            localization_timeout_s=localization_timeout_s,\n        )\n'''
+          if old not in source:
+              raise SystemExit('server context anchor missing')
+          source = source.replace(old, new, 1)
+          task_anchor = '''            self._active_task = task\n            self._navigation.bind(\n'''
+          task_replacement = '''            self._active_task = task\n            if self._view_backend == "camera_gimbal":\n                if task.schema_version != 2:\n                    raise InspectionTaskError(\n                        "camera_gimbal view backend requires schema_version 2"\n                    )\n                if any(point.vision.execution_mode != "DEFERRED" for point in task.points):\n                    raise InspectionTaskError(\n                        "camera_gimbal view backend currently requires DEFERRED vision mode"\n                    )\n            self._navigation.bind(\n'''
+          if task_anchor not in source:
+              raise SystemExit('server task anchor missing')
+          source = source.replace(task_anchor, task_replacement, 1)
+          source = source.replace(
+              '''                    context_provider=self._view_context,\n                    monotonic=time.monotonic,\n''',
+              '''                    context_provider=self._view_context,\n                    view_acquirer=self._view_acquirer,\n                    monotonic=time.monotonic,\n''',
+              1,
+          )
+          path.write_text(source, encoding='utf-8')
+          PY
+      - name: Run atomic + existing inspection regressions
+        run: |
+          PYTHONPATH=src/agt_inspection PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+            python -m pytest -q \
+              src/agt_inspection/test/test_atomic_view_acquisition.py \
+              src/agt_inspection/test/test_schema_v2.py \
+              src/agt_inspection/test/test_multiview_execution.py \
+              src/agt_inspection/test/test_deferred_vision.py \
+              src/agt_inspection/test/test_camera_gimbal_adapter.py
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/inspection
+          python -m compileall -q src/agt_inspection
+      - name: Run Mission regression after inspection backend change
+        run: |
+          PYTHONPATH=src/agt_mission_manager:src/agt_inspection PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+            python -m pytest -q \
+              src/agt_mission_manager/test/test_inspection_mission_step.py \
+              src/agt_mission_manager/test/test_inspection_mission_executor.py \
+              src/agt_mission_manager/test/test_return_home_mission.py \
+              src/agt_mission_manager/test/test_mission_report.py
+      - name: Commit verified atomic backend and remove one-shot workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/apply-atomic-view-backend.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A \
+            src/agt_inspection \
+            .github/workflows/apply-atomic-view-backend.yml
+          git commit -m 'feat(inspection): integrate atomic camera gimbal view backend'
+          git push origin HEAD:feat/inspection-mvp-convergence
