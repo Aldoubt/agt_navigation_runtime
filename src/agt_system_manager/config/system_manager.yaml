@@ -5,6 +5,7 @@ agt_system_manager:
     active_profile: bunker
     sensor_status_timeout_s: 1.5
     localization_status_timeout_s: 10.0
+    navigation_status_timeout_s: 2.0
     safety_status_timeout_s: 1.0
     chassis_status_timeout_s: 1.0
     sensor_summary_name: agt_sensor_monitor/summary
