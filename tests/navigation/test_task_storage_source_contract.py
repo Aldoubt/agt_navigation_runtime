@@ -46,12 +46,28 @@ def test_task_registry_ros_node_uses_tasks_root_and_deployed_site_resolver():
     assert "TaskRegistry(\n            maps_root," not in source
 
 
+def test_waypoint_execution_registry_uses_active_site_authority_and_task_root():
+    source = (NAV_PACKAGE / "scripts" / "waypoint_task_server.py").read_text(encoding="utf-8")
+
+    assert 'declare_parameter("tasks_root", "")' in source
+    assert "binding_from_map_version_summary" in source
+    assert "def _resolve_active_site_binding(" in source
+    assert "require_active=True" in source
+    assert "site_binding_resolver=self._resolve_active_site_binding" in source
+    assert "TaskRegistry(\n            self.tasks_root," in source
+    assert "TaskRegistry(\n            self.maps_root," not in source
+
+
 def test_navigation_launch_forwards_single_task_store_and_site_validation_inputs():
     source = (NAV_PACKAGE / "launch" / "navigation.launch.py").read_text(encoding="utf-8")
 
     assert 'DeclareLaunchArgument("tasks_root", default_value="")' in source
     assert 'DeclareLaunchArgument("sites_root", default_value="/opt/agt/sites")' in source
     assert '"site_vehicle_profile", default_value="/opt/agt/profiles/bunker.yaml"' in source
+
+    capability = source[source.index('executable="navigation_capability_server.py"'):]
+    assert '"tasks_root": LaunchConfiguration("tasks_root")' in capability
+
     task_registry = source[source.index('executable="task_registry_node.py"'):]
     assert '"tasks_root": LaunchConfiguration("tasks_root")' in task_registry
     assert '"sites_root": LaunchConfiguration("sites_root")' in task_registry
