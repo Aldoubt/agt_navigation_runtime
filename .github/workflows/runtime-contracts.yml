@@ -23,6 +23,7 @@ on:
       - 'tests/site_runtime/**'
       - 'tests/navigation/**'
       - 'tests/commissioning/**'
+      - 'tests/humble/**'
       - 'docs/runbooks/field-navigation-commissioning.md'
       - 'src/agt_interfaces/**'
       - 'src/agt_runtime_contracts/**'
@@ -42,6 +43,7 @@ on:
       - 'src/agt_field_commissioning/**'
       - 'requirements-contracts.txt'
       - '.github/workflows/runtime-contracts.yml'
+      - '.github/workflows/runtime-humble.yml'
 
 jobs:
   contracts:
@@ -110,3 +112,5 @@ jobs:
           fi
       - name: Run P1 RViz direct-goal guard contract
         run: python -m pytest -q tests/navigation/test_rviz_goal_guard.py
+      - name: Run P1 Humble workflow contract
+        run: python -m pytest -q tests/humble/test_p1_08_workflow_contract.py
