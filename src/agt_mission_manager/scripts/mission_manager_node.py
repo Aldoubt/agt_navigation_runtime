@@ -9,11 +9,16 @@ from pathlib import Path
 import threading
 import time
 from typing import Callable
+import uuid
 
 from action_msgs.msg import GoalStatus
-from agt_interfaces.action import ExecuteMission, ExecuteWaypointTask
+from agt_interfaces.action import ExecuteInspectionTask, ExecuteMission, ExecuteWaypointTask
 from agt_interfaces.msg import (
-    LocalizationStatus, MapVersionSummary, MissionEvent, MissionStatus, TaskReadiness,
+    LocalizationStatus,
+    MapVersionSummary,
+    MissionEvent,
+    MissionStatus,
+    TaskReadiness,
 )
 from agt_interfaces.srv import SetMissionRunState
 from agt_navigation.task_group import TaskGroupError, load_task_group
@@ -26,14 +31,28 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from agt_mission_manager.audit_log import AuditLog
-from agt_mission_manager.bt_mission_executor import BehaviorTreeMissionExecutor, RosBehaviorTreeRunner
+from agt_mission_manager.bt_mission_executor import (
+    BehaviorTreeMissionExecutor,
+    RosBehaviorTreeRunner,
+)
 from agt_mission_manager.mission_executor import (
-    EventInbox, MissionExecutor, WaypointCursor, WaypointResult,
+    EventInbox,
+    InspectionChildResult,
+    MissionExecutor,
+    WaypointCursor,
+    WaypointResult,
 )
 from agt_mission_manager.mission_model import (
-    GateSnapshot, MissionError, MissionEventRecord, MissionRuntimeStatus, MissionState, StepType,
+    GateSnapshot,
+    MissionError,
+    MissionEventRecord,
+    MissionRuntimeStatus,
+    MissionState,
+    StepType,
 )
+from agt_mission_manager.mission_report import MissionReportWriter
 from agt_mission_manager.mission_storage import MissionStorage
+from agt_mission_manager.ros_task_group_runner import RosTaskGroupRunner
 
 
 class RosWaypointRunner:
@@ -47,7 +66,10 @@ class RosWaypointRunner:
     ) -> None:
         self._node = node
         self._client = ActionClient(
-            node, ExecuteWaypointTask, action_name, callback_group=callback_group
+            node,
+            ExecuteWaypointTask,
+            action_name,
+            callback_group=callback_group,
         )
         self._server_wait_timeout_s = server_wait_timeout_s
         self._child = None
@@ -88,15 +110,23 @@ class RosWaypointRunner:
         loop_count = task.loop_count if task.loop else 1
         start_loop = min(cursor.loop_index, loop_count - 1)
         start_waypoint = min(cursor.waypoint_index, total - 1)
-        if not self._client.wait_for_server(timeout_sec=self._server_wait_timeout_s):
-            return WaypointResult(False, error_code=40, message="ExecuteWaypointTask server is unavailable")
+        if not self._client.wait_for_server(
+            timeout_sec=self._server_wait_timeout_s
+        ):
+            return WaypointResult(
+                False,
+                error_code=40,
+                message="ExecuteWaypointTask server is unavailable",
+            )
 
         for loop_index in range(start_loop, loop_count):
             offset = start_waypoint if loop_index == start_loop else 0
             requested_points = points[offset:]
             request = ExecuteWaypointTask.Goal()
             stamp = self._node.get_clock().now().to_msg()
-            request.poses = [self._pose(point, stamp) for point in requested_points]
+            request.poses = [
+                self._pose(point, stamp) for point in requested_points
+            ]
             request.loop = False
             request.loop_count = 1
 
@@ -104,16 +134,25 @@ class RosWaypointRunner:
                 feedback(
                     WaypointCursor(
                         loop_index=loop_index,
-                        waypoint_index=min(offset + int(message.feedback.current_waypoint), total - 1),
+                        waypoint_index=min(
+                            offset + int(message.feedback.current_waypoint),
+                            total - 1,
+                        ),
                         total_waypoints=total,
                     )
                 )
 
             handle = await self._await_ros_future(
-                self._client.send_goal_async(request, feedback_callback=on_feedback)
+                self._client.send_goal_async(
+                    request, feedback_callback=on_feedback
+                )
             )
             if not handle.accepted:
-                return WaypointResult(False, error_code=41, message="ExecuteWaypointTask rejected child goal")
+                return WaypointResult(
+                    False,
+                    error_code=41,
+                    message="ExecuteWaypointTask rejected child goal",
+                )
             with self._lock:
                 self._child = handle
             feedback(WaypointCursor(loop_index, offset, total))
@@ -130,7 +169,10 @@ class RosWaypointRunner:
                     cancel_confirmed=True,
                     missed_waypoints=tuple(wrapped.result.missed_waypoints),
                 )
-            if wrapped.status != GoalStatus.STATUS_SUCCEEDED or not wrapped.result.success:
+            if (
+                wrapped.status != GoalStatus.STATUS_SUCCEEDED
+                or not wrapped.result.success
+            ):
                 return WaypointResult(
                     False,
                     error_code=int(wrapped.result.error_code),
@@ -159,46 +201,190 @@ class RosWaypointRunner:
         self._client.destroy()
 
 
+class RosInspectionRunner:
+    def __init__(
+        self,
+        node: Node,
+        callback_group: ReentrantCallbackGroup,
+        *,
+        action_name: str,
+        server_wait_timeout_s: float,
+    ) -> None:
+        self._client = ActionClient(
+            node,
+            ExecuteInspectionTask,
+            action_name,
+            callback_group=callback_group,
+        )
+        self._server_wait_timeout_s = server_wait_timeout_s
+        self._child = None
+        self._lock = threading.RLock()
+
+    @staticmethod
+    async def _await_ros_future(future):
+        while not future.done():
+            await asyncio.sleep(0.005)
+        exception = future.exception()
+        if exception is not None:
+            raise exception
+        return future.result()
+
+    async def run(self, mission, step) -> InspectionChildResult:
+        if not self._client.wait_for_server(
+            timeout_sec=self._server_wait_timeout_s
+        ):
+            return InspectionChildResult(
+                False,
+                error_code=40,
+                message="ExecuteInspectionTask server is unavailable",
+            )
+        goal = ExecuteInspectionTask.Goal()
+        goal.map_id = mission.map_binding.map_id
+        goal.map_version_id = mission.map_binding.map_version_id
+        goal.inspection_task_id = step.inspection_task_id
+        goal.task_revision = step.inspection_task_revision
+        goal.expected_content_sha256 = step.expected_content_sha256
+        goal.client_request_id = (
+            f"{mission.mission_id}:{step.id}:{uuid.uuid4().hex}"
+        )
+        handle = await self._await_ros_future(
+            self._client.send_goal_async(goal)
+        )
+        if not handle.accepted:
+            return InspectionChildResult(
+                False,
+                error_code=41,
+                message="ExecuteInspectionTask rejected child goal",
+            )
+        with self._lock:
+            self._child = handle
+        wrapped = await self._await_ros_future(handle.get_result_async())
+        with self._lock:
+            self._child = None
+        canceled = wrapped.status == GoalStatus.STATUS_CANCELED
+        return InspectionChildResult(
+            success=(
+                wrapped.status == GoalStatus.STATUS_SUCCEEDED
+                and bool(wrapped.result.success)
+            ),
+            error_code=int(wrapped.result.error_code),
+            message=str(wrapped.result.message),
+            canceled=canceled,
+            cancel_confirmed=canceled,
+            session_id=str(wrapped.result.session_id),
+            evidence_root_uri=str(wrapped.result.evidence_root_uri),
+        )
+
+    async def cancel(self) -> bool:
+        with self._lock:
+            child = self._child
+        if child is None:
+            return True
+        response = await self._await_ros_future(child.cancel_goal_async())
+        return bool(response.goals_canceling)
+
+    def destroy(self) -> None:
+        self._client.destroy()
+
+
 class MissionManagerNode(Node):
     def __init__(self) -> None:
         super().__init__("agt_mission_manager")
-        runtime_dir = Path(str(self.declare_parameter("runtime_dir", "runtime").value)).expanduser()
-        mission_root_value = str(self.declare_parameter("mission_root", "").value).strip()
-        map_root_value = str(self.declare_parameter("map_root", "").value).strip()
+        runtime_dir = Path(
+            str(self.declare_parameter("runtime_dir", "runtime").value)
+        ).expanduser()
+        mission_root_value = str(
+            self.declare_parameter("mission_root", "").value
+        ).strip()
+        map_root_value = str(
+            self.declare_parameter("map_root", "").value
+        ).strip()
+        report_root_value = str(
+            self.declare_parameter("mission_report_root", "").value
+        ).strip()
         self._mission_root = (
-            Path(mission_root_value).expanduser() if mission_root_value else runtime_dir / "missions"
+            Path(mission_root_value).expanduser()
+            if mission_root_value
+            else runtime_dir / "missions"
         ).resolve()
         self._map_root = (
-            Path(map_root_value).expanduser() if map_root_value else runtime_dir / "maps"
+            Path(map_root_value).expanduser()
+            if map_root_value
+            else runtime_dir / "maps"
         ).resolve()
-        self._maximum_duration_s = float(self.declare_parameter("maximum_duration_s", 86400.0).value)
-        self._maximum_event_timeout_s = float(
-            self.declare_parameter("maximum_event_timeout_s", 86400.0).value
+        self._mission_report_root = (
+            Path(report_root_value).expanduser()
+            if report_root_value
+            else runtime_dir / "mission_reports"
+        ).resolve()
+        self._maximum_duration_s = float(
+            self.declare_parameter("maximum_duration_s", 86400.0).value
         )
-        self._maximum_steps = int(self.declare_parameter("maximum_steps", 100).value)
-        server_wait = float(self.declare_parameter("waypoint_server_wait_timeout_s", 5.0).value)
+        self._maximum_event_timeout_s = float(
+            self.declare_parameter(
+                "maximum_event_timeout_s", 86400.0
+            ).value
+        )
+        self._maximum_steps = int(
+            self.declare_parameter("maximum_steps", 100).value
+        )
+        server_wait = float(
+            self.declare_parameter(
+                "waypoint_server_wait_timeout_s", 5.0
+            ).value
+        )
+        inspection_server_wait = float(
+            self.declare_parameter(
+                "inspection_server_wait_timeout_s", 5.0
+            ).value
+        )
         self._localization_timeout_s = float(
-            self.declare_parameter("localization_status_timeout_s", 10.0).value
+            self.declare_parameter(
+                "localization_status_timeout_s", 10.0
+            ).value
         )
         self._readiness_timeout_s = float(
-            self.declare_parameter("task_readiness_timeout_s", 3.0).value
+            self.declare_parameter(
+                "task_readiness_timeout_s", 3.0
+            ).value
         )
-        self._execution_backend = str(self.declare_parameter("execution_backend", "sequential").value)
+        self._execution_backend = str(
+            self.declare_parameter(
+                "execution_backend", "sequential"
+            ).value
+        )
         if self._execution_backend not in {"sequential", "behavior_tree"}:
-            raise ValueError("execution_backend must be sequential or behavior_tree")
-        self._bt_goal_response_timeout_s = float(self.declare_parameter("bt_goal_response_timeout_s", 5.0).value)
-        self._bt_result_timeout_s = float(self.declare_parameter("bt_result_timeout_s", 3700.0).value)
-        self._bt_cancel_timeout_s = float(self.declare_parameter("bt_cancel_timeout_s", 2.0).value)
-        if min(
-            self._maximum_duration_s,
-            self._maximum_event_timeout_s,
-            server_wait,
-            self._localization_timeout_s,
-            self._readiness_timeout_s,
-            self._bt_goal_response_timeout_s,
-            self._bt_result_timeout_s,
-            self._bt_cancel_timeout_s,
-        ) <= 0.0 or self._maximum_steps <= 0:
+            raise ValueError(
+                "execution_backend must be sequential or behavior_tree"
+            )
+        self._bt_goal_response_timeout_s = float(
+            self.declare_parameter(
+                "bt_goal_response_timeout_s", 5.0
+            ).value
+        )
+        self._bt_result_timeout_s = float(
+            self.declare_parameter(
+                "bt_result_timeout_s", 3700.0
+            ).value
+        )
+        self._bt_cancel_timeout_s = float(
+            self.declare_parameter("bt_cancel_timeout_s", 2.0).value
+        )
+        if (
+            min(
+                self._maximum_duration_s,
+                self._maximum_event_timeout_s,
+                server_wait,
+                inspection_server_wait,
+                self._localization_timeout_s,
+                self._readiness_timeout_s,
+                self._bt_goal_response_timeout_s,
+                self._bt_result_timeout_s,
+                self._bt_cancel_timeout_s,
+            )
+            <= 0.0
+            or self._maximum_steps <= 0
+        ):
             raise ValueError("mission limits and timeouts must be positive")
 
         self._storage = MissionStorage(self._mission_root)
@@ -220,32 +406,70 @@ class MissionManagerNode(Node):
             MissionStatus, "/agt/missions/status", latched
         )
         self.create_subscription(
-            MapVersionSummary, "/agt/maps/active", self._map_callback, latched, callback_group=callback_group
+            MapVersionSummary,
+            "/agt/maps/active",
+            self._map_callback,
+            latched,
+            callback_group=callback_group,
         )
         self.create_subscription(
-            LocalizationStatus, "/agt/localization/status", self._localization_callback, 10, callback_group=callback_group
+            LocalizationStatus,
+            "/agt/localization/status",
+            self._localization_callback,
+            10,
+            callback_group=callback_group,
         )
         self.create_subscription(
-            TaskReadiness, "/agt/system/task_readiness", self._readiness_callback, 10, callback_group=callback_group
+            TaskReadiness,
+            "/agt/system/task_readiness",
+            self._readiness_callback,
+            10,
+            callback_group=callback_group,
         )
         self.create_subscription(
-            MissionEvent, "/agt/missions/events", self._event_callback, 10, callback_group=callback_group
+            MissionEvent,
+            "/agt/missions/events",
+            self._event_callback,
+            10,
+            callback_group=callback_group,
+        )
+        waypoint_action_name = str(
+            self.declare_parameter(
+                "waypoint_action_name",
+                "/agt/navigation/execute_waypoint_task",
+            ).value
         )
         self._waypoint_runner = RosWaypointRunner(
             self,
             callback_group,
-            action_name=str(
-                self.declare_parameter(
-                    "waypoint_action_name", "/agt/navigation/execute_waypoint_task"
-                ).value
-            ),
+            action_name=waypoint_action_name,
             server_wait_timeout_s=server_wait,
         )
+        self._task_group_runner = RosTaskGroupRunner(
+            self,
+            callback_group,
+            action_name=waypoint_action_name,
+            server_wait_timeout_s=server_wait,
+        )
+        self._inspection_runner = RosInspectionRunner(
+            self,
+            callback_group,
+            action_name=str(
+                self.declare_parameter(
+                    "inspection_action_name",
+                    "/agt/inspection/execute_task",
+                ).value
+            ),
+            server_wait_timeout_s=inspection_server_wait,
+        )
         self._bt_runner = RosBehaviorTreeRunner(
-            self, callback_group, server_wait_timeout_s=server_wait,
+            self,
+            callback_group,
+            server_wait_timeout_s=server_wait,
             goal_response_timeout_s=self._bt_goal_response_timeout_s,
             result_timeout_s=self._bt_result_timeout_s,
-            cancel_timeout_s=self._bt_cancel_timeout_s)
+            cancel_timeout_s=self._bt_cancel_timeout_s,
+        )
         self.create_service(
             SetMissionRunState,
             "/agt/missions/set_run_state",
@@ -267,6 +491,8 @@ class MissionManagerNode(Node):
     def destroy_node(self):
         self._server.destroy()
         self._waypoint_runner.destroy()
+        self._task_group_runner.destroy()
+        self._inspection_runner.destroy()
         self._bt_runner.destroy()
         return super().destroy_node()
 
@@ -276,12 +502,22 @@ class MissionManagerNode(Node):
         except MissionError as exc:
             self.get_logger().error(str(exc))
             return
-        if not recovered or int(recovered.get("state", 0)) != int(MissionState.INTERRUPTED):
+        if (
+            not recovered
+            or int(recovered.get("state", 0))
+            != int(MissionState.INTERRUPTED)
+        ):
             return
         self._status.state = MissionState.INTERRUPTED
         self._status.mission_id = str(recovered.get("mission_id", ""))
-        self._status.mission_version = str(recovered.get("mission_version", ""))
-        self._status.message = str(recovered.get("message", "mission execution interrupted"))
+        self._status.mission_version = str(
+            recovered.get("mission_version", "")
+        )
+        self._status.message = str(
+            recovered.get(
+                "message", "mission execution interrupted"
+            )
+        )
 
     def _map_callback(self, message) -> None:
         self._map = message
@@ -295,7 +531,9 @@ class MissionManagerNode(Node):
         self._readiness_seen = time.monotonic()
 
     def _event_callback(self, message) -> None:
-        stamp_s = float(message.header.stamp.sec) + float(message.header.stamp.nanosec) * 1.0e-9
+        stamp_s = float(message.header.stamp.sec) + float(
+            message.header.stamp.nanosec
+        ) * 1.0e-9
         self._events.push(
             MissionEventRecord(
                 stamp_s=stamp_s,
@@ -331,17 +569,33 @@ class MissionManagerNode(Node):
             else None
         )
         return GateSnapshot(
-            map_id=str(active_map.map_id) if active_map is not None and active_map.active else "",
+            map_id=(
+                str(active_map.map_id)
+                if active_map is not None and active_map.active
+                else ""
+            ),
             map_version_id=(
-                str(active_map.map_version_id) if active_map is not None and active_map.active else ""
+                str(active_map.map_version_id)
+                if active_map is not None and active_map.active
+                else ""
             ),
             manifest_sha256=(
-                str(active_map.manifest_sha256) if active_map is not None and active_map.active else ""
+                str(active_map.manifest_sha256)
+                if active_map is not None and active_map.active
+                else ""
             ),
             localization_ready=self._localization_ready(localization),
             task_ready=bool(readiness is not None and readiness.ready),
-            blocker_codes=tuple(readiness.blocker_codes) if readiness is not None else ("READINESS_UNKNOWN",),
-            blocker_messages=tuple(readiness.blocker_messages) if readiness is not None else ("TaskReadiness has not been received",),
+            blocker_codes=(
+                tuple(readiness.blocker_codes)
+                if readiness is not None
+                else ("READINESS_UNKNOWN",)
+            ),
+            blocker_messages=(
+                tuple(readiness.blocker_messages)
+                if readiness is not None
+                else ("TaskReadiness has not been received",)
+            ),
         )
 
     def _task_path(self, mission, step) -> str:
@@ -355,15 +609,22 @@ class MissionManagerNode(Node):
         try:
             path.relative_to(root / "tasks")
         except ValueError as exc:
-            raise MissionError("mission task path escapes the bound map tasks directory") from exc
+            raise MissionError(
+                "mission task path escapes the bound map tasks directory"
+            ) from exc
         if not path.is_file():
-            raise MissionError(f"mission task asset does not exist: {step.task_file}")
+            raise MissionError(
+                f"mission task asset does not exist: {step.task_file}"
+            )
         task = load_task_group(path)
         if (
             task.map_binding.map_id != mission.map_binding.map_id
-            or task.map_binding.map_version_id != mission.map_binding.map_version_id
+            or task.map_binding.map_version_id
+            != mission.map_binding.map_version_id
         ):
-            raise MissionError("waypoint task map binding does not match mission")
+            raise MissionError(
+                "waypoint task map binding does not match mission"
+            )
         return str(path)
 
     def _to_message(self, value: MissionRuntimeStatus) -> MissionStatus:
@@ -399,7 +660,9 @@ class MissionManagerNode(Node):
             if self._active:
                 return GoalResponse.REJECT
         try:
-            self._storage.mission_path(request.mission_id, request.mission_version)
+            self._storage.mission_path(
+                request.mission_id, request.mission_version
+            )
         except MissionError:
             return GoalResponse.REJECT
         return GoalResponse.ACCEPT
@@ -412,7 +675,10 @@ class MissionManagerNode(Node):
 
     def _set_run_state(self, request, response):
         executor = self._executor
-        if executor is None or (request.mission_id and request.mission_id != self._status.mission_id):
+        if executor is None or (
+            request.mission_id
+            and request.mission_id != self._status.mission_id
+        ):
             response.success = False
             response.error_code = MissionStatus.ERROR_INVALID_MISSION
             response.status = self._to_message(self._status)
@@ -425,16 +691,27 @@ class MissionManagerNode(Node):
         else:
             success, message = False, "unsupported run-state command"
         response.success = success
-        response.error_code = MissionStatus.ERROR_NONE if success else MissionStatus.ERROR_INVALID_MISSION
+        response.error_code = (
+            MissionStatus.ERROR_NONE
+            if success
+            else MissionStatus.ERROR_INVALID_MISSION
+        )
         response.status = self._to_message(self._status)
         response.message = message
         return response
 
     def _execute(self, goal_handle):
         result = ExecuteMission.Result()
+        reporter = None
         with self._lock:
             self._active = True
-        audit_path = self._mission_root / "audit" / goal_handle.request.mission_id / goal_handle.request.mission_version / "audit.jsonl"
+        audit_path = (
+            self._mission_root
+            / "audit"
+            / goal_handle.request.mission_id
+            / goal_handle.request.mission_version
+            / "audit.jsonl"
+        )
         try:
             mission = self._storage.load(
                 goal_handle.request.mission_id,
@@ -445,37 +722,61 @@ class MissionManagerNode(Node):
             )
             if (
                 goal_handle.request.expected_content_sha256
-                and goal_handle.request.expected_content_sha256 != mission.content_sha256
+                and goal_handle.request.expected_content_sha256
+                != mission.content_sha256
             ):
-                raise MissionError("expected_content_sha256 does not match stored mission")
-            resolved_paths = {step.id: self._task_path(mission, step) for step in mission.steps if step.type == StepType.WAYPOINT_TASK}
+                raise MissionError(
+                    "expected_content_sha256 does not match stored mission"
+                )
+            resolved_paths = {
+                step.id: self._task_path(mission, step)
+                for step in mission.steps
+                if step.type == StepType.WAYPOINT_TASK
+            }
+            status_callback = lambda status: (
+                self._publish_status(status),
+                goal_handle.publish_feedback(
+                    ExecuteMission.Feedback(
+                        status=self._to_message(status)
+                    )
+                ),
+            )
+            reporter = MissionReportWriter(
+                self._mission_report_root,
+                run_id=uuid.uuid4().hex,
+            )
             executor = MissionExecutor(
                 storage=self._storage,
                 audit=AuditLog(audit_path),
                 waypoint_runner=self._waypoint_runner,
+                inspection_runner=self._inspection_runner,
+                task_group_runner=self._task_group_runner,
+                reporter=reporter,
                 gate_provider=self._gate_snapshot,
                 event_inbox=self._events,
-                wall_time=lambda: self.get_clock().now().nanoseconds * 1.0e-9,
-                status_callback=lambda status: (
-                    self._publish_status(status),
-                    goal_handle.publish_feedback(ExecuteMission.Feedback(status=self._to_message(status))),
-                ),
+                wall_time=lambda: self.get_clock().now().nanoseconds
+                * 1.0e-9,
+                status_callback=status_callback,
             )
             if self._execution_backend == "behavior_tree":
                 executor = BehaviorTreeMissionExecutor(
                     storage=self._storage,
                     audit=AuditLog(audit_path),
                     runner=self._bt_runner,
-                    status_callback=lambda status: (
-                        self._publish_status(status),
-                        goal_handle.publish_feedback(ExecuteMission.Feedback(status=self._to_message(status))),
-                    ),
+                    status_callback=status_callback,
                 )
             self._executor = executor
             if self._execution_backend == "behavior_tree":
-                if len(mission.steps) != 1 or mission.steps[0].type != StepType.WAYPOINT_TASK:
-                    raise MissionError("BT_BACKEND_UNSUPPORTED_MISSION_SHAPE")
-                status = asyncio.run(executor.execute(mission, resolved_paths[mission.steps[0].id]))
+                if (
+                    len(mission.steps) != 1
+                    or mission.steps[0].type != StepType.WAYPOINT_TASK
+                ):
+                    raise MissionError(
+                        "BT_BACKEND_UNSUPPORTED_MISSION_SHAPE"
+                    )
+                status = asyncio.run(
+                    executor.execute(mission, resolved_paths[mission.steps[0].id])
+                )
             else:
                 status = asyncio.run(
                     executor.execute(mission, lambda step: resolved_paths[step.id])
@@ -485,10 +786,18 @@ class MissionManagerNode(Node):
             result.error_code = int(status.error_code)
             result.final_status = final_message
             result.audit_log_uri = str(audit_path)
+            result.report_uri = (
+                reporter.finish(status)
+                if self._execution_backend == "sequential"
+                else ""
+            )
             result.message = status.message
             if status.state == MissionState.SUCCEEDED:
                 goal_handle.succeed()
-            elif status.state == MissionState.CANCELED or goal_handle.is_cancel_requested:
+            elif (
+                status.state == MissionState.CANCELED
+                or goal_handle.is_cancel_requested
+            ):
                 goal_handle.canceled()
             else:
                 goal_handle.abort()
@@ -505,11 +814,16 @@ class MissionManagerNode(Node):
             result.error_code = MissionStatus.ERROR_INVALID_MISSION
             result.final_status = self._to_message(failed)
             result.audit_log_uri = str(audit_path)
+            result.report_uri = ""
             result.message = str(exc)
-            AuditLog(audit_path).append("mission_rejected", {"message": str(exc)})
+            AuditLog(audit_path).append(
+                "mission_rejected", {"message": str(exc)}
+            )
             goal_handle.abort()
         except Exception as exc:
-            self.get_logger().error(f"mission failed unexpectedly: {exc}")
+            self.get_logger().error(
+                f"mission failed unexpectedly: {exc}"
+            )
             failed = MissionRuntimeStatus(
                 state=MissionState.FAILED,
                 mission_id=str(goal_handle.request.mission_id),
@@ -522,6 +836,7 @@ class MissionManagerNode(Node):
             result.error_code = MissionStatus.ERROR_INTERNAL
             result.final_status = self._to_message(failed)
             result.audit_log_uri = str(audit_path)
+            result.report_uri = ""
             result.message = str(exc)
             goal_handle.abort()
         finally:
