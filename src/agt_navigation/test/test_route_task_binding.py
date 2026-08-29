@@ -10,8 +10,11 @@ from agt_navigation.task_group import MapBinding, TaskGroup, Waypoint
 
 
 def _task(root: Path):
-    version = root / "site" / "versions" / "map_v1"
-    (version / "tasks").mkdir(parents=True, exist_ok=True)
+    maps_root = root / "maps"
+    tasks_root = root / "tasks"
+    version = maps_root / "site" / "versions" / "map_v1"
+    task_version = tasks_root / "site" / "map_v1"
+    task_version.mkdir(parents=True, exist_ok=True)
     (version / "routes" / "route_main" / "1").mkdir(parents=True, exist_ok=True)
 
     map_content = "sha256:" + "a" * 64
@@ -50,7 +53,7 @@ def _task(root: Path):
         points=[Waypoint("wp_1", "A", 0.0, 0.0, 0.0)],
     )
     task.content_sha256 = task.canonical_hash()
-    (version / "tasks" / "inspection.json").write_text(
+    (task_version / "inspection.json").write_text(
         json.dumps(task.to_dict(), ensure_ascii=False), encoding="utf-8"
     )
 
@@ -82,10 +85,10 @@ def _task(root: Path):
     }
     route_yaml = route_dir / "route.yaml"
     route_yaml.write_text(yaml.safe_dump(route_manifest, sort_keys=False), encoding="utf-8")
-    return task, version, route_yaml, vehicle_hash
+    return task, maps_root, tasks_root, version, task_version, route_yaml, vehicle_hash
 
 
-def _write_binding(task, version, route_yaml):
+def _write_binding(task, task_version, route_yaml):
     binding = {
         "schema_version": 1,
         "status": "READY",
@@ -101,24 +104,24 @@ def _write_binding(task, version, route_yaml):
             "route_manifest_sha256": sha256_file(route_yaml),
         },
     }
-    path = version / "tasks" / f"{task.task_group_id}.route.yaml"
+    path = task_version / f"{task.task_group_id}.route.yaml"
     path.write_text(yaml.safe_dump(binding, sort_keys=False), encoding="utf-8")
     return path
 
 
 def test_missing_route_binding_preserves_map_backend(tmp_path):
-    task, _version, _route_yaml, vehicle_hash = _task(tmp_path)
-    resolved = RouteTaskResolver(tmp_path).resolve(
+    task, maps_root, tasks_root, _version, _task_version, _route_yaml, vehicle_hash = _task(tmp_path)
+    resolved = RouteTaskResolver(maps_root, tasks_root).resolve(
         task, expected_vehicle_profile_sha256=vehicle_hash
     )
     assert resolved is None
 
 
 def test_exact_task_revision_resolves_ready_route(tmp_path):
-    task, version, route_yaml, vehicle_hash = _task(tmp_path)
-    binding = _write_binding(task, version, route_yaml)
+    task, maps_root, tasks_root, _version, task_version, route_yaml, vehicle_hash = _task(tmp_path)
+    binding = _write_binding(task, task_version, route_yaml)
 
-    resolved = RouteTaskResolver(tmp_path).resolve(
+    resolved = RouteTaskResolver(maps_root, tasks_root).resolve(
         task, expected_vehicle_profile_sha256=vehicle_hash
     )
 
@@ -129,38 +132,66 @@ def test_exact_task_revision_resolves_ready_route(tmp_path):
     assert resolved.asset.segments[0].event_refs == ("stop_a",)
 
 
+def test_legacy_map_tasks_route_binding_is_not_an_implicit_fallback(tmp_path):
+    task, maps_root, tasks_root, version, _task_version, route_yaml, vehicle_hash = _task(tmp_path)
+    legacy_tasks = version / "tasks"
+    legacy_tasks.mkdir(parents=True, exist_ok=True)
+    _write_binding(task, legacy_tasks, route_yaml)
+
+    resolved = RouteTaskResolver(maps_root, tasks_root).resolve(
+        task, expected_vehicle_profile_sha256=vehicle_hash
+    )
+
+    assert resolved is None
+
+
 def test_stale_task_binding_fails_closed(tmp_path):
-    task, version, route_yaml, vehicle_hash = _task(tmp_path)
-    binding_path = _write_binding(task, version, route_yaml)
+    task, maps_root, tasks_root, _version, task_version, route_yaml, vehicle_hash = _task(tmp_path)
+    binding_path = _write_binding(task, task_version, route_yaml)
     binding = yaml.safe_load(binding_path.read_text(encoding="utf-8"))
     binding["task_binding"]["task_revision"] = task.revision - 1
     binding_path.write_text(yaml.safe_dump(binding, sort_keys=False), encoding="utf-8")
 
     with pytest.raises(RouteRuntimeError) as exc:
-        RouteTaskResolver(tmp_path).resolve(
+        RouteTaskResolver(maps_root, tasks_root).resolve(
             task, expected_vehicle_profile_sha256=vehicle_hash
         )
     assert exc.value.code == "route_task_binding_mismatch"
 
 
 def test_route_manifest_change_invalidates_execution_binding(tmp_path):
-    task, version, route_yaml, vehicle_hash = _task(tmp_path)
-    _write_binding(task, version, route_yaml)
+    task, maps_root, tasks_root, _version, task_version, route_yaml, vehicle_hash = _task(tmp_path)
+    _write_binding(task, task_version, route_yaml)
     route_yaml.write_text(route_yaml.read_text(encoding="utf-8") + "notes: changed\n", encoding="utf-8")
 
     with pytest.raises(RouteRuntimeError) as exc:
-        RouteTaskResolver(tmp_path).resolve(
+        RouteTaskResolver(maps_root, tasks_root).resolve(
             task, expected_vehicle_profile_sha256=vehicle_hash
         )
     assert exc.value.code == "route_binding_manifest_hash_mismatch"
 
 
 def test_vehicle_profile_mismatch_fails_closed(tmp_path):
-    task, version, route_yaml, vehicle_hash = _task(tmp_path)
-    _write_binding(task, version, route_yaml)
+    task, maps_root, tasks_root, _version, task_version, route_yaml, _vehicle_hash = _task(tmp_path)
+    _write_binding(task, task_version, route_yaml)
 
     with pytest.raises(RouteRuntimeError) as exc:
-        RouteTaskResolver(tmp_path).resolve(
+        RouteTaskResolver(maps_root, tasks_root).resolve(
             task, expected_vehicle_profile_sha256="sha256:" + "c" * 64
         )
     assert exc.value.code == "route_vehicle_binding_mismatch"
+
+
+def test_task_binding_identity_symlink_fails_closed(tmp_path):
+    task, maps_root, tasks_root, _version, task_version, route_yaml, vehicle_hash = _task(tmp_path)
+    _write_binding(task, task_version, route_yaml)
+    real_site = tasks_root / "site"
+    moved_site = tasks_root / "site_real"
+    real_site.rename(moved_site)
+    real_site.symlink_to(moved_site, target_is_directory=True)
+
+    with pytest.raises(RouteRuntimeError) as exc:
+        RouteTaskResolver(maps_root, tasks_root).resolve(
+            task, expected_vehicle_profile_sha256=vehicle_hash
+        )
+    assert exc.value.code == "route_binding_path_escape"
