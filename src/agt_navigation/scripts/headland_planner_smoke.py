@@ -22,8 +22,11 @@ from rclpy.utilities import remove_ros_args
 from agt_navigation.headland_planner_smoke import (
     build_smoke_manifest,
     finalize_smoke_results,
+    validate_vehicle_request_derivation,
     write_smoke_bundle,
 )
+
+G1_4_PLANNER_CONTRACT = "mk_mini_g1_4_vehicle_ready_hybrid_dubin"
 
 
 def build_parser():
@@ -35,6 +38,7 @@ def build_parser():
     )
     parser.add_argument("--planner-pairs", required=True)
     parser.add_argument("--gap-diagnostics", required=True)
+    parser.add_argument("--request-derivation", default=None)
     parser.add_argument("--map-yaml", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--planner-id", default="GridBased")
@@ -243,6 +247,14 @@ def _print_summary(result):
     print("planner_failure:", summary["planner_failure"])
     print("infrastructure_error:", summary["infrastructure_error"])
 
+    provenance = result.get("request_derivation")
+    if provenance:
+        print("request_derivation_method:", provenance["method"])
+        print("vehicle_ready_pair_sides:", provenance["ready_pair_side_count"])
+        print("vehicle_ready_requests:", provenance["directional_request_count"])
+        print("source_topology_radius_m:", provenance["source_topology_radius_m"])
+        print("radius_role:", provenance["radius_role"])
+
     if result.get("result_mode") == "reference_probe":
         for key in (
             "reference_positive_survives",
@@ -275,11 +287,31 @@ def main(argv=None):
     request_timeout = _positive_timeout(args.request_timeout, "request_timeout")
     planner_pairs_path, planner_pairs = _load_payload(args.planner_pairs)
     gap_path, gap_diagnostics = _load_payload(args.gap_diagnostics)
+
+    derivation_path = None
+    derivation = None
+    if args.request_derivation:
+        derivation_path, derivation = _load_payload(args.request_derivation)
+
     map_yaml = Path(args.map_yaml).expanduser().resolve()
     if not map_yaml.is_file():
         raise FileNotFoundError(map_yaml)
     output = Path(args.output).expanduser().resolve()
     manifest = build_smoke_manifest(planner_pairs, gap_diagnostics)
+
+    derivation_provenance = None
+    if derivation is not None:
+        if args.planner_contract != G1_4_PLANNER_CONTRACT:
+            raise ValueError(
+                f"request derivation requires planner_contract={G1_4_PLANNER_CONTRACT}"
+            )
+        if args.result_mode != "reference_probe":
+            raise ValueError("G1.4 request derivation requires result_mode=reference_probe")
+        derivation_provenance = validate_vehicle_request_derivation(
+            manifest, derivation
+        )
+    elif args.planner_contract == G1_4_PLANNER_CONTRACT:
+        raise ValueError("G1.4 planner contract requires --request-derivation")
 
     rclpy.init(args=None)
     node = HeadlandPlannerSmokeNode(args.planner_action)
@@ -319,6 +351,10 @@ def main(argv=None):
         "gap_diagnostics": str(gap_path),
         "map_yaml": str(map_yaml),
     }
+    if derivation_path is not None:
+        result["sources"]["request_derivation"] = str(derivation_path)
+        result["request_derivation"] = derivation_provenance
+
     result["planner"] = {
         "planner_id": str(args.planner_id),
         "planner_action": str(args.planner_action),
