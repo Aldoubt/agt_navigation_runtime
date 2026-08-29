@@ -23,6 +23,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_bringup_launch_contract test/test_bringup_launch_contract.py)
   ament_add_pytest_test(test_vehicle_preflight test/test_vehicle_preflight.py)
   ament_add_pytest_test(test_package_contract test/test_package_contract.py)
+  ament_add_pytest_test(test_visual_interface_contract test/test_visual_interface_contract.py)
 endif()
 
 ament_package()
