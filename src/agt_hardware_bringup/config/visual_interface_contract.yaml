@@ -1,0 +1,27 @@
+camera:
+  integration_status: pending_driver_delivery
+  legacy_ros_generation: ros1
+  source_image_topic: /cv_camera0/image_raw
+  target_image_topic: /agt/sensors/camera/image
+  source_camera_info_topic: UNVERIFIED
+  target_camera_info_topic: /agt/sensors/camera/camera_info
+  device: UNVERIFIED
+  resolution: UNVERIFIED
+  fps: UNVERIFIED
+  exposure: UNVERIFIED
+
+gimbal:
+  integration_status: pending_driver_delivery
+  legacy_ros_generation: ros1
+  source_feedback_topic: /pantilt_camera_serial0/pantilt_angle_info
+  source_feedback_fields: [heading, roll, pitch]
+  target_state_topic: /agt/gimbal/state
+  control_interface: UNVERIFIED
+  serial_device: UNVERIFIED
+  baudrate: UNVERIFIED
+  angle_unit: UNVERIFIED
+  zero_definition: UNVERIFIED
+  direction_convention: UNVERIFIED
+  limits: UNVERIFIED
+  settle_tolerance: UNVERIFIED
+  settle_time: UNVERIFIED
