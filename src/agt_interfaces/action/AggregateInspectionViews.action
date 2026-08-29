@@ -1,0 +1,37 @@
+# Point-local multi-view instance association. V1 deliberately does not perform
+# cross-point or cross-session identity recovery.
+
+string request_id
+string session_id
+string point_id
+string map_id
+string map_version_id
+string count_target
+string aggregation_profile
+agt_interfaces/InspectionViewObservation[] views
+---
+uint16 ERROR_NONE=0
+uint16 ERROR_INVALID_REQUEST=1
+uint16 ERROR_INSUFFICIENT_VIEWS=2
+uint16 ERROR_MAP_MISMATCH=3
+uint16 ERROR_CALIBRATION_MISMATCH=4
+uint16 ERROR_ASSOCIATION_FAILED=5
+uint16 ERROR_CANCELED=6
+uint16 ERROR_INTERNAL=255
+
+bool success
+uint16 error_code
+string aggregator_id
+string aggregator_version
+uint32 raw_instance_count
+uint32 unique_instance_count
+uint32 ambiguous_instance_count
+float64 association_confidence
+string result_uri
+string result_json
+string message
+---
+string stage
+uint32 current_view
+uint32 total_views
+float32 progress

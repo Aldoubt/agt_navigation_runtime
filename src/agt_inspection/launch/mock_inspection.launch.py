@@ -1,0 +1,76 @@
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
+
+
+def generate_launch_description():
+    fixture_maps = PathJoinSubstitution(
+        [FindPackageShare("agt_inspection"), "fixtures", "runtime", "maps"]
+    )
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("runtime_maps_root", default_value=fixture_maps),
+            DeclareLaunchArgument(
+                "evidence_root", default_value="/tmp/agt_inspection_mock_evidence"
+            ),
+            DeclareLaunchArgument("navigation_delay_s", default_value="0.05"),
+            DeclareLaunchArgument("gimbal_delay_s", default_value="0.05"),
+            DeclareLaunchArgument("vision_delay_s", default_value="0.05"),
+            Node(
+                package="agt_inspection",
+                executable="mock_runtime_context.py",
+                name="agt_mock_runtime_context",
+                output="screen",
+            ),
+            Node(
+                package="agt_inspection",
+                executable="mock_waypoint_task_server.py",
+                name="agt_mock_waypoint_task_server",
+                output="screen",
+                parameters=[{"delay_s": LaunchConfiguration("navigation_delay_s")}],
+            ),
+            Node(
+                package="agt_inspection",
+                executable="mock_gimbal_server.py",
+                name="agt_mock_gimbal",
+                output="screen",
+                parameters=[{"delay_s": LaunchConfiguration("gimbal_delay_s")}],
+            ),
+            Node(
+                package="agt_inspection",
+                executable="mock_camera_server.py",
+                name="agt_mock_camera",
+                output="screen",
+            ),
+            Node(
+                package="agt_inspection",
+                executable="mock_vision_server.py",
+                name="agt_mock_vision",
+                output="screen",
+                parameters=[{"delay_s": LaunchConfiguration("vision_delay_s")}],
+            ),
+            Node(
+                package="agt_inspection",
+                executable="mock_view_aggregator_server.py",
+                name="agt_mock_view_aggregator",
+                output="screen",
+            ),
+            Node(
+                package="agt_inspection",
+                executable="inspection_task_server.py",
+                name="agt_inspection_task_server",
+                output="screen",
+                parameters=[
+                    {
+                        "runtime_maps_root": LaunchConfiguration("runtime_maps_root"),
+                        "evidence_root": LaunchConfiguration("evidence_root"),
+                        "camera_calibration_id": "mock_camera_calib_v1",
+                        "camera_calibration_sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "capture_localization_timeout_s": 2.0,
+                    }
+                ],
+            ),
+        ]
+    )
