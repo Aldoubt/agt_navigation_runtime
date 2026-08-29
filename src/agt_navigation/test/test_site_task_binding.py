@@ -11,6 +11,7 @@ from agt_navigation.site_task_binding import (  # noqa: E402
     FilesystemSiteBindingResolver,
     SiteTaskBindingError,
     ValidatedSiteBinding,
+    binding_from_map_version_summary,
 )
 
 
@@ -80,6 +81,48 @@ def test_validated_site_binding_rejects_missing_identity_and_bad_hash():
             localization_pcd_sha256=_digest("e"),
         )
     assert exc.value.code == "TASK_SITE_BINDING_INVALID"
+
+
+def test_binding_from_active_map_summary_requires_ready_valid_active_exact_identity():
+    binding = binding_from_map_version_summary(
+        _summary(active=True),
+        requested_map_id="orchard_a",
+        requested_map_version_id="r01",
+        require_active=True,
+    )
+    assert binding.map_hash == _digest("a")
+
+    for bad_summary, code in (
+        (None, "MAP_NOT_READY"),
+        (_summary(active=False), "MAP_NOT_READY"),
+        (_summary(active=True, valid=False), "MAP_NOT_READY"),
+        (_summary(active=True, state=0), "MAP_NOT_READY"),
+        (_summary(active=True, map_version_id="r02"), "MAP_VERSION_MISMATCH"),
+    ):
+        with pytest.raises(SiteTaskBindingError) as exc:
+            binding_from_map_version_summary(
+                bad_summary,
+                requested_map_id="orchard_a",
+                requested_map_version_id="r01",
+                require_active=True,
+            )
+        assert exc.value.code == code
+
+
+def test_active_summary_content_hash_change_changes_binding_identity():
+    first = binding_from_map_version_summary(
+        _summary(active=True),
+        requested_map_id="orchard_a",
+        requested_map_version_id="r01",
+        require_active=True,
+    )
+    second = binding_from_map_version_summary(
+        _summary(active=True, map_hash=_digest("f", prefix=False)),
+        requested_map_id="orchard_a",
+        requested_map_version_id="r01",
+        require_active=True,
+    )
+    assert first != second
 
 
 def test_filesystem_resolver_returns_exact_validated_binding_from_summary_adapter():
