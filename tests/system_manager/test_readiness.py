@@ -15,9 +15,16 @@ def all_ready() -> Evidence:
         map_ready=True,
         map_id="greenhouse_01",
         map_version_id="v1",
+        map_hash="site-content-hash",
         localization_known=True,
         localization_tracking=True,
         localization_map_id="greenhouse_01",
+        navigation_known=True,
+        navigation_ready=True,
+        navigation_site_id="greenhouse_01",
+        navigation_site_revision="v1",
+        navigation_site_hash="site-content-hash",
+        navigation_map_identity_match=True,
         safety_known=True,
         motion_enabled=True,
         estop_latched=False,
@@ -48,7 +55,14 @@ def test_required_health_error_blocks_navigation():
 
 def test_missing_active_map_is_fail_closed():
     result = evaluate_navigation_readiness(
-        replace(all_ready(), map_known=False, map_ready=False, map_id="", map_version_id="")
+        replace(
+            all_ready(),
+            map_known=False,
+            map_ready=False,
+            map_id="",
+            map_version_id="",
+            map_hash="",
+        )
     )
     assert not result.ready
     assert result.blocker_codes == ("ACTIVE_MAP_UNKNOWN",)
@@ -69,6 +83,7 @@ def test_explicit_no_active_tombstone_revokes_authoritative_map_identity():
             map_ready=False,
             map_id="",
             map_version_id="",
+            map_hash="",
         )
     )
     assert not known
@@ -130,6 +145,36 @@ def test_localization_must_match_active_map():
     assert result.blocker_codes == ("LOCALIZATION_MAP_MISMATCH",)
 
 
+def test_unknown_navigation_runtime_is_fail_closed():
+    result = evaluate_navigation_readiness(
+        replace(all_ready(), navigation_known=False, navigation_ready=False)
+    )
+    assert not result.ready
+    assert result.blocker_codes == ("NAVIGATION_UNKNOWN",)
+
+
+def test_non_ready_navigation_runtime_blocks_navigation():
+    result = evaluate_navigation_readiness(replace(all_ready(), navigation_ready=False))
+    assert not result.ready
+    assert result.blocker_codes == ("NAVIGATION_NOT_ACTIVE",)
+
+
+def test_navigation_runtime_site_identity_must_match_active_site():
+    result = evaluate_navigation_readiness(
+        replace(all_ready(), navigation_site_revision="v2")
+    )
+    assert not result.ready
+    assert result.blocker_codes == ("NAVIGATION_MAP_MISMATCH",)
+
+
+def test_navigation_runtime_rejects_localization_binding_mismatch():
+    result = evaluate_navigation_readiness(
+        replace(all_ready(), navigation_map_identity_match=False)
+    )
+    assert not result.ready
+    assert result.blocker_codes == ("NAVIGATION_MAP_MISMATCH",)
+
+
 def test_unknown_safety_is_fail_closed():
     result = evaluate_navigation_readiness(replace(all_ready(), safety_known=False))
     assert not result.ready
@@ -171,9 +216,16 @@ def test_blockers_have_deterministic_system_to_actuator_order():
             map_ready=False,
             map_id="",
             map_version_id="",
+            map_hash="",
             localization_known=False,
             localization_tracking=False,
             localization_map_id="",
+            navigation_known=False,
+            navigation_ready=False,
+            navigation_site_id="",
+            navigation_site_revision="",
+            navigation_site_hash="",
+            navigation_map_identity_match=False,
             safety_known=False,
             motion_enabled=False,
             estop_latched=True,
@@ -185,6 +237,7 @@ def test_blockers_have_deterministic_system_to_actuator_order():
         "SYSTEM_HEALTH_UNKNOWN",
         "ACTIVE_MAP_UNKNOWN",
         "LOCALIZATION_UNKNOWN",
+        "NAVIGATION_UNKNOWN",
         "SAFETY_UNKNOWN",
         "CHASSIS_UNKNOWN",
     )
