@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>agt_site_runtime</name>
+  <version>0.1.0</version>
+  <description>Read-only deployed Site Package registry and authoritative active-site owner.</description>
+  <maintainer email="xuanyang.robotics@gmail.com">Xuan Yang</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>agt_interfaces</depend>
+  <depend>agt_runtime_contracts</depend>
+  <depend>ament_index_python</depend>
+  <depend>rclpy</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

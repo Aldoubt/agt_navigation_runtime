@@ -20,6 +20,7 @@ from agt_interfaces.srv import EvaluateTaskReadiness, GetRobotState, GetSystemHe
 from agt_system_manager.readiness import (
     ComponentEvidence,
     Evidence,
+    authoritative_map_known,
     evaluate_navigation_readiness,
     overall_health_state,
 )
@@ -238,6 +239,16 @@ class SystemManager(Node):
             self._active_map = copy.deepcopy(message)
             self._active_map_seen = time.monotonic()
 
+    def _active_map_is_authoritative(self) -> bool:
+        message = self._active_map
+        return authoritative_map_known(
+            received=message is not None,
+            state=int(message.state) if message is not None else MapVersionSummary.STATE_UNKNOWN,
+            unknown_state=MapVersionSummary.STATE_UNKNOWN,
+            active=bool(message.active) if message is not None else False,
+            valid=bool(message.valid) if message is not None else False,
+        )
+
     def _localization_callback(self, message: LocalizationStatus) -> None:
         with self._lock:
             self._localization = copy.deepcopy(message)
@@ -374,7 +385,7 @@ class SystemManager(Node):
     def _build_readiness(
         self, now: float, header, health: SystemHealth, health_known: bool
     ) -> tuple[TaskReadiness, object]:
-        map_known = self._active_map is not None
+        map_known = self._active_map_is_authoritative()
         map_ready = bool(
             map_known
             and self._active_map.active
@@ -469,7 +480,7 @@ class SystemManager(Node):
         state.task_readiness_freshness_s = 0.0
         state.task_readiness = copy.deepcopy(readiness)
 
-        if self._active_map is not None:
+        if self._active_map_is_authoritative():
             state.active_map_known = True
             state.active_map_freshness_s = self._age(now, self._active_map_seen)
             state.active_map = copy.deepcopy(self._active_map)

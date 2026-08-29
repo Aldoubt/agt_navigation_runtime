@@ -25,6 +25,7 @@ from agt_interfaces.srv import (
     ManageBagSession,
     ManageMapVersion,
     SetMissionRunState,
+    ValidateMapVersion,
 )
 
 
@@ -67,6 +68,14 @@ def test_system_interfaces_have_stable_defaults_and_constants():
     assert GetRobotState.Request().include_details is False
     assert SetMissionRunState.Request.COMMAND_PAUSE == 1
     assert ListMapVersions.Request().state == MapVersionSummary.STATE_UNKNOWN
+    assert ValidateMapVersion.Response.ERROR_NONE == 0
+    assert ValidateMapVersion.Response.ERROR_INVALID_REQUEST == 1
+    assert ValidateMapVersion.Response.ERROR_NOT_FOUND == 2
+    assert ValidateMapVersion.Response.ERROR_VALIDATION_FAILED == 3
+    assert ValidateMapVersion.Response.ERROR_INTERNAL == 255
+    assert ValidateMapVersion.Request().map_id == ""
+    assert ValidateMapVersion.Request().map_version_id == ""
+    assert ValidateMapVersion.Response().blocker_codes == []
     assert ManageMapVersion.Request.OP_PURGE == 7
     assert ManageMapVersion.Request.OP_IMPORT_CANDIDATE == 8
     assert ManageMapVersion.Request().candidate_map_yaml == ""

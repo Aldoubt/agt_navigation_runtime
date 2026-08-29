@@ -60,6 +60,27 @@ _MESSAGES = {
 }
 
 
+def authoritative_map_known(
+    *,
+    received: bool,
+    state: int,
+    unknown_state: int,
+    active: bool,
+    valid: bool,
+) -> bool:
+    """Return whether a received snapshot still represents map authority.
+
+    Site Runtime publishes an explicit UNKNOWN/inactive/invalid tombstone when it
+    must revoke a transient-local active snapshot after an isolated owner restart.
+    Other received non-ready states remain known evidence and are handled as
+    ACTIVE_MAP_NOT_READY by the readiness policy.
+    """
+
+    if not received:
+        return False
+    return not (state == unknown_state and not active and not valid)
+
+
 def overall_health_state(components: tuple[ComponentEvidence, ...]) -> int:
     if not components:
         return STATE_UNKNOWN

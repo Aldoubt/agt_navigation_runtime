@@ -29,6 +29,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetRobotState.srv"
   "srv/SetMissionRunState.srv"
   "srv/ActivateMapVersion.srv"
+  "srv/ValidateMapVersion.srv"
   "srv/ListMapVersions.srv"
   "srv/ManageMapVersion.srv"
   "srv/ListTaskGroups.srv"
