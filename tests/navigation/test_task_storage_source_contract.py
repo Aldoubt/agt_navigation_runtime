@@ -58,6 +58,22 @@ def test_waypoint_execution_registry_uses_active_site_authority_and_task_root():
     assert "TaskRegistry(\n            self.maps_root," not in source
 
 
+def test_route_binding_sidecar_uses_mutable_task_root_only():
+    capability = (NAV_PACKAGE / "scripts" / "navigation_capability_server.py").read_text(
+        encoding="utf-8"
+    )
+    resolver = (NAV_PACKAGE / "agt_navigation" / "route_task_binding.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "RouteTaskResolver(self.maps_root, self.tasks_root)" in capability
+    assert "return self._route_resolver.binding_path(task)" in capability
+    assert "self.tasks_root" in resolver
+    assert "def binding_path(" in resolver
+    assert 'version_root / "tasks"' not in resolver
+    assert '/ "versions"\n            / task.map_binding.map_version_id\n            / "tasks"' not in capability
+
+
 def test_navigation_launch_forwards_single_task_store_and_site_validation_inputs():
     source = (NAV_PACKAGE / "launch" / "navigation.launch.py").read_text(encoding="utf-8")
 
