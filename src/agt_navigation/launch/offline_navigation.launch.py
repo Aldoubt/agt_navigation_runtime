@@ -59,6 +59,7 @@ def generate_launch_description():
                     "use_sim_time": "false",
                     "autostart": "true",
                     "enable_localization_gate": "false",
+                    "enable_rviz_goal_bridge": "true",
                 }.items(),
             ),
         ]
