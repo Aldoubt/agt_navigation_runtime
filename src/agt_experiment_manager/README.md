@@ -6,9 +6,12 @@ and localization-result streams, explicit rosbag profiles, summary JSON and
 Markdown reports. A `RUNNING` session discovered after restart is marked
 `INTERRUPTED`; it is never silently completed.
 
-`bag_record.launch.py` remains the compatible entrypoint and selects
-`minimal`, `mapping`, `localization`, `navigation`, `teach_repeat`, or `full_experiment` from
-`config/bag_profiles.yaml`. The list is explicit and never uses `record -a`.
+`bag_record.launch.py` remains the compatible entrypoint and selects explicit profiles from
+`config/bag_profiles.yaml`: `minimal`, `mapping`, `field_mapping_commissioning`, `localization`,
+`navigation`, `teach_repeat`, or `full_experiment`. The list is explicit and never uses
+`record -a`. `field_mapping_commissioning` is the P1-06 evidence profile for the dedicated
+commissioning mapper and records `/agt/commissioning/mapping/registered_points` rather than the
+normal Runtime registered-points topic.
 
 `experiment_manager_node.py` is the sole runtime owner of record/playback processes. It exposes
 `/agt/data/bags/list`, `/agt/data/bags/manage`, and the reliable transient-local
@@ -17,7 +20,9 @@ mission, map, platform, calibration, and Nav2 bindings. Unexpected recorder/play
 `ERROR`; restart recovery marks a persisted `RUNNING` experiment `INTERRUPTED`.
 
 The managed mapping Action automatically creates an experiment and starts the explicit `mapping`
-profile through this service. The launch recorder remains only for legacy direct-launch callers.
+profile through this service. The P1-06 field commissioning flow requests
+`field_mapping_commissioning` explicitly through the same service; it does not create another
+recorder owner. The launch recorder remains only for legacy direct-launch callers.
 
 `record_teach_repeat_result()` attaches one demo/run result with teach manifest,
 path/map hashes, repeatability metrics, localization summary, execution result,
