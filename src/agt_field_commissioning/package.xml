@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>agt_field_commissioning</name>
+  <version>0.1.0</version>
+  <description>Commissioning-only field mapping and frozen-site navigation entry points.</description>
+  <maintainer email="xuanyang.robotics@gmail.com">Xuan Yang</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>agt_hardware_bringup</exec_depend>
+  <exec_depend>agt_odometry</exec_depend>
+  <exec_depend>agt_sensor_adapters</exec_depend>
+  <exec_depend>fast_livo</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
