@@ -26,6 +26,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_ros_contract test/test_ros_contract.py)
   ament_add_pytest_test(test_mock_gateway_contract test/test_mock_gateway_contract.py)
   ament_add_pytest_test(test_preflight test/test_preflight.py)
+  ament_add_pytest_test(test_interface_compatibility test/test_interface_compatibility.py)
 endif()
 
 ament_package()
