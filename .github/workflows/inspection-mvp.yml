@@ -39,6 +39,7 @@ jobs:
           PYTHONPATH=src/agt_inspection PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
             python -m pytest -q \
               src/agt_inspection/test/test_schema_v2.py \
-              src/agt_inspection/test/test_multiview_execution.py
+              src/agt_inspection/test/test_multiview_execution.py \
+              src/agt_inspection/test/test_deferred_vision.py
       - name: Compile inspection Python when present
         run: python -m compileall -q src/agt_inspection
