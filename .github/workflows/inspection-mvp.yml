@@ -6,6 +6,7 @@ on:
       - 'feat/inspection-mvp-*'
     paths:
       - 'src/agt_inspection/**'
+      - 'src/agt_hardware_bringup/**'
       - 'src/agt_interfaces/**'
       - 'src/agt_mission_manager/**'
       - 'third_party/autolabor_c1_camera_gimbal/**'
@@ -16,6 +17,7 @@ on:
   pull_request:
     paths:
       - 'src/agt_inspection/**'
+      - 'src/agt_hardware_bringup/**'
       - 'src/agt_interfaces/**'
       - 'src/agt_mission_manager/**'
       - 'third_party/autolabor_c1_camera_gimbal/**'
@@ -32,7 +34,7 @@ jobs:
           python-version: '3.10'
       - name: Install static test dependencies
         run: python -m pip install pytest pyyaml
-      - name: Inspection selective-port and ROS source contracts
+      - name: Inspection selective-port, bringup and ROS source contracts
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/inspection
       - name: Inspection pure-Python regression baseline
         run: |
@@ -42,7 +44,8 @@ jobs:
               src/agt_inspection/test/test_multiview_execution.py \
               src/agt_inspection/test/test_deferred_vision.py \
               src/agt_inspection/test/test_camera_gimbal_adapter.py \
-              src/agt_inspection/test/test_atomic_view_acquisition.py
+              src/agt_inspection/test/test_atomic_view_acquisition.py \
+              src/agt_inspection/test/test_camera_gimbal_health.py
       - name: Mission inspection and return-home regression baseline
         run: |
           PYTHONPATH=src/agt_mission_manager:src/agt_inspection PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
