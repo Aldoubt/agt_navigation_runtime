@@ -18,6 +18,20 @@ profiles:
       - /agt/chassis/status
       - /agt/chassis/connected
       - /diagnostics
+  field_mapping_commissioning:
+    topics:
+      - /clock
+      - /tf
+      - /tf_static
+      - /agt/sensors/lidar/custom
+      - /agt/sensors/lidar/custom_filtered
+      - /agt/sensors/imu/data
+      - /agt/commissioning/mapping/registered_points
+      - /agt/system/health
+      - /agt/chassis/odometry
+      - /agt/chassis/status
+      - /agt/chassis/connected
+      - /diagnostics
   localization:
     topics: [/clock, /tf, /tf_static, /agt/sensors/imu/data, /agt/odometry/registered_points, /agt/localization/status, /agt/localization/global_pose, /agt/localization/coarse_pose, /agt/localization/candidate_pose, /agt/localization/aligned_points, /initialpose]
   navigation:
