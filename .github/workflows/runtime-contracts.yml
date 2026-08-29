@@ -22,6 +22,8 @@ on:
       - 'tests/system_manager/**'
       - 'tests/site_runtime/**'
       - 'tests/navigation/**'
+      - 'tests/commissioning/**'
+      - 'docs/runbooks/field-navigation-commissioning.md'
       - 'src/agt_interfaces/**'
       - 'src/agt_runtime_contracts/**'
       - 'src/agt_site_runtime/**'
@@ -37,6 +39,7 @@ on:
       - 'src/agt_chassis_mk_mini/**'
       - 'src/agt_system_manager/**'
       - 'src/agt_experiment_manager/**'
+      - 'src/agt_field_commissioning/**'
       - 'requirements-contracts.txt'
       - '.github/workflows/runtime-contracts.yml'
 
@@ -96,4 +99,12 @@ jobs:
                 src/agt_site_navigation/test/test_source_contract.py
           else
             echo "P1 site-navigation tests not present yet"
+          fi
+      - name: Run P1 field commissioning contracts
+        run: |
+          if [ -d tests/commissioning ]; then
+            PYTHONPATH=src/agt_field_commissioning:src/agt_site_runtime:src/agt_runtime_contracts \
+              python -m pytest -q tests/commissioning
+          else
+            echo "P1 field commissioning tests not present yet"
           fi
