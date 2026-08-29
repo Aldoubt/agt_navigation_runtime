@@ -12,6 +12,7 @@ set(AGT_SITE_NAVIGATION_GENERATED_SCRIPT_DIR
 file(MAKE_DIRECTORY "${AGT_SITE_NAVIGATION_GENERATED_SCRIPT_DIR}")
 file(COPY
   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/site_navigation_binding_node.py"
+  "${CMAKE_CURRENT_SOURCE_DIR}/scripts/navigation_runtime_status_node.py"
   DESTINATION "${AGT_SITE_NAVIGATION_GENERATED_SCRIPT_DIR}"
   FILE_PERMISSIONS
     OWNER_READ OWNER_WRITE OWNER_EXECUTE
@@ -21,6 +22,7 @@ file(COPY
 
 install(PROGRAMS
   "${AGT_SITE_NAVIGATION_GENERATED_SCRIPT_DIR}/site_navigation_binding_node.py"
+  "${AGT_SITE_NAVIGATION_GENERATED_SCRIPT_DIR}/navigation_runtime_status_node.py"
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -32,6 +34,7 @@ install(DIRECTORY
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_resolver test/test_resolver.py)
+  ament_add_pytest_test(test_runtime_status_policy test/test_runtime_status_policy.py)
   ament_add_pytest_test(test_source_contract test/test_source_contract.py)
 endif()
 
