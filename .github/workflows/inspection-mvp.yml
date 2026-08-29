@@ -40,6 +40,7 @@ jobs:
             python -m pytest -q \
               src/agt_inspection/test/test_schema_v2.py \
               src/agt_inspection/test/test_multiview_execution.py \
-              src/agt_inspection/test/test_deferred_vision.py
+              src/agt_inspection/test/test_deferred_vision.py \
+              src/agt_inspection/test/test_camera_gimbal_adapter.py
       - name: Compile inspection Python when present
         run: python -m compileall -q src/agt_inspection
