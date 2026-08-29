@@ -1,0 +1,29 @@
+float64 heading
+float64 roll
+float64 pitch
+float64 tolerance
+float64 timeout
+uint32 stable_samples
+---
+uint8 RESULT_OK=0
+uint8 RESULT_INVALID_GOAL=1
+uint8 RESULT_SERIAL_ERROR=2
+uint8 RESULT_FEEDBACK_TIMEOUT=3
+uint8 RESULT_MOTION_TIMEOUT=4
+uint8 RESULT_CANCELED=5
+bool success
+uint8 result_code
+string message
+float64 final_heading
+float64 final_roll
+float64 final_pitch
+---
+uint8 STATE_WAITING_FEEDBACK=0
+uint8 STATE_MOVING=1
+uint8 STATE_STABILIZING=2
+float64 current_heading
+float64 current_roll
+float64 current_pitch
+float64 max_error
+uint32 stable_count
+uint8 state

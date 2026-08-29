@@ -1,0 +1,24 @@
+uint8 STATE_DISCONNECTED=0
+uint8 STATE_WAITING_FEEDBACK=1
+uint8 STATE_IDLE=2
+uint8 STATE_MOVING=3
+uint8 STATE_STABILIZING=4
+uint8 STATE_REACHED=5
+uint8 STATE_UNVERIFIED=6
+uint8 STATE_ERROR=7
+
+std_msgs/Header header
+uint8 state
+bool serial_connected
+bool feedback_alive
+bool target_active
+bool target_reached
+float64 target_heading
+float64 target_roll
+float64 target_pitch
+float64 max_error
+uint32 stable_count
+uint32 rx_frame_count
+uint32 crc_error_count
+uint32 protocol_error_count
+string last_error
