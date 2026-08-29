@@ -11,6 +11,8 @@ import yaml
 
 NEGATIVE_BRIDGE_TYPES = {"mixed_bridge", "clearance_only_bridge"}
 RESULT_MODES = {"expectation_match", "reference_probe"}
+G1_3_DERIVATION_METHOD = "p1_g1_3_vehicle_planner_request_derivation"
+SOURCE_TOPOLOGY_RADIUS_ROLE = "source_topology_clearance_proxy"
 
 
 def _radius(payload, name):
@@ -136,6 +138,109 @@ def build_smoke_manifest(planner_pairs, gap_diagnostics):
         "negative_bridge_types": sorted(NEGATIVE_BRIDGE_TYPES),
         "counts": counts,
         "requests": requests,
+    }
+
+
+def _summary_count(summary, key):
+    if not isinstance(summary, dict):
+        raise ValueError("request derivation summary must be an object")
+    try:
+        value = int(summary[key])
+    except Exception as exc:
+        raise ValueError(f"request derivation summary requires {key}") from exc
+    if isinstance(summary[key], bool) or value < 0:
+        raise ValueError(f"request derivation summary {key} must be a non-negative integer")
+    return value
+
+
+def validate_vehicle_request_derivation(manifest, derivation):
+    """Validate frozen G1.3 provenance before issuing G1.4 planner requests."""
+    if not isinstance(manifest, dict) or not isinstance(derivation, dict):
+        raise TypeError("manifest and request derivation must be objects")
+
+    method = str(derivation.get("method", ""))
+    if method != G1_3_DERIVATION_METHOD:
+        raise ValueError(
+            f"request derivation method must be {G1_3_DERIVATION_METHOD}"
+        )
+
+    radius_role = str(derivation.get("radius_role", ""))
+    if radius_role != SOURCE_TOPOLOGY_RADIUS_ROLE:
+        raise ValueError(
+            f"request derivation radius_role must be {SOURCE_TOPOLOGY_RADIUS_ROLE}"
+        )
+
+    manifest_radius = _radius(manifest, "manifest")
+    try:
+        source_radius = float(derivation["source_topology_radius_m"])
+    except Exception as exc:
+        raise ValueError("request derivation source_topology_radius_m is required") from exc
+    if not math.isfinite(source_radius) or source_radius <= 0.0:
+        raise ValueError(
+            "request derivation source_topology_radius_m must be positive and finite"
+        )
+    if not math.isclose(manifest_radius, source_radius, rel_tol=0.0, abs_tol=1e-9):
+        raise ValueError(
+            "request derivation source_topology_radius_m does not match manifest radius_m"
+        )
+
+    summary = derivation.get("summary")
+    source_pair_sides = _summary_count(summary, "source_pair_side_count")
+    ready_pair_sides = _summary_count(summary, "ready_pair_side_count")
+    excluded_pair_sides = _summary_count(summary, "excluded_pair_side_count")
+    positive_pair_sides = _summary_count(summary, "positive_pair_side_count")
+    negative_pair_sides = _summary_count(summary, "negative_pair_side_count")
+    directional_requests = _summary_count(summary, "directional_request_count")
+    positive_requests = _summary_count(summary, "positive_requests")
+    negative_requests = _summary_count(summary, "negative_requests")
+
+    manifest_counts = manifest.get("counts")
+    if not isinstance(manifest_counts, dict):
+        raise ValueError("manifest counts must be an object")
+    manifest_request_count = int(
+        manifest_counts.get("request_count", len(manifest.get("requests") or []))
+    )
+    if directional_requests != manifest_request_count:
+        raise ValueError(
+            "request derivation directional_request_count does not match manifest request_count"
+        )
+
+    expected = {
+        "source_pair_side_count": 14,
+        "ready_pair_side_count": 8,
+        "excluded_pair_side_count": 6,
+        "positive_pair_side_count": 6,
+        "negative_pair_side_count": 2,
+        "directional_request_count": 16,
+        "positive_requests": 12,
+        "negative_requests": 4,
+    }
+    actual = {
+        "source_pair_side_count": source_pair_sides,
+        "ready_pair_side_count": ready_pair_sides,
+        "excluded_pair_side_count": excluded_pair_sides,
+        "positive_pair_side_count": positive_pair_sides,
+        "negative_pair_side_count": negative_pair_sides,
+        "directional_request_count": directional_requests,
+        "positive_requests": positive_requests,
+        "negative_requests": negative_requests,
+    }
+    for key, expected_value in expected.items():
+        if actual[key] != expected_value:
+            raise ValueError(
+                f"request derivation {key} must be {expected_value} for P1-G1.4"
+            )
+
+    if int(manifest_counts.get("positive_requests", positive_requests)) != positive_requests:
+        raise ValueError("request derivation positive_requests does not match manifest")
+    if int(manifest_counts.get("negative_requests", negative_requests)) != negative_requests:
+        raise ValueError("request derivation negative_requests does not match manifest")
+
+    return {
+        "method": method,
+        "source_topology_radius_m": source_radius,
+        "radius_role": radius_role,
+        **actual,
     }
 
 
