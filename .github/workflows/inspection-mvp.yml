@@ -42,5 +42,13 @@ jobs:
               src/agt_inspection/test/test_multiview_execution.py \
               src/agt_inspection/test/test_deferred_vision.py \
               src/agt_inspection/test/test_camera_gimbal_adapter.py
-      - name: Compile inspection Python when present
-        run: python -m compileall -q src/agt_inspection
+      - name: Mission inspection and return-home regression baseline
+        run: |
+          PYTHONPATH=src/agt_mission_manager:src/agt_inspection PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+            python -m pytest -q \
+              src/agt_mission_manager/test/test_inspection_mission_step.py \
+              src/agt_mission_manager/test/test_inspection_mission_executor.py \
+              src/agt_mission_manager/test/test_return_home_mission.py \
+              src/agt_mission_manager/test/test_mission_report.py
+      - name: Compile inspection and mission Python
+        run: python -m compileall -q src/agt_inspection src/agt_mission_manager
