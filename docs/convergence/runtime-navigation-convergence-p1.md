@@ -21,7 +21,7 @@ Legend:
 | --- | --- | --- | --- | --- | --- |
 | P1-01 | branch + design + merge/status docs | [x] | [x] | N/A | N/A |
 | P1-02 | integrate Site Runtime owner | [x] | [x] | [ ] | N/A |
-| P1-03 | decouple Task Registry from Site assets | [ ] | [ ] | [ ] | N/A |
+| P1-03 | decouple Task Registry from Site assets | [x] | [x] | [ ] | N/A |
 | P1-04 | Active Site -> navigation binding | [ ] | [ ] | [ ] | [ ] |
 | P1-05 | NavigationRuntimeStatus + SystemManager gate | [ ] | [ ] | [ ] | [ ] |
 | P1-06 | selectively port field commissioning flow | [ ] | [ ] | [ ] | [ ] |
@@ -30,18 +30,23 @@ Legend:
 | P1-09 | BUNKER + MID360 field acceptance | [ ] | N/A | [ ] | [ ] |
 | P1-10 | selectively integrate inspection capability | [ ] | [ ] | [ ] | [ ] |
 
-P1-02 acceptance record:
+Acceptance records:
 
 ```text
 docs/acceptance/2026-08-29-runtime-navigation-p1-02-site-runtime-integration.md
+docs/acceptance/2026-08-29-runtime-navigation-p1-03-task-registry-decoupling.md
 ```
 
-Current evidence boundary:
+Current completed evidence boundary:
 
 ```text
 P1-02 Code:   COMPLETE
 P1-02 STATIC: PASS
 P1-02 HUMBLE: PENDING
+
+P1-03 Code:   COMPLETE
+P1-03 STATIC: PASS
+P1-03 HUMBLE: PENDING
 ```
 
 Do not infer ROS 2 Humble or field acceptance from cloud/static evidence.
@@ -97,9 +102,47 @@ ValidateMapVersion.srv
 SystemManager authoritative-map tombstone handling
 ```
 
-The Runtime Contracts workflow now includes `feat/runtime-navigation-convergence-*` in push branch coverage so subsequent P1 changes are checked on the canonical branch itself.
+The Runtime Contracts workflow includes `feat/runtime-navigation-convergence-*` in push branch coverage so all later P1 changes are checked on the canonical branch itself.
 
-## 4. Merge rules
+## 4. Completed P1-03 task authority record
+
+P1-03 separates immutable Site/map assets from mutable Task Library state:
+
+```text
+immutable:
+  deployed Site package / map version assets
+  runtime/maps/<site>/versions/<revision>/routes/...  # immutable Route Assets where used
+
+mutable:
+  runtime/tasks/<site>/<revision>/site_binding.json
+  runtime/tasks/<site>/<revision>/<task>.json
+  runtime/tasks/<site>/<revision>/<task>.route.yaml
+  runtime/tasks/<site>/<revision>/archive/
+```
+
+Task editing validates against a deployed valid Site revision. Formal task execution is stricter and resolves the task store against the current READY/valid/active `/agt/maps/active` identity.
+
+Legacy `runtime/maps/<site>/versions/<revision>/tasks` content is never an implicit Runtime fallback. Migration is operator-invoked, dry-run by default, and requires explicit `--apply`:
+
+```text
+ros2 run agt_navigation migrate_legacy_task_store.py ...
+```
+
+Static acceptance head and evidence:
+
+```text
+e6f62810088912b4b9b27c2ae1dc1c83f50b0df2
+Runtime Contracts #281 (33237868775): PASS
+P1 task-storage group: 52 passed
+```
+
+The detailed behavior, RED/GREEN evidence and Humble handoff are recorded in:
+
+```text
+docs/acceptance/2026-08-29-runtime-navigation-p1-03-task-registry-decoupling.md
+```
+
+## 5. Merge rules
 
 ### Rule A — one canonical implementation branch
 
@@ -144,7 +187,7 @@ Each selective port must document:
 
 P1 is not a place to add new localization/planner/controller stacks. Algorithm changes require a separate future milestone after P1 acceptance.
 
-## 5. Canonical ownership after P1
+## 6. Canonical ownership after P1
 
 ```text
 agt_site_runtime
@@ -170,10 +213,11 @@ agt_hardware_bringup
   owns: monitor-first vehicle/sensor preflight and bringup composition
 
 Task Registry
-  owns: mutable versioned task definitions below tasks_root (target of P1-03)
+  owns: mutable versioned task definitions below tasks_root
+        + persisted Site-content binding for those task definitions
 ```
 
-## 6. Expected runtime data flow
+## 7. Expected runtime data flow
 
 ```text
 Site Package install
@@ -193,17 +237,29 @@ Site Package install
   -> chassis
 ```
 
-Task editing target boundary:
+Task editing boundary implemented by P1-03:
 
 ```text
-HMI / Gateway
-  -> Task Registry
+HMI / Gateway (future publication bridge)
+  -> Task Registry ROS services
   -> runtime/tasks/<site>/<revision>/<task>.json
+  -> site_binding.json validates exact deployed Site content
 ```
 
-P1-02 does not yet implement that target storage; P1-03 does.
+Execution boundary implemented by P1-03:
 
-## 7. P1 acceptance invariants
+```text
+Mission / ExecuteWaypointTask
+  -> Task Registry
+  -> current /agt/maps/active must be READY + valid + active
+  -> exact Site id/revision/content must match task store
+  -> existing localization/map/safety/readiness gates
+  -> MAP or ROUTE backend
+```
+
+P1-04 must now bind the Active Site authority to concrete localization/Nav2 runtime assets and lifecycle evidence.
+
+## 8. P1 acceptance invariants
 
 The following must remain true throughout implementation:
 
@@ -215,8 +271,10 @@ The following must remain true throughout implementation:
 6. Production direct RViz pose goals are disabled by default.
 7. No new component bypasses Collision Monitor, `agt_safety`, chassis guard or Mission ownership.
 8. Software acceptance and real-vehicle acceptance are recorded separately.
+9. Mutable task edits never mutate or become part of immutable Site package integrity.
+10. Legacy map-local tasks are migrated explicitly; Runtime never uses an implicit fallback path.
 
-## 8. Per-slice documentation template
+## 9. Per-slice documentation template
 
 At the end of every implementation slice, add a dated report using this structure:
 
@@ -260,7 +318,7 @@ IMPLEMENTED / STATIC VERIFIED / HUMBLE VERIFIED / FIELD VERIFIED / BLOCKED
 
 Then update the table at the top of this file.
 
-## 9. Merge-to-main gate
+## 10. Merge-to-main gate
 
 Do not merge this convergence branch to `main` merely because source code exists.
 
@@ -277,12 +335,12 @@ Preferred field release gate additionally requires P1-09.
 
 Inspection integration P1-10 may either be included before main merge or follow immediately after navigation release, but it must not destabilize the accepted navigation ownership model.
 
-## 10. Next action
+## 11. Next action
 
 The only active development slice is now:
 
 ```text
-P1-03 — decouple Task Registry from immutable Site assets
+P1-04 — Active Site -> navigation binding
 ```
 
-P1-03 must move mutable task authority out of the Site/map asset tree while preserving revision/hash checks and execution compatibility. Do not begin P1-04 until P1-03 has its own tests and acceptance note.
+P1-04 must resolve the authoritative Active Site into the exact localization and Nav2 assets/lifecycle state without creating a second Site authority or a second `map -> odom` correction owner. Do not begin P1-05 until P1-04 has its own tests and acceptance note.
