@@ -51,6 +51,7 @@ def generate_launch_description():
             DeclareLaunchArgument("route_progress_checker_id", default_value="progress_checker"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("autostart", default_value="false"),
+            DeclareLaunchArgument("enable_rviz_goal_bridge", default_value="false"),
             DeclareLaunchArgument("enable_localization_gate", default_value="true"),
             DeclareLaunchArgument("localization_status_timeout", default_value="10.0"),
             DeclareLaunchArgument(
@@ -117,6 +118,7 @@ def generate_launch_description():
                 name="agt_goal_pose_bridge",
                 output="screen",
                 parameters=[{"use_sim_time": use_sim_time}],
+                condition=IfCondition(LaunchConfiguration("enable_rviz_goal_bridge")),
             ),
             Node(
                 package="agt_navigation",
