@@ -1,6 +1,6 @@
 """Validated immutable Site identity used by the mutable Task Library.
 
-This module keeps Task persistence independent from Site Package storage.  The
+This module keeps Task persistence independent from Site Package storage. The
 public task interfaces still use ``map_id`` / ``map_version_id`` for backward
 compatibility; within P1 they identify ``site.id`` / ``site.revision``.
 """
@@ -101,6 +101,67 @@ class ValidatedSiteBinding:
             ) from exc
 
 
+def binding_from_map_version_summary(
+    summary: object | None,
+    *,
+    requested_map_id: str,
+    requested_map_version_id: str,
+    require_active: bool = False,
+) -> ValidatedSiteBinding:
+    """Convert the authoritative Site summary into an exact task binding.
+
+    This function intentionally depends only on duck-typed summary fields so it
+    can be used from no-ROS tests as well as the ROS execution server.
+    """
+
+    requested_id = str(requested_map_id)
+    requested_revision = str(requested_map_version_id)
+    if summary is None:
+        raise SiteTaskBindingError(
+            "MAP_NOT_READY",
+            f"Site authority is unavailable for {requested_id}/{requested_revision}",
+        )
+
+    summary_id = str(getattr(summary, "map_id", ""))
+    summary_revision = str(getattr(summary, "map_version_id", ""))
+    if summary_id != requested_id or summary_revision != requested_revision:
+        raise SiteTaskBindingError(
+            "MAP_VERSION_MISMATCH",
+            "validated Site identity does not match the requested task binding",
+        )
+    if int(getattr(summary, "state", 0)) != 3 or not bool(
+        getattr(summary, "valid", False)
+    ):
+        errors = getattr(summary, "validation_errors", ()) or ()
+        detail = "; ".join(str(item) for item in errors) or "Site is not READY and valid"
+        raise SiteTaskBindingError("MAP_NOT_READY", detail)
+    if require_active and not bool(getattr(summary, "active", False)):
+        raise SiteTaskBindingError(
+            "MAP_NOT_READY", "requested Site revision is not the authoritative active Site"
+        )
+
+    try:
+        return ValidatedSiteBinding(
+            map_id=summary_id,
+            map_version_id=summary_revision,
+            map_hash=str(getattr(summary, "map_hash", "")),
+            manifest_sha256=str(getattr(summary, "manifest_sha256", "")),
+            navigation_yaml_sha256=str(
+                getattr(summary, "navigation_yaml_sha256", "")
+            ),
+            navigation_image_sha256=str(
+                getattr(summary, "navigation_image_sha256", "")
+            ),
+            localization_pcd_sha256=str(
+                getattr(summary, "localization_pcd_sha256", "")
+            ),
+        )
+    except SiteTaskBindingError as exc:
+        raise SiteTaskBindingError(
+            "MAP_NOT_READY", f"validated Site lacks complete content identity: {exc}"
+        ) from exc
+
+
 SummaryResolver = Callable[[str, str], object | None]
 
 
@@ -108,7 +169,7 @@ class FilesystemSiteBindingResolver:
     """Resolve one deployed, validated Site revision into task-binding identity.
 
     Imports Site Runtime lazily so pure Task Registry tests do not require a ROS
-    installation or an installed Site Runtime package.  ``summary_resolver`` is a
+    installation or an installed Site Runtime package. ``summary_resolver`` is a
     narrow test seam and may also be used by offline tooling.
     """
 
@@ -142,46 +203,12 @@ class FilesystemSiteBindingResolver:
             raise SiteTaskBindingError(
                 "MAP_NOT_READY", f"cannot validate deployed Site: {exc}"
             ) from exc
-
-        if summary is None:
-            raise SiteTaskBindingError(
-                "MAP_NOT_READY",
-                f"deployed Site revision not found: {requested_id}/{requested_revision}",
-            )
-        summary_id = str(getattr(summary, "map_id", ""))
-        summary_revision = str(getattr(summary, "map_version_id", ""))
-        if summary_id != requested_id or summary_revision != requested_revision:
-            raise SiteTaskBindingError(
-                "MAP_VERSION_MISMATCH",
-                "validated Site identity does not match the requested task binding",
-            )
-        if int(getattr(summary, "state", 0)) != 3 or not bool(
-            getattr(summary, "valid", False)
-        ):
-            errors = getattr(summary, "validation_errors", ()) or ()
-            detail = "; ".join(str(item) for item in errors) or "Site is not READY and valid"
-            raise SiteTaskBindingError("MAP_NOT_READY", detail)
-
-        try:
-            return ValidatedSiteBinding(
-                map_id=summary_id,
-                map_version_id=summary_revision,
-                map_hash=str(getattr(summary, "map_hash", "")),
-                manifest_sha256=str(getattr(summary, "manifest_sha256", "")),
-                navigation_yaml_sha256=str(
-                    getattr(summary, "navigation_yaml_sha256", "")
-                ),
-                navigation_image_sha256=str(
-                    getattr(summary, "navigation_image_sha256", "")
-                ),
-                localization_pcd_sha256=str(
-                    getattr(summary, "localization_pcd_sha256", "")
-                ),
-            )
-        except SiteTaskBindingError as exc:
-            raise SiteTaskBindingError(
-                "MAP_NOT_READY", f"validated Site lacks complete content identity: {exc}"
-            ) from exc
+        return binding_from_map_version_summary(
+            summary,
+            requested_map_id=requested_id,
+            requested_map_version_id=requested_revision,
+            require_active=False,
+        )
 
     def _resolve_summary(self, map_id: str, map_version_id: str):
         from agt_site_runtime.models import SiteKey
