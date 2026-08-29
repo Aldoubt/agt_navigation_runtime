@@ -48,17 +48,18 @@ def test_runbook_preserves_mutability_and_authority_boundaries():
     assert "navigation_map:=$NAV_MAP" not in text
 
 
-def test_runbook_uses_runtime_validation_and_lock_checked_activation():
+def test_runbook_uses_runtime_validation_and_revalidated_activation():
     text = RUNBOOK.read_text(encoding="utf-8")
 
     assert "agt_interfaces/srv/ValidateMapVersion" in text
     assert "agt_interfaces/srv/ActivateMapVersion" in text
-    assert "expected:" in text
-    assert "map_hash:" in text
-    assert "manifest_sha256:" in text
-    assert "navigation_yaml_sha256:" in text
-    assert "navigation_image_sha256:" in text
-    assert "localization_pcd_sha256:" in text
+    assert "client_request_id" in text
+    assert "activation revalidates the current deployed Site before persisting it" in text
+    assert "map_hash" in text
+    assert "manifest_sha256" in text
+    assert "navigation_yaml_sha256" in text
+    assert "navigation_image_sha256" in text
+    assert "localization_pcd_sha256" in text
     assert "field_navigation.launch.py" in text
 
 
