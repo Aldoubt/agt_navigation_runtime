@@ -17,6 +17,7 @@ def main(args=None) -> None:
         port=node.port,
         stream_poll_s=node.stream_poll_s,
         offline_after_ms=node.offline_after_ms,
+        allowed_origins=node.cors_allowed_origins,
     )
     try:
         server.start()
