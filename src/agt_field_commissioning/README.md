@@ -29,3 +29,23 @@ ros2 run agt_field_commissioning finalize_mapping_run.py \
 ```
 
 `SIGKILL` or a crash is not an accepted successful save path. The finalizer requires a non-empty `localization_map.pcd`, `localization_map.processing.yaml`, no leftover `*.tmp`, and writes SHA256 evidence under the run's `evidence/` directory.
+
+Use `agt_experiment_manager` with the explicit `field_mapping_commissioning` bag profile for Phase A evidence. `agt_field_commissioning` never starts a second recorder owner.
+
+## Phase C frozen-Site navigation
+
+Phase C never consumes a commissioning PCD directly. First export a complete Site Package 1.0 through the offline reconstruction pipeline, deploy and validate it through `agt_site_runtime`, and explicitly activate the revision. Then launch:
+
+```bash
+ros2 launch agt_field_commissioning field_navigation.launch.py \
+  site_id:=greenhouse_01 \
+  site_revision:=r01 \
+  sites_root:=/opt/agt/sites \
+  state_root:=$HOME/.local/state/agt_navigation_runtime \
+  site_vehicle_profile:=/opt/agt/profiles/bunker.yaml \
+  operation_mode:=monitor
+```
+
+The wrapper re-resolves and revalidates the persisted Active Site and injects only Site-derived navigation/localization paths and hashes into the current Runtime stack. It exposes no manual `global_map_pcd` or `navigation_map` launch argument.
+
+Full operator sequence and acceptance gates are frozen in `docs/runbooks/field-navigation-commissioning.md`.
