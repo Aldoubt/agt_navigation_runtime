@@ -208,7 +208,7 @@ def create_app(
         return web.Response(status=204)
 
     async def mission_command(request: web.Request) -> web.Response:
-        command = request.match_info['command'].upper()
+        command = request.path.rsplit('/', 1)[-1].upper()
         if command not in {'START', 'PAUSE', 'RESUME', 'CANCEL'}:
             return _json_error(404, 'UNKNOWN_COMMAND', 'unknown mission command')
         if not write_api_enabled or not command_token:
