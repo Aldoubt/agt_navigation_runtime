@@ -146,6 +146,7 @@ def _compose(context):
                     "execution_vehicle_profile": site_vehicle_profile,
                     "use_sim_time": use_sim_time,
                     "autostart": "true",
+                    "enable_rviz_goal_bridge": LaunchConfiguration("enable_rviz_goal_bridge").perform(context),
                 },
             ),
             _include(
@@ -201,6 +202,7 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "nav2_params_file", default_value=str(default_nav2_params)
             ),
+            DeclareLaunchArgument("enable_rviz_goal_bridge", default_value="false"),
             DeclareLaunchArgument("start_rviz", default_value="true"),
             OpaqueFunction(function=_compose),
         ]
