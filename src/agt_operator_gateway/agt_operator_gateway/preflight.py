@@ -33,6 +33,18 @@ def validate_robot_state_topic_type(actual_type: str) -> list[str]:
     ]
 
 
+def classify_write_probe_status(status_code: int) -> tuple[str, list[str]]:
+    status = int(status_code)
+    if status == 401:
+        return 'enabled_auth_required', []
+    if status == 403:
+        return 'disabled', []
+    return (
+        'unsafe_or_unexpected',
+        [f'unauthenticated write probe returned unexpected HTTP {status}'],
+    )
+
+
 def validate_gateway_payloads(
     health: Any,
     capabilities: Any,
