@@ -17,6 +17,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MissionEvent.msg"
   "msg/MapVersionSummary.msg"
   "msg/SiteNavigationBinding.msg"
+  "msg/NavigationRuntimeStatus.msg"
   "msg/NavigationSessionStatus.msg"
   "msg/BagSessionSummary.msg"
   "msg/ExperimentSummary.msg"
