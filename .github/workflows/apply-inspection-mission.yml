@@ -50,7 +50,7 @@ jobs:
           replacement = '''    def _inspection_summary(self) -> dict[str, Any]:\n        successful = [item for item in self._inspections if item.get("success")]\n        targets = sorted(\n            {\n                str(item.get("count_target", ""))\n                for item in successful\n                if item.get("count_target")\n            }\n        )\n        if any(item.get("count_mode") == "PENDING_OFFLINE" for item in successful):\n            return {\n                "count_targets": targets,\n                "raw_instance_count": None,\n                "point_sum_estimate": None,\n                "ambiguous_instance_count": None,\n                "count_semantics": "PENDING_OFFLINE",\n                "mission_dedup_applied": False,\n            }\n\n        raw_values = [\n            item.get("raw_instance_count")\n            for item in successful\n            if isinstance(item.get("raw_instance_count"), int)\n        ]\n        point_values = [\n            item.get("unique_instance_count")\n            for item in successful\n            if item.get("count_mode") == "POINT_DEDUP"\n            and isinstance(item.get("unique_instance_count"), int)\n        ]\n        ambiguous_values = [\n            item.get("ambiguous_instance_count")\n            for item in successful\n            if item.get("count_mode") == "POINT_DEDUP"\n            and isinstance(item.get("ambiguous_instance_count"), int)\n        ]\n        all_point_dedup = bool(successful) and len(point_values) == len(successful)\n        return {\n            "count_targets": targets,\n            "raw_instance_count": sum(raw_values) if raw_values else 0,\n            "point_sum_estimate": sum(point_values) if all_point_dedup else None,\n            "ambiguous_instance_count": (\n                sum(ambiguous_values) if all_point_dedup else None\n            ),\n            "count_semantics": "POINT_SUM_ESTIMATE" if all_point_dedup else "VIEW_RAW",\n            "mission_dedup_applied": False,\n        }\n'''
           path.write_text(source[:start] + replacement + source[end:], encoding='utf-8')
           PY
-      - name: Run Mission inspection and legacy regressions
+      - name: Run Mission inspection and pure-Python legacy regressions
         run: |
           PYTHONPATH=src/agt_mission_manager:src/agt_inspection PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
             python -m pytest -q \
@@ -61,8 +61,7 @@ jobs:
               src/agt_mission_manager/test/test_mission_schema.py \
               src/agt_mission_manager/test/test_mission_executor.py \
               src/agt_mission_manager/test/test_mission_fsm.py \
-              src/agt_mission_manager/test/test_bt_mission_executor.py \
-              src/agt_mission_manager/test/test_bt_backend_contract.py
+              src/agt_mission_manager/test/test_mission_storage.py
           python -m compileall -q src/agt_mission_manager
       - name: Run inspection regressions after Mission interface changes
         run: |
