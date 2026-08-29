@@ -59,6 +59,7 @@ jobs:
           src/agt_operator_gateway/test/test_interface_compatibility.py
           src/agt_operator_gateway/test/test_command_guard.py
           src/agt_operator_gateway/test/test_mission_command_http.py
+          src/agt_operator_gateway/test/test_control_lease_http.py
           src/agt_operator_gateway/test/test_mission_ros_contract.py
       - name: Compile Python and launch assets
         run: >-
