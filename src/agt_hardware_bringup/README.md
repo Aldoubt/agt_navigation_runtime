@@ -52,9 +52,47 @@ ros2 run agt_hardware_bringup vehicle_preflight.py \
 
 The preflight tools never configure SocketCAN, publish chassis commands, start missions, or command the gimbal.
 
-## Camera and gimbal hooks
+## Inspection opt-in: frozen C1 camera + gimbal capability
 
-The unified launch deliberately does not invent a camera/gimbal driver. A delivered ROS2 launch can be attached explicitly:
+Normal BUNKER/MID360 bringup keeps inspection **disabled by default**. For the inspection MVP, explicitly opt in to the vendored C1 camera/gimbal stack and `agt_inspection` server:
+
+```bash
+ros2 launch agt_hardware_bringup bunker_mid360.launch.py \
+  operation_mode:=monitor \
+  sensor_profile:=hardware_check \
+  can_interface:=can0 \
+  expected_can_bitrate:=<verified-bitrate-or-0-for-monitor-only> \
+  start_inspection:=true \
+  inspection_camera_device_path:=/dev/video0 \
+  inspection_camera_gimbal_port:=/dev/ttyUSB0 \
+  inspection_camera_calibration_id:=<verified-calibration-id> \
+  inspection_camera_calibration_sha256:=<verified-calibration-sha256>
+```
+
+This composes:
+
+```text
+autolabor_c1_bringup
+  -> opencv_camera_node
+  -> pantilt_camera_serial
+  -> camera_gimbal_capability
+       /camera_gimbal/acquire_view
+       /camera_gimbal/health
+
+agt_inspection
+  view_backend=camera_gimbal
+  -> /agt/inspection/execute_task
+```
+
+The real inspection backend is fail-closed at task admission: a new inspection goal is rejected until `/camera_gimbal/health` is fresh and READY with camera alive, gimbal serial connected, gimbal feedback alive, move action ready, and not busy.
+
+`start_inspection:=true` must **not** be combined with the legacy `start_camera:=true` or `start_gimbal:=true` hooks; the launch rejects that combination to avoid double ownership of the same hardware.
+
+For the first field deployment, use schema-v2 inspection tasks with `vision.execution_mode: "DEFERRED"`. The real C1 backend uses atomic `AcquireView` for motion + settle + post-settle image capture and stores the resulting image timestamp and measured gimbal angles into inspection evidence. Online flower inference is intentionally outside this frozen Runtime MVP.
+
+## Legacy camera/gimbal hooks
+
+The generic camera/gimbal hooks remain available for other hardware integrations, but are not the frozen C1 inspection path:
 
 ```bash
 ros2 launch agt_hardware_bringup bunker_mid360.launch.py \
@@ -63,13 +101,7 @@ ros2 launch agt_hardware_bringup bunker_mid360.launch.py \
   start_gimbal:=true gimbal_launch_file:=/absolute/path/to/gimbal.launch.py
 ```
 
-Runtime-facing interface targets for the future adapter are:
-
-- `/agt/sensors/camera/image`
-- `/agt/sensors/camera/camera_info`
-- `/agt/gimbal/state`
-
-These names are integration boundaries only; P0 does not claim the vendor driver currently publishes them.
+Do not use these legacy hooks together with `start_inspection:=true`.
 
 ## Vehicle-only values: UNVERIFIED
 
@@ -83,6 +115,9 @@ The following remain **UNVERIFIED** until a ROS2 Humble machine and the physical
 - BUNKER forward/angular sign and odometry sign;
 - camera `/dev/video*`, VID/PID, resolution/FPS/exposure;
 - gimbal serial device, VID/PID, baudrate, zero, direction, limits, command tolerance, and settle time;
-- ROS2 `colcon build`/`colcon test` and DDS behavior.
+- camera calibration identity/hash used by inspection evidence;
+- ROS2 `colcon build`/`colcon test` and DDS behavior;
+- real `/camera_gimbal/health` freshness and transition behavior under disconnect/reconnect;
+- real `AcquireView` timing and image/gimbal timestamp consistency.
 
 Do not replace these with guessed values during remote development. Record them as evidence during bench/vehicle acceptance.
