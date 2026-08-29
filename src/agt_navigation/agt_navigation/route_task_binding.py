@@ -1,10 +1,12 @@
 """Resolve an exact TaskGroup revision to an immutable READY Route Asset.
 
 The public ExecuteWaypointTask Action remains unchanged. A formal task may opt
-into ROUTE execution by placing one audited binding beside the task JSON:
+into ROUTE execution by placing one audited binding beside the mutable task JSON:
 
-  tasks/<task_group_id>.route.yaml
+  runtime/tasks/<site_id>/<site_revision>/<task_group_id>.route.yaml
 
+The binding is mutable Task Library state. The referenced Route Asset remains an
+immutable Site/map asset below ``maps_root/<site>/versions/<revision>/routes``.
 No binding means the existing MAP backend remains authoritative.
 """
 
@@ -39,8 +41,16 @@ def sha256_file(path: str | Path) -> str:
 class RouteTaskResolver:
     """Fail-closed resolver for optional TaskGroup -> Route execution bindings."""
 
-    def __init__(self, maps_root: str | Path):
-        self.root = Path(maps_root).expanduser().resolve()
+    def __init__(self, maps_root: str | Path, tasks_root: str | Path):
+        self.maps_root = Path(maps_root).expanduser().resolve()
+        self.tasks_root = Path(tasks_root).expanduser().resolve()
+
+    def binding_path(self, task: TaskGroup) -> Path:
+        task_root = self._task_version_root(
+            task.map_binding.map_id, task.map_binding.map_version_id
+        )
+        task_id = self._safe_component(task.task_group_id, "task_group_id")
+        return task_root / f"{task_id}.route.yaml"
 
     def resolve(
         self,
@@ -49,10 +59,10 @@ class RouteTaskResolver:
         expected_vehicle_profile_sha256: str,
     ) -> ResolvedRouteTask | None:
         """Return a READY route binding, or None when this task stays in MAP mode."""
-        version_root = self._version_root(
+        version_root = self._map_version_root(
             task.map_binding.map_id, task.map_binding.map_version_id
         )
-        binding_path = version_root / "tasks" / f"{task.task_group_id}.route.yaml"
+        binding_path = self.binding_path(task)
         if not binding_path.exists():
             return None
         if binding_path.is_symlink() or not binding_path.is_file():
@@ -143,19 +153,37 @@ class RouteTaskResolver:
             )
         return ResolvedRouteTask(binding_path, route_manifest_path, asset)
 
-    def _version_root(self, map_id: str, map_version_id: str) -> Path:
+    def _map_version_root(self, map_id: str, map_version_id: str) -> Path:
         safe_map = self._safe_component(map_id, "map_id")
         safe_version = self._safe_component(map_version_id, "map_version_id")
-        candidate = (self.root / safe_map / "versions" / safe_version).resolve(
+        candidate = (self.maps_root / safe_map / "versions" / safe_version).resolve(
             strict=False
         )
         try:
-            candidate.relative_to(self.root)
+            candidate.relative_to(self.maps_root)
         except ValueError as exc:
             raise RouteRuntimeError(
                 "route_binding_path_escape", "map version path escapes maps_root"
             ) from exc
         return candidate
+
+    def _task_version_root(self, map_id: str, map_version_id: str) -> Path:
+        safe_map = self._safe_component(map_id, "map_id")
+        safe_version = self._safe_component(map_version_id, "map_version_id")
+        map_root = self.tasks_root / safe_map
+        candidate = map_root / safe_version
+        if map_root.is_symlink() or candidate.is_symlink():
+            raise RouteRuntimeError(
+                "route_binding_path_escape", "task binding identity path must not be a symlink"
+            )
+        resolved = candidate.resolve(strict=False)
+        try:
+            resolved.relative_to(self.tasks_root)
+        except ValueError as exc:
+            raise RouteRuntimeError(
+                "route_binding_path_escape", "task binding path escapes tasks_root"
+            ) from exc
+        return resolved
 
     @staticmethod
     def _safe_component(value: Any, field_name: str) -> str:
