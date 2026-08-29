@@ -9,6 +9,7 @@ import uuid
 
 import rclpy
 from action_msgs.msg import GoalStatus
+from camera_gimbal_interfaces.msg import CapabilityHealth
 from nav_msgs.msg import Odometry
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -24,6 +25,7 @@ from agt_interfaces.action import (
 )
 from agt_interfaces.msg import InspectionStatus
 from agt_interfaces.srv import CaptureImage
+from agt_inspection.camera_gimbal_health import CameraGimbalHealthGate
 from agt_inspection.evidence import EvidenceWriter
 from agt_inspection.execution import (
     CaptureResult,
@@ -353,6 +355,22 @@ class InspectionTaskServer(Node):
         if self._view_backend not in {"legacy", "camera_gimbal"}:
             raise ValueError("view_backend must be legacy or camera_gimbal")
 
+        health_freshness_s = float(
+            self.declare_parameter("camera_gimbal_health_freshness_s", 1.5).value
+        )
+        self._camera_gimbal_health = CameraGimbalHealthGate(
+            freshness_s=health_freshness_s
+        )
+        self._camera_gimbal_health_subscription = None
+        if self._view_backend == "camera_gimbal":
+            self._camera_gimbal_health_subscription = self.create_subscription(
+                CapabilityHealth,
+                "/camera_gimbal/health",
+                self._camera_gimbal_health_callback,
+                10,
+                callback_group=ReentrantCallbackGroup(),
+            )
+
         image_cache: dict[str, Image] = {}
         self._navigation = WaypointTaskRunner(self)
         self._gimbal = GimbalRunner(self)
@@ -389,6 +407,17 @@ class InspectionTaskServer(Node):
             callback_group=ReentrantCallbackGroup(),
         )
 
+    def _camera_gimbal_health_callback(self, message: CapabilityHealth) -> None:
+        self._camera_gimbal_health.update(
+            state=int(message.state),
+            camera_alive=bool(message.camera_alive),
+            gimbal_serial_connected=bool(message.gimbal_serial_connected),
+            gimbal_feedback_alive=bool(message.gimbal_feedback_alive),
+            move_action_ready=bool(message.move_action_ready),
+            busy=bool(message.busy),
+            seen_monotonic=time.monotonic(),
+        )
+
     def _goal(self, request: ExecuteInspectionTask.Goal) -> GoalResponse:
         required = (
             request.map_id,
@@ -402,6 +431,15 @@ class InspectionTaskServer(Node):
             or not all(required)
             or request.task_revision == 0
         ):
+            return GoalResponse.REJECT
+        if (
+            self._view_backend == "camera_gimbal"
+            and not self._camera_gimbal_health.ready(time.monotonic())
+        ):
+            self.get_logger().warning(
+                "rejecting inspection goal: camera-gimbal health gate is not READY: %s"
+                % self._camera_gimbal_health.reason(time.monotonic())
+            )
             return GoalResponse.REJECT
         return GoalResponse.ACCEPT
 
