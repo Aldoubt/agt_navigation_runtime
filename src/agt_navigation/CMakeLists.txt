@@ -22,6 +22,7 @@ set(AGT_NAVIGATION_ENTRYPOINTS
   execute_waypoint_task.py
   goal_pose_bridge.py
   localization_navigation_gate.py
+  migrate_legacy_task_store.py
   navigation_capability_server.py
   route_controller_smoke.py
   route_system_smoke.py
@@ -64,6 +65,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_qt_task_chain test/test_qt_task_chain.py)
   ament_add_pytest_test(test_task_group test/test_task_group.py)
   ament_add_pytest_test(test_task_registry test/test_task_registry.py)
+  ament_add_pytest_test(
+    test_legacy_task_migration test/test_legacy_task_migration.py
+  )
   ament_add_pytest_test(
     test_navigation_session_manager test/test_navigation_session_manager.py
   )
