@@ -52,5 +52,7 @@ def test_node_script_starts_gateway_without_write_clients():
 
 def test_ros_adapter_exposes_cors_origin_parameter_without_owning_http_policy():
     adapter = read('agt_operator_gateway/ros_adapter.py')
-    assert "declare_parameter('cors_allowed_origins'" in adapter
+    assert 'declare_parameter' in adapter
+    assert "'cors_allowed_origins'" in adapter
+    assert "['*']" in adapter
     assert 'def cors_allowed_origins' in adapter
