@@ -90,7 +90,9 @@ jobs:
         run: |
           if [ -f src/agt_site_navigation/test/test_resolver.py ]; then
             PYTHONPATH=src/agt_site_navigation:src/agt_site_runtime:src/agt_runtime_contracts \
-              python -m pytest -q src/agt_site_navigation/test/test_resolver.py
+              python -m pytest -q \
+                src/agt_site_navigation/test/test_resolver.py \
+                src/agt_site_navigation/test/test_source_contract.py
           else
             echo "P1-04 site-navigation tests not present yet"
           fi
