@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 from time import time
-from typing import Callable
+from typing import Callable, Iterable
 
 from aiohttp import WSMsgType, web
 
@@ -15,6 +15,11 @@ def _utc_timestamp() -> str:
     return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 
 
+def _normalize_allowed_origins(values: Iterable[str]) -> tuple[str, ...]:
+    normalized = tuple(dict.fromkeys(str(value).strip() for value in values if str(value).strip()))
+    return normalized
+
+
 def create_app(
     store: GatewayStateStore,
     *,
@@ -22,15 +27,37 @@ def create_app(
     now_ms: Callable[[], int] | None = None,
     stream_poll_s: float = 0.05,
     offline_after_ms: int = 5000,
+    allowed_origins: Iterable[str] = ('*',),
 ) -> web.Application:
     if stream_poll_s <= 0.0:
         raise ValueError('stream_poll_s must be > 0')
     if offline_after_ms <= 0:
         raise ValueError('offline_after_ms must be > 0')
 
+    origins = _normalize_allowed_origins(allowed_origins)
+    allow_all_origins = '*' in origins
     clock = now_ms or (lambda: int(time() * 1000))
     started = int(clock() if started_at_ms is None else started_at_ms)
-    app = web.Application()
+
+    @web.middleware
+    async def origin_guard(request: web.Request, handler):
+        origin = request.headers.get('Origin')
+        if origin and not allow_all_origins and origin not in origins:
+            raise web.HTTPForbidden(text='CORS_ORIGIN_DENIED', content_type='text/plain')
+        return await handler(request)
+
+    async def add_cors_headers(request: web.Request, response: web.StreamResponse) -> None:
+        origin = request.headers.get('Origin')
+        if not origin:
+            return
+        if allow_all_origins:
+            response.headers['Access-Control-Allow-Origin'] = '*'
+        elif origin in origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Vary'] = 'Origin'
+
+    app = web.Application(middlewares=[origin_guard])
+    app.on_response_prepare.append(add_cors_headers)
 
     def require_fresh_snapshot() -> GatewayRuntimeSnapshot:
         snapshot = store.snapshot()
@@ -137,6 +164,7 @@ class GatewayHttpServer:
         port: int = 8765,
         stream_poll_s: float = 0.05,
         offline_after_ms: int = 5000,
+        allowed_origins: Iterable[str] = ('*',),
     ) -> None:
         from threading import Event, Thread
 
@@ -149,6 +177,7 @@ class GatewayHttpServer:
         self._port = int(port)
         self._stream_poll_s = float(stream_poll_s)
         self._offline_after_ms = int(offline_after_ms)
+        self._allowed_origins = _normalize_allowed_origins(allowed_origins)
         self._stop_event = Event()
         self._started_event = Event()
         self._thread = Thread(
@@ -187,6 +216,7 @@ class GatewayHttpServer:
                 self._store,
                 stream_poll_s=self._stream_poll_s,
                 offline_after_ms=self._offline_after_ms,
+                allowed_origins=self._allowed_origins,
             )
         )
         await runner.setup()
