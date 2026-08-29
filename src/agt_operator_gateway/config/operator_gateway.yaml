@@ -8,7 +8,15 @@ agt_operator_gateway:
     runtime_freshness_ms: 1500
     offline_after_ms: 5000
     stream_poll_s: 0.05
-    # P0 is read-only, so wildcard browser access is acceptable for LAN bring-up.
-    # Before enabling any write API, replace this with explicit HMI origins.
+
+    # P1 mission writes are opt-in. The node also requires the
+    # AGT_OPERATOR_COMMAND_TOKEN environment variable before creating any
+    # Mission ROS write clients; otherwise it remains read-only.
+    write_api_enabled: false
+    mission_command_timeout_s: 5.0
+
+    # Wildcard browser access is acceptable while the write API is disabled.
+    # Before setting write_api_enabled=true on a robot, replace this with the
+    # explicit HMI origin(s), for example http://operator-laptop.local:5173.
     cors_allowed_origins:
       - '*'
