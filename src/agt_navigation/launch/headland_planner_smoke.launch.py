@@ -26,6 +26,8 @@ def generate_launch_description():
             LaunchConfiguration("planner_pairs"),
             "--gap-diagnostics",
             LaunchConfiguration("gap_diagnostics"),
+            "--request-derivation",
+            LaunchConfiguration("request_derivation"),
             "--map-yaml",
             LaunchConfiguration("map"),
             "--output",
@@ -50,6 +52,7 @@ def generate_launch_description():
             DeclareLaunchArgument("map"),
             DeclareLaunchArgument("planner_pairs"),
             DeclareLaunchArgument("gap_diagnostics"),
+            DeclareLaunchArgument("request_derivation", default_value=""),
             DeclareLaunchArgument("output"),
             DeclareLaunchArgument(
                 "planner_params", default_value=default_planner_config
