@@ -27,6 +27,7 @@ from agt_navigation.qt_task_chain import (
     point_inside_map,
 )
 from agt_navigation.session_manager import NavigationSessionManager, SessionSpec
+from agt_navigation.site_task_binding import binding_from_map_version_summary
 from agt_navigation.task_group import MapBinding, TaskGroupError, load_task_group
 from agt_navigation.task_registry import TaskRegistry, TaskRegistryError
 from diagnostic_msgs.msg import DiagnosticArray
@@ -64,6 +65,7 @@ _ERROR_BY_BLOCKER = {
     "TASK_CONTENT_HASH_MISMATCH": ERROR_TASK_INVALID,
     "TASK_SCHEMA_INVALID": ERROR_TASK_INVALID,
     "TASK_MAP_BINDING_MISMATCH": ERROR_MAP_MISMATCH,
+    "TASK_SITE_BINDING_MISMATCH": ERROR_MAP_MISMATCH,
     "TASK_NOT_SYNCED": ERROR_TASK_INVALID,
     "NO_ACTIVE_MAP": ERROR_MAP_UNAVAILABLE,
     "MAP_NOT_READY": ERROR_MAP_UNAVAILABLE,
@@ -137,6 +139,12 @@ class WaypointTaskServer(Node):
             if maps_root_value
             else self.runtime_dir / "maps"
         )
+        tasks_root_value = str(self.declare_parameter("tasks_root", "").value).strip()
+        self.tasks_root = (
+            Path(tasks_root_value).expanduser()
+            if tasks_root_value
+            else self.runtime_dir / "tasks"
+        )
         self.allow_legacy_local_task_file = bool(
             self.declare_parameter("allow_legacy_local_task_file", False).value
         )
@@ -196,7 +204,8 @@ class WaypointTaskServer(Node):
         self._recent_requests: OrderedDict[str, NavigationSessionStatus] = OrderedDict()
 
         self._registry = TaskRegistry(
-            self.maps_root,
+            self.tasks_root,
+            site_binding_resolver=self._resolve_active_site_binding,
             maximum_task_bytes=int(
                 self.declare_parameter("maximum_task_bytes", 1024 * 1024).value
             ),
@@ -275,6 +284,14 @@ class WaypointTaskServer(Node):
     def _active_map_summary(self):
         with self._lock:
             return copy.deepcopy(self._active_map)
+
+    def _resolve_active_site_binding(self, map_id: str, map_version_id: str):
+        return binding_from_map_version_summary(
+            self._active_map_summary(),
+            requested_map_id=str(map_id),
+            requested_map_version_id=str(map_version_id),
+            require_active=True,
+        )
 
     def _safety_callback(self, message):
         ready = False
