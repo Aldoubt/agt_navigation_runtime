@@ -41,6 +41,7 @@ def test_system_manager_owns_authoritative_read_model_topics_and_services():
         "/diagnostics",
         "/agt/maps/active",
         "/agt/localization/status",
+        "/agt/navigation/runtime_status",
         "/agt/missions/status",
         "/agt/safety/status",
         "/agt/chassis/status",
@@ -59,12 +60,54 @@ def test_system_manager_uses_project_interfaces_and_pure_readiness_core():
         "SystemHealth",
         "TaskReadiness",
         "RobotState",
+        "NavigationRuntimeStatus",
     ):
         assert interface in source
     assert "evaluate_navigation_readiness" in source
     assert "authoritative_map_known" in source
     assert "MapVersionSummary.STATE_UNKNOWN" in source
+    assert "NavigationRuntimeStatus.STATE_READY" in source
     assert '"agt_safety/controller"' in source
+
+
+def test_system_manager_navigation_runtime_evidence_is_fresh_and_fail_closed():
+    source = NODE.read_text(encoding="utf-8")
+
+    assert 'declare_parameter("navigation_status_timeout_s"' in source
+    assert "self._navigation_timeout_s" in source
+    assert "self._navigation_status" in source
+    assert "self._navigation_seen" in source
+    assert "def _navigation_status_callback(" in source
+    assert "navigation_known=" in source
+    assert "navigation_ready=" in source
+    assert "navigation_site_id=" in source
+    assert "navigation_site_revision=" in source
+    assert "navigation_site_hash=" in source
+    assert "navigation_identity_known=" in source
+    assert "navigation_map_identity_match=" in source
+    assert "map_hash=" in source
+
+
+def test_system_manager_robot_state_uses_final_aggregate_navigation_readiness():
+    source = NODE.read_text(encoding="utf-8")
+
+    assert "state.navigation_ready = bool(readiness_result.ready)" in source
+    assert "state.navigation_ready = values.get(\"navigation_ready\")" not in source
+    assert "RobotState.NAV2_ACTIVE" in source
+    assert "RobotState.NAV2_INACTIVE" in source
+    assert "RobotState.NAV2_ERROR" in source
+    assert "RobotState.NAV2_UNKNOWN" in source
+
+
+def test_system_manager_does_not_duplicate_nav2_lifecycle_authority():
+    source = NODE.read_text(encoding="utf-8")
+
+    # Nav2 lifecycle observation belongs to agt_site_navigation. SystemManager
+    # consumes the resulting NavigationRuntimeStatus only.
+    assert "GetState" not in source
+    assert "/get_state" not in source
+    assert "ChangeState" not in source
+    assert "/change_state" not in source
 
 
 def test_system_manager_package_has_no_gateway_or_web_business_dependency():
