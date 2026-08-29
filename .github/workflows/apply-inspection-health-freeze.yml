@@ -72,15 +72,6 @@ jobs:
               raise SystemExit('CMake pytest anchor not found')
           source = source.replace(anchor, additions, 1)
           cmake.write_text(source, encoding='utf-8')
-
-          workflow = Path('.github/workflows/inspection-mvp.yml')
-          source = workflow.read_text(encoding='utf-8')
-          anchor = '              src/agt_inspection/test/test_atomic_view_acquisition.py\n'
-          replacement = anchor + '              src/agt_inspection/test/test_camera_gimbal_health.py\n'
-          if anchor not in source:
-              raise SystemExit('inspection CI anchor not found')
-          source = source.replace(anchor, replacement, 1)
-          workflow.write_text(source, encoding='utf-8')
           PY
       - name: Run freeze static contracts
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/inspection
@@ -116,7 +107,6 @@ jobs:
           git add -A \
             src/agt_inspection/scripts/inspection_task_server.py \
             src/agt_inspection/CMakeLists.txt \
-            .github/workflows/inspection-mvp.yml \
             .github/workflows/apply-inspection-health-freeze.yml
           git commit -m 'fix(inspection): gate real missions on fresh camera gimbal health'
           git push origin HEAD:feat/inspection-mvp-convergence
