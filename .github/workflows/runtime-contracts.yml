@@ -79,6 +79,7 @@ jobs:
                 src/agt_navigation/test/test_site_task_binding.py \
                 src/agt_navigation/test/test_task_registry.py \
                 src/agt_navigation/test/test_task_group.py \
+                src/agt_navigation/test/test_route_task_binding.py \
                 tests/navigation/test_task_storage_source_contract.py
           else
             echo "P1 task-storage tests not present yet"
