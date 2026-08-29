@@ -9,6 +9,7 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   scripts/operator_gateway_node.py
   scripts/mock_robot_state_publisher.py
+  scripts/operator_gateway_preflight.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -23,6 +24,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_server_contract test/test_server_contract.py)
   ament_add_pytest_test(test_ros_contract test/test_ros_contract.py)
   ament_add_pytest_test(test_mock_gateway_contract test/test_mock_gateway_contract.py)
+  ament_add_pytest_test(test_preflight test/test_preflight.py)
 endif()
 
 ament_package()
