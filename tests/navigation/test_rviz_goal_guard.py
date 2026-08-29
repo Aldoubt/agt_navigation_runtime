@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 NAVIGATION_LAUNCH = ROOT / "src" / "agt_navigation" / "launch" / "navigation.launch.py"
+OFFLINE_LAUNCH = ROOT / "src" / "agt_navigation" / "launch" / "offline_navigation.launch.py"
 COMMISSIONING_LAUNCH = (
     ROOT / "src" / "agt_field_commissioning" / "launch" / "field_navigation.launch.py"
 )
@@ -24,6 +25,12 @@ def test_formal_waypoint_capability_remains_fail_closed_for_direct_pose_goals():
     assert 'condition=IfCondition(LaunchConfiguration("enable_rviz_goal_bridge"))' not in text.split(
         'executable="navigation_capability_server.py"', 1
     )[1].split('executable="task_registry_node.py"', 1)[0]
+
+
+def test_offline_simulation_explicitly_keeps_direct_goal_bridge_enabled():
+    text = OFFLINE_LAUNCH.read_text(encoding="utf-8")
+
+    assert '"enable_rviz_goal_bridge": "true"' in text
 
 
 def test_field_commissioning_can_explicitly_opt_in_but_defaults_off():
