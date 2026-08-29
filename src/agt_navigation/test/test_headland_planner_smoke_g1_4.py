@@ -1,5 +1,6 @@
 from pathlib import Path
 import importlib.util
+import inspect
 
 import pytest
 
@@ -169,3 +170,24 @@ def test_g1_4_launch_forwards_request_derivation_without_changing_hybrid_config(
     assert "allow_unknown: false" in config
     assert "inflate_around_unknown: false" in config
     assert "REEDS_SHEPP" not in config
+
+
+def test_g1_4_waits_for_planner_lifecycle_active_before_accepting_action_server():
+    runner = _load_runner_module()
+
+    assert hasattr(runner.HeadlandPlannerSmokeNode, "wait_for_planner_active")
+    main_source = inspect.getsource(runner.main)
+    assert main_source.index("wait_for_planner_active(") < main_source.index("wait_for_server(")
+
+
+def test_g1_4_uses_lifecycle_state_service_instead_of_fixed_startup_sleep():
+    source = (ROOT / "scripts" / "headland_planner_smoke.py").read_text(
+        encoding="utf-8"
+    )
+    package = (ROOT / "package.xml").read_text(encoding="utf-8")
+
+    assert "lifecycle_msgs.srv" in source
+    assert "PRIMARY_STATE_ACTIVE" in source
+    assert "/planner_server/get_state" in source
+    assert "time.sleep(" not in source
+    assert "<exec_depend>lifecycle_msgs</exec_depend>" in package
