@@ -38,6 +38,7 @@ jobs:
           src/agt_operator_gateway/test/test_contract.py
           src/agt_operator_gateway/test/test_state_store.py
           src/agt_operator_gateway/test/test_server_contract.py
+          src/agt_operator_gateway/test/test_cors_contract.py
           src/agt_operator_gateway/test/test_ros_contract.py
           src/agt_operator_gateway/test/test_mock_gateway_contract.py
           src/agt_operator_gateway/test/test_preflight.py
