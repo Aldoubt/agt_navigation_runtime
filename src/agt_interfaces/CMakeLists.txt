@@ -84,6 +84,10 @@ if(BUILD_TESTING)
     test_site_navigation_binding_interfaces
     test/test_site_navigation_binding_interfaces.py
   )
+  ament_add_pytest_test(
+    test_navigation_runtime_status_interfaces
+    test/test_navigation_runtime_status_interfaces.py
+  )
   ament_add_gtest(
     test_execute_coverage_task_cpp
     test/test_execute_coverage_task.cpp
