@@ -23,7 +23,7 @@ Legend:
 | P1-02 | integrate Site Runtime owner | [x] | [x] | [ ] | N/A |
 | P1-03 | decouple Task Registry from Site assets | [x] | [x] | [ ] | N/A |
 | P1-04 | Active Site -> navigation binding | [x] | [x] | [ ] | [ ] |
-| P1-05 | NavigationRuntimeStatus + SystemManager gate | [ ] | [ ] | [ ] | [ ] |
+| P1-05 | NavigationRuntimeStatus + SystemManager gate | [x] | [x] | [ ] | [ ] |
 | P1-06 | selectively port field commissioning flow | [ ] | [ ] | [ ] | [ ] |
 | P1-07 | production RViz direct-goal guard | [ ] | [ ] | [ ] | [ ] |
 | P1-08 | full ROS 2 convergence regression | [ ] | [ ] | [ ] | N/A |
@@ -36,6 +36,7 @@ Acceptance records:
 docs/acceptance/2026-08-29-runtime-navigation-p1-02-site-runtime-integration.md
 docs/acceptance/2026-08-29-runtime-navigation-p1-03-task-registry-decoupling.md
 docs/acceptance/2026-08-29-runtime-navigation-p1-04-active-site-navigation-binding.md
+docs/acceptance/2026-08-29-runtime-navigation-p1-05-navigation-runtime-readiness.md
 ```
 
 Current completed evidence boundary:
@@ -53,47 +54,43 @@ P1-04 Code:   COMPLETE
 P1-04 STATIC: PASS
 P1-04 HUMBLE: PENDING
 P1-04 FIELD:  PENDING
+
+P1-05 Code:   COMPLETE
+P1-05 STATIC: PASS
+P1-05 HUMBLE: PENDING
+P1-05 FIELD:  PENDING
 ```
 
 Do not infer ROS 2 Humble or field acceptance from cloud/static evidence.
 
 ## 2. Frozen branch disposition
 
-Do not continue feature development on old parallel branches after their required capabilities have been integrated or ported.
+Do not continue feature development on old parallel branches after their required capabilities have been integrated or selectively ported.
 
 | Source branch | Relationship | P1 action | Notes |
 | --- | --- | --- | --- |
 | `feat/runtime-convergence-p0` | accepted ancestor | freeze | historical P0 acceptance baseline |
 | `feat/operator-gateway-p1-mission-control` | ancestor of hardware base | inherited | no separate merge needed |
 | `feat/hardware-bringup-p0` | direct P1 base | inherited | monitor-first BUNKER/MID360 hardware baseline |
-| `feat/runtime-site-owner-p01` | integrated in P1-02 | freeze after integration | source head `3969b152...`; merged by PR #3 into canonical P1 |
+| `feat/runtime-site-owner-p01` | integrated in P1-02 | freeze | source head `3969b152...`; merged by PR #3 |
 | `feat/field-navigation-baseline` | divergent feature line | selective port in P1-06 | do not merge complete history |
-| `feat/nav2-planner-smoke-harness` | older planner smoke line | freeze | superseded by later headland smoke line |
-| `feat/headland-planner-smoke` | planner acceptance tooling | selective port later only if required | never a production navigation dependency |
-| `feat/bunker-rtabmap-slope-nav` | alternate/experimental navigation line | defer/freeze | do not enter current product line |
-| `feat/inspection-multiview-evidence` | divergent inspection line | selective port in P1-10 | only after navigation convergence is accepted |
+| `feat/nav2-planner-smoke-harness` | older planner smoke line | freeze | superseded by headland smoke line |
+| `feat/headland-planner-smoke` | planner acceptance tooling | selective port later only if required | never a production dependency |
+| `feat/bunker-rtabmap-slope-nav` | alternate/experimental line | defer/freeze | do not enter current product line |
+| `feat/inspection-multiview-evidence` | divergent inspection line | selective port in P1-10 | only after navigation convergence |
 | V3 historical acceptance branches | historical slices | freeze | retain traceability only |
 
 ## 3. Completed P1-02 integration record
 
-Canonical P1 integrated Site Runtime with these identities:
+P1-02 integrated Site Runtime while preserving hardware/Gateway authorities.
 
 ```text
 pre-integration plan head: d74e92bfa167eeb2ea97ecdfc4fdfce311930a2c
 Site-owner source head:     3969b152157e20dddd479fb08f95a694aeb08681
 integration merge commit:   60bf00e530b6e975fbb91cb62974a79573b6f678
 CI branch-filter commit:     b81fe907467c79def190e3eec893cea52e99fb6f
+Runtime Contracts #248:     PASS
 ```
-
-Static/cloud evidence:
-
-```text
-PR #3 Runtime Contracts #247:     PASS
-PR #3 operator-gateway-no-ros #42: PASS
-Canonical branch Runtime Contracts #248: PASS
-```
-
-Relative to `feat/hardware-bringup-p0`, canonical P1 is a strict descendant (`behind_by=0`), and P1-02 did not modify production files under `agt_hardware_bringup` or `agt_operator_gateway`.
 
 Imported authorities:
 
@@ -107,8 +104,6 @@ ValidateMapVersion.srv
 /agt/maps/activate
 SystemManager authoritative-map tombstone handling
 ```
-
-The Runtime Contracts workflow includes `feat/runtime-navigation-convergence-*` in push branch coverage so all later P1 changes are checked on the canonical branch itself.
 
 ## 4. Completed P1-03 task authority record
 
@@ -126,46 +121,23 @@ mutable:
   runtime/tasks/<site>/<revision>/archive/
 ```
 
-Task editing validates against a deployed valid Site revision. Formal task execution is stricter and resolves the task store against the current READY/valid/active `/agt/maps/active` identity.
-
-Legacy `runtime/maps/<site>/versions/<revision>/tasks` content is never an implicit Runtime fallback. Migration is operator-invoked, dry-run by default, and requires explicit `--apply`:
+Formal task execution now resolves the task store against the current READY/valid/active `/agt/maps/active` identity. Legacy map-local tasks are never an implicit fallback; migration is explicit and dry-run by default.
 
 ```text
-ros2 run agt_navigation migrate_legacy_task_store.py ...
-```
-
-Static acceptance head and evidence:
-
-```text
-e6f62810088912b4b9b27c2ae1dc1c83f50b0df2
 Runtime Contracts #281 (33237868775): PASS
 P1 task-storage group: 52 passed
 ```
 
-Detailed record:
-
-```text
-docs/acceptance/2026-08-29-runtime-navigation-p1-03-task-registry-decoupling.md
-```
-
 ## 5. Completed P1-04 Active Site binding record
 
-P1-04 adds a thin read-only package:
+P1-04 introduced the read-only Site-to-navigation asset binder:
 
 ```text
-agt_site_navigation
-```
-
-Authority flow:
-
-```text
-agt_site_runtime
-  -> /agt/maps/active
-  -> agt_site_navigation
-       re-resolve exact Site candidate
-       re-run SiteValidator
-       rebuild canonical SiteSummary
-       compare identity/hash/path evidence
+/agt/maps/active
+  -> agt_site_navigation canonical revalidation
+  -> exact Site id/revision/hash
+  -> exact navigation YAML/image + hashes
+  -> exact localization PCD + hash
   -> /agt/navigation/site_binding
 ```
 
@@ -175,37 +147,123 @@ Typed output:
 agt_interfaces/msg/SiteNavigationBinding
 ```
 
-The binding contains exact Site id/revision/hash plus resolved navigation YAML/image and localization PCD paths/hashes. It is reliable + transient-local and fails closed to UNKNOWN/BLOCKED/ERROR when Active Site authority is absent, revoked, changed, missing or corrupted.
+It uses reliable + transient-local QoS and replaces any previous READY binding with fresh UNKNOWN/BLOCKED/ERROR evidence when Site authority is revoked, missing, changed or corrupted.
 
-P1-04 explicitly does **not** own:
-
-```text
-map -> odom
-localization startup
-Nav2 lifecycle transitions
-Mission execution
-cmd_vel / FollowPath / FollowWaypoints
-filesystem mutation
-NavigationRuntimeStatus
-```
-
-Static acceptance code head and evidence:
+It does not publish TF, execute Missions, control Nav2 lifecycle transitions, publish velocity commands, or mutate Site assets.
 
 ```text
-52ca77e785c8e5c90684fbed4c0b58feb5f2484b
 Runtime Contracts #298 (33238275311): PASS
 P1 active-site navigation binding group: 10 passed
 ```
 
-A Humble-only generated-interface smoke is registered in `agt_interfaces` but remains unexecuted until local ROS 2 verification.
+## 6. Completed P1-05 Navigation Runtime readiness record
+
+P1-05 adds one authoritative read-only navigation runtime status downstream of the P1-04 binding:
+
+```text
+/agt/navigation/site_binding
+        +
+/agt/localization/status
+        +
+8 x Nav2 /<node>/get_state
+        ↓
+/agt/navigation/runtime_status
+        ↓
+agt_system_manager
+        ↓
+/agt/system/task_readiness
+/agt/system/robot_state
+```
+
+New typed interface:
+
+```text
+agt_interfaces/msg/NavigationRuntimeStatus
+```
+
+Runtime status states:
+
+```text
+UNKNOWN | STARTING | READY | BLOCKED | ERROR
+```
+
+The required lifecycle set matches the production Nav2 lifecycle manager exactly:
+
+```text
+map_server
+planner_server
+smoother_server
+controller_server
+behavior_server
+bt_navigator
+waypoint_follower
+collision_monitor
+```
+
+`agt_site_navigation` is only a lifecycle **observer**. It calls `GetState` and never `ChangeState`; Nav2 lifecycle manager remains transition owner.
+
+Localization binding requires both:
+
+```text
+LocalizationStatus.map_id   == SiteNavigationBinding.site_id
+LocalizationStatus.map_hash == SiteNavigationBinding.localization_pcd_sha256
+```
+
+SystemManager now adds a freshness-gated `/agt/navigation/runtime_status` input and stable blockers:
+
+```text
+NAVIGATION_UNKNOWN
+NAVIGATION_NOT_ACTIVE
+NAVIGATION_MAP_MISMATCH
+```
+
+Final readiness invariant implemented by P1-05:
+
+```text
+navigation_ready =
+  required SystemHealth acceptable
+  && authoritative Active Site READY
+  && accepted Localization TRACKING
+  && localization map identity matches Active Site
+  && fresh NavigationRuntimeStatus READY
+  && NavigationRuntimeStatus Site id/revision/hash matches Active Site
+  && NavigationRuntimeStatus localization identity established + matching
+  && Safety fresh + motion enabled + no E-stop latch
+  && Chassis fresh + connected
+```
+
+`RobotState.navigation_ready` is now assigned from this final aggregate result, not copied from the safety diagnostic's subsystem-local `navigation_ready` value.
+
+Static/TDD evidence includes:
+
+```text
+#301 RED  - first SystemManager navigation evidence contract
+#303 PASS - navigation blockers + root-cause ordering
+#304 RED  - identity-known distinction
+#305 PASS - unknown identity vs explicit mismatch
+#307 RED  - runtime status policy missing
+#308 PASS - pure runtime status policy
+#309 RED  - typed status/node/launch missing
+#315 PASS - read-only lifecycle observer
+#316 RED  - SystemManager ROS integration missing
+#317 PASS - SystemManager integration
+#320 PASS - current code-head regression + Humble interface smoke registration
+```
+
+Current P1-05 code-head static evidence before documentation:
+
+```text
+95c6b66f557901b2edb27305ad1f6e243a573650
+Runtime Contracts #320 (33239293217): PASS
+```
 
 Detailed record:
 
 ```text
-docs/acceptance/2026-08-29-runtime-navigation-p1-04-active-site-navigation-binding.md
+docs/acceptance/2026-08-29-runtime-navigation-p1-05-navigation-runtime-readiness.md
 ```
 
-## 6. Merge rules
+## 7. Merge rules
 
 ### Rule A — one canonical implementation branch
 
@@ -217,72 +275,58 @@ feat/runtime-navigation-convergence-p1
 
 Do not create another navigation convergence feature line unless this branch becomes unrecoverable.
 
-### Rule B — freeze integrated same-generation source branches
+### Rule B — preserve ownership boundaries
 
-`feat/runtime-site-owner-p01` has completed its role as the source for P1-02. Do not continue production feature development there. Any Site Runtime correction needed by later P1 work belongs on the canonical convergence branch.
-
-Retain all of these authorities:
+Retain these authorities:
 
 ```text
-agt_system_manager
-agt_operator_gateway
-agt_hardware_bringup
 agt_site_runtime
-agt_runtime_contracts
+  Active Site discovery / validation / activation authority
+
 agt_site_navigation
+  exact Site asset binding
+  + read-only Nav2/localization runtime evidence aggregation
+
+agt_localization + GlobalCorrectionManager
+  localization/relocalization evidence
+  + unique map -> odom correction authority
+
+Nav2 lifecycle manager
+  lifecycle transition authority
+
+agt_navigation
+  planning / control / BT / waypoint capability / Collision Monitor
+
+agt_system_manager
+  final fail-closed health/readiness/RobotState aggregate
+
+agt_operator_gateway
+  external HMI transport and guarded Mission commands
+
+agt_hardware_bringup
+  monitor-first vehicle/sensor preflight and bringup composition
+
+Task Registry
+  mutable versioned task definitions below tasks_root
 ```
 
-No subsystem may replace another subsystem's ownership.
+No subsystem may silently replace another subsystem's authority.
 
 ### Rule C — selectively port divergent product experiments
 
-For `field-navigation-baseline`, `inspection-multiview-evidence` and planner-smoke branches, move only the required files/behavior into the canonical P1 architecture. Do not merge branch history wholesale.
+For `field-navigation-baseline`, `inspection-multiview-evidence` and planner-smoke branches, move only required behavior/files into the canonical P1 architecture. Do not merge divergent history wholesale.
 
 Each selective port must document:
 
-- source branch;
-- source commit(s);
+- source branch / commit;
 - files/behavior ported;
 - behavior intentionally not ported;
-- compatibility changes made for current contracts;
+- compatibility changes for current contracts;
 - tests proving the ported behavior.
 
-### Rule D — no new navigation algorithm work inside convergence
+### Rule D — no new navigation algorithms inside convergence
 
-P1 is not a place to add new localization/planner/controller stacks. Algorithm changes require a separate future milestone after P1 acceptance.
-
-## 7. Canonical ownership after current P1 progress
-
-```text
-agt_site_runtime
-  owns: deployed Site discovery / validation / active Site authority
-
-agt_site_navigation
-  owns: Active Site -> exact resolved localization/navigation asset binding
-  does not own lifecycle readiness or map -> odom
-
-agt_localization + GlobalCorrectionManager
-  owns: relocalization evidence and unique map -> odom correction authority
-
-Nav2 / agt_navigation
-  owns: planning / control / BT / waypoint capability / collision monitor
-
-agt_system_manager
-  owns: fail-closed aggregate RobotState / TaskReadiness
-
-agt_operator_gateway
-  owns: external HMI transport and guarded Mission commands
-
-agt_hardware_bringup
-  owns: monitor-first vehicle/sensor preflight and bringup composition
-
-Task Registry
-  owns: mutable versioned task definitions below tasks_root
-        + persisted Site-content binding for those task definitions
-
-P1-05 planned authority
-  owns: NavigationRuntimeStatus aggregation and SystemManager navigation_ready gate
-```
+P1 is not the place to add another SLAM/localization/planner/controller stack.
 
 ## 8. Expected runtime data flow
 
@@ -294,9 +338,10 @@ Site Package install
   -> /agt/navigation/site_binding
   -> localization binds exact PCD
   -> GlobalCorrectionManager TRACKING / map -> odom
-  -> Nav2 required lifecycle nodes ACTIVE
-  -> NavigationRuntimeStatus READY            # P1-05
-  -> agt_system_manager navigation_ready=true # P1-05
+  -> Nav2 lifecycle manager activates required nodes
+  -> read-only NavigationRuntimeStatus observer sees all eight ACTIVE
+  -> /agt/navigation/runtime_status READY
+  -> agt_system_manager navigation_ready=true
   -> MissionManager may start a bound versioned task
   -> navigation_capability_server
   -> Nav2
@@ -305,100 +350,37 @@ Site Package install
   -> chassis
 ```
 
-Task editing boundary implemented by P1-03:
+Task editing/execution remains separated from immutable Site assets:
 
 ```text
 HMI / Gateway (future publication bridge)
-  -> Task Registry ROS services
-  -> runtime/tasks/<site>/<revision>/<task>.json
-  -> site_binding.json validates exact deployed Site content
-```
-
-Execution boundary implemented by P1-03:
-
-```text
-Mission / ExecuteWaypointTask
   -> Task Registry
-  -> current /agt/maps/active must be READY + valid + active
-  -> exact Site id/revision/content must match task store
-  -> existing localization/map/safety/readiness gates
+  -> runtime/tasks/<site>/<revision>/<task>.json
+
+Mission / ExecuteWaypointTask
+  -> exact Active Site + task binding checks
+  -> final SystemManager readiness
   -> MAP or ROUTE backend
 ```
 
-Asset-binding boundary implemented by P1-04:
-
-```text
-/agt/maps/active
-  -> canonical deployed Site revalidation
-  -> deterministic absolute YAML/image/PCD binding
-  -> /agt/navigation/site_binding
-```
-
-P1-05 must now aggregate this binding with localization and Nav2 lifecycle evidence into one fail-closed navigation readiness authority for SystemManager.
-
 ## 9. P1 acceptance invariants
 
-The following must remain true throughout implementation:
-
 1. There is exactly one canonical `map -> odom` authority.
-2. Runtime never navigates against a map that is still being commissioned/generated.
-3. Unknown or stale readiness evidence is never treated as success.
-4. A task cannot execute against a different Site identity/revision/hash than the one it was validated for.
+2. Runtime never navigates against a map still being commissioned/generated.
+3. Unknown or stale readiness evidence is never success.
+4. A task cannot execute against a different Site identity/revision/hash than validated.
 5. Site activation never silently falls back to another revision.
 6. Production direct RViz pose goals are disabled by default.
-7. No new component bypasses Collision Monitor, `agt_safety`, chassis guard or Mission ownership.
-8. Software acceptance and real-vehicle acceptance are recorded separately.
-9. Mutable task edits never mutate or become part of immutable Site package integrity.
-10. Legacy map-local tasks are migrated explicitly; Runtime never uses an implicit fallback path.
-11. `agt_site_navigation` may resolve assets but may not publish TF or claim Nav2 lifecycle readiness.
+7. No component bypasses Collision Monitor, `agt_safety`, chassis guard or Mission ownership.
+8. Software and real-vehicle acceptance remain separate.
+9. Mutable task edits never mutate immutable Site package integrity.
+10. Legacy map-local tasks require explicit migration; no Runtime fallback.
+11. `agt_site_navigation` may observe lifecycle state but may not transition Nav2 lifecycle nodes.
+12. `RobotState.navigation_ready` must equal final SystemManager aggregate readiness, not a subsystem-local flag.
 
-## 10. Per-slice documentation template
+## 10. Merge-to-main gate
 
-At the end of every implementation slice, add a dated report using this structure:
-
-```markdown
-# P1-0X <name> Acceptance — YYYY-MM-DD
-
-## Source
-- branch:
-- start commit:
-- end commit:
-- imported source branch/commits, if any:
-
-## Implemented
-- ...
-
-## Intentionally not implemented
-- ...
-
-## Interface changes
-- ...
-
-## Tests
-### Static/unit
-- command
-- result
-
-### ROS 2 Humble
-- command
-- result
-
-### Real vehicle
-- command/procedure
-- result or NOT RUN
-
-## Known blockers
-- ...
-
-## Decision
-IMPLEMENTED / STATIC VERIFIED / HUMBLE VERIFIED / FIELD VERIFIED / BLOCKED
-```
-
-Then update the table at the top of this file.
-
-## 11. Merge-to-main gate
-
-Do not merge this convergence branch to `main` merely because source code exists.
+Do not merge this convergence branch to `main` merely because source exists.
 
 Minimum software merge gate:
 
@@ -407,18 +389,18 @@ Minimum software merge gate:
 - selected/full regression has zero failures in changed Runtime packages;
 - exact Site activation -> localization binding -> Nav2 lifecycle -> SystemManager readiness smoke passes;
 - no old parallel branch is required at runtime;
-- documentation identifies any remaining real-hardware-only gates.
+- documentation identifies remaining real-hardware-only gates.
 
 Preferred field release gate additionally requires P1-09.
 
-Inspection integration P1-10 may either be included before main merge or follow immediately after navigation release, but it must not destabilize the accepted navigation ownership model.
-
-## 12. Next action
+## 11. Next action
 
 The only active development slice is now:
 
 ```text
-P1-05 — NavigationRuntimeStatus + SystemManager gate
+P1-06 — selectively port field commissioning flow
 ```
 
-P1-05 must consume `SiteNavigationBinding` plus localization/Nav2 lifecycle evidence and expose one fail-closed readiness contract without moving Site authority out of `agt_site_runtime` or creating another `map -> odom` owner. Do not begin P1-06 until P1-05 has its own tests and acceptance note.
+P1-06 must selectively port the accepted field mapping/navigation commissioning capabilities from `feat/field-navigation-baseline` into the current Site Package + NavigationRuntimeStatus architecture. Do not whole-merge the divergent branch.
+
+Do not begin P1-07 until P1-06 has its own tests and acceptance note.
