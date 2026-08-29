@@ -34,6 +34,7 @@ class Evidence:
     navigation_site_id: str
     navigation_site_revision: str
     navigation_site_hash: str
+    navigation_identity_known: bool
     navigation_map_identity_match: bool
     safety_known: bool
     motion_enabled: bool
@@ -116,7 +117,7 @@ def overall_health_state(components: tuple[ComponentEvidence, ...]) -> int:
 
 
 def _navigation_identity_matches(evidence: Evidence) -> bool:
-    if not evidence.map_known:
+    if not evidence.map_known or not evidence.navigation_identity_known:
         return False
     if not evidence.navigation_map_identity_match:
         return False
@@ -154,6 +155,8 @@ def evaluate_navigation_readiness(evidence: Evidence) -> ReadinessResult:
 
     if not evidence.navigation_known:
         blockers.append("NAVIGATION_UNKNOWN")
+    elif not evidence.navigation_identity_known:
+        blockers.append("NAVIGATION_NOT_ACTIVE")
     elif evidence.map_known and not _navigation_identity_matches(evidence):
         blockers.append("NAVIGATION_MAP_MISMATCH")
     elif not evidence.navigation_ready:
