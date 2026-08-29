@@ -43,10 +43,13 @@ def main(args=None) -> None:
         mission_commands=mission_commands,
         write_api_enabled=write_api_enabled,
         command_token=command_token,
+        # Every enabled mission-write session is single-controller. Read-only
+        # clients remain unrestricted and can monitor the same Runtime state.
+        control_lease_required=write_api_enabled,
     )
     try:
         server.start()
-        mode = 'read-write' if write_api_enabled else 'read-only'
+        mode = 'read-write (control lease required)' if write_api_enabled else 'read-only'
         node.get_logger().info(
             f'operator gateway listening on http://{node.host}:{node.port} ({mode})'
         )
