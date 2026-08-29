@@ -130,6 +130,7 @@ def generate_launch_description():
                         "require_task_readiness": True,
                         "runtime_dir": LaunchConfiguration("runtime_dir"),
                         "maps_root": LaunchConfiguration("maps_root"),
+                        "tasks_root": LaunchConfiguration("tasks_root"),
                         "allow_legacy_local_task_file": False,
                         "allow_direct_pose_goals": False,
                         "localization_status_timeout": ParameterValue(
