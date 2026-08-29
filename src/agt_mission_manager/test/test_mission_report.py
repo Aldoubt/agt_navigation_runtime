@@ -41,6 +41,39 @@ def _mission():
     )
 
 
+def _finish_report(tmp_path, evidence_root, run_id):
+    writer = MissionReportWriter(tmp_path / "mission_reports", run_id=run_id)
+    writer.start(_mission())
+    writer.record_step(
+        index=0,
+        step=_mission().steps[0],
+        success=True,
+        message="inspection completed",
+        session_id="inspection_session_01",
+        artifact_uri=str(evidence_root),
+    )
+    writer.record_step(
+        index=1,
+        step=_mission().steps[1],
+        success=True,
+        message="home reached",
+    )
+    status = MissionRuntimeStatus.for_mission(_mission())
+    status.state = MissionState.SUCCEEDED
+    status.message = "mission completed"
+    report_uri = writer.finish(status)
+    report = json.loads(
+        (
+            tmp_path
+            / "mission_reports"
+            / "flower_inspection"
+            / run_id
+            / "report.json"
+        ).read_text(encoding="utf-8")
+    )
+    return report_uri, report
+
+
 def test_report_links_inspection_evidence_and_labels_point_sum_estimate(tmp_path):
     evidence_root = tmp_path / "inspection_evidence"
     report_root = evidence_root / "report"
@@ -63,28 +96,8 @@ def test_report_links_inspection_evidence_and_labels_point_sum_estimate(tmp_path
         encoding="utf-8",
     )
 
-    writer = MissionReportWriter(tmp_path / "mission_reports", run_id="run_001")
-    writer.start(_mission())
-    writer.record_step(
-        index=0,
-        step=_mission().steps[0],
-        success=True,
-        message="inspection completed",
-        session_id="inspection_session_01",
-        artifact_uri=str(evidence_root),
-    )
-    writer.record_step(
-        index=1,
-        step=_mission().steps[1],
-        success=True,
-        message="home reached",
-    )
-    status = MissionRuntimeStatus.for_mission(_mission())
-    status.state = MissionState.SUCCEEDED
-    status.message = "mission completed"
-    report_uri = writer.finish(status)
+    report_uri, report = _finish_report(tmp_path, evidence_root, "run_001")
 
-    report = json.loads((tmp_path / "mission_reports" / "flower_inspection" / "run_001" / "report.json").read_text(encoding="utf-8"))
     assert report_uri.endswith("report.json")
     assert report["state"] == "SUCCEEDED"
     assert report["home_returned"] is True
@@ -96,3 +109,35 @@ def test_report_links_inspection_evidence_and_labels_point_sum_estimate(tmp_path
     assert report["steps"][0]["artifact_uri"] == str(evidence_root)
     assert (tmp_path / "mission_reports" / "flower_inspection" / "run_001" / "steps.csv").is_file()
     assert (tmp_path / "mission_reports" / "flower_inspection" / "run_001" / "inspections.csv").is_file()
+
+
+def test_deferred_inspection_report_preserves_unknown_counts(tmp_path):
+    evidence_root = tmp_path / "deferred_evidence"
+    report_root = evidence_root / "report"
+    report_root.mkdir(parents=True)
+    (report_root / "report.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "session_id": "inspection_session_01",
+                "inspection_task_id": "inspection_01",
+                "count_target": "litchi_flower",
+                "count_mode": "PENDING_OFFLINE",
+                "totals": {
+                    "raw_instance_count": None,
+                    "unique_instance_count": None,
+                    "ambiguous_instance_count": None,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    _, report = _finish_report(tmp_path, evidence_root, "run_deferred")
+
+    summary = report["inspection_summary"]
+    assert summary["raw_instance_count"] is None
+    assert summary["point_sum_estimate"] is None
+    assert summary["ambiguous_instance_count"] is None
+    assert summary["count_semantics"] == "PENDING_OFFLINE"
+    assert report["inspections"][0]["count_mode"] == "PENDING_OFFLINE"
