@@ -23,6 +23,7 @@ def _include(path: Path, arguments: dict[str, str] | None = None):
 def _compose(context):
     bringup_share = Path(get_package_share_directory("agt_hardware_bringup"))
     chassis_share = Path(get_package_share_directory("agt_chassis_bunker"))
+    inspection_share = Path(get_package_share_directory("agt_inspection"))
     sensor_adapter_share = Path(get_package_share_directory("agt_sensor_adapters"))
     sensor_monitor_share = Path(get_package_share_directory("agt_sensor_monitor"))
 
@@ -67,6 +68,14 @@ def _compose(context):
         ),
     ]
 
+    start_inspection = _as_bool(LaunchConfiguration("start_inspection").perform(context))
+    start_camera = _as_bool(LaunchConfiguration("start_camera").perform(context))
+    start_gimbal = _as_bool(LaunchConfiguration("start_gimbal").perform(context))
+    if start_inspection and (start_camera or start_gimbal):
+        raise RuntimeError(
+            "start_inspection cannot be combined with start_camera/start_gimbal"
+        )
+
     for enabled_arg, path_arg, label in (
         ("start_camera", "camera_launch_file", "camera"),
         ("start_gimbal", "gimbal_launch_file", "gimbal"),
@@ -80,6 +89,45 @@ def _compose(context):
         if not launch_path.is_file():
             raise RuntimeError(f"{label} launch file does not exist: {launch_path}")
         actions.append(_include(launch_path, {"use_sim_time": use_sim_time}))
+
+    if start_inspection:
+        actions.append(
+            _include(
+                inspection_share / "launch" / "camera_gimbal_inspection.launch.py",
+                {
+                    "camera_device_path": LaunchConfiguration(
+                        "inspection_camera_device_path"
+                    ).perform(context),
+                    "camera_gimbal_port": LaunchConfiguration(
+                        "inspection_camera_gimbal_port"
+                    ).perform(context),
+                    "camera_width": LaunchConfiguration(
+                        "inspection_camera_width"
+                    ).perform(context),
+                    "camera_height": LaunchConfiguration(
+                        "inspection_camera_height"
+                    ).perform(context),
+                    "camera_fps": LaunchConfiguration("inspection_camera_fps").perform(
+                        context
+                    ),
+                    "capture_output_root": LaunchConfiguration(
+                        "inspection_capture_output_root"
+                    ).perform(context),
+                    "runtime_maps_root": LaunchConfiguration(
+                        "inspection_runtime_maps_root"
+                    ).perform(context),
+                    "evidence_root": LaunchConfiguration(
+                        "inspection_evidence_root"
+                    ).perform(context),
+                    "camera_calibration_id": LaunchConfiguration(
+                        "inspection_camera_calibration_id"
+                    ).perform(context),
+                    "camera_calibration_sha256": LaunchConfiguration(
+                        "inspection_camera_calibration_sha256"
+                    ).perform(context),
+                },
+            )
+        )
 
     return actions
 
@@ -109,6 +157,32 @@ def generate_launch_description():
             DeclareLaunchArgument("camera_launch_file", default_value=""),
             DeclareLaunchArgument("start_gimbal", default_value="false"),
             DeclareLaunchArgument("gimbal_launch_file", default_value=""),
+            DeclareLaunchArgument("start_inspection", default_value="false"),
+            DeclareLaunchArgument(
+                "inspection_camera_device_path", default_value="/dev/video0"
+            ),
+            DeclareLaunchArgument(
+                "inspection_camera_gimbal_port", default_value="/dev/ttyUSB0"
+            ),
+            DeclareLaunchArgument("inspection_camera_width", default_value="1920"),
+            DeclareLaunchArgument("inspection_camera_height", default_value="1080"),
+            DeclareLaunchArgument("inspection_camera_fps", default_value="30.0"),
+            DeclareLaunchArgument(
+                "inspection_capture_output_root",
+                default_value="runtime/camera_gimbal_capture",
+            ),
+            DeclareLaunchArgument(
+                "inspection_runtime_maps_root", default_value="runtime/maps"
+            ),
+            DeclareLaunchArgument(
+                "inspection_evidence_root", default_value="runtime/inspections"
+            ),
+            DeclareLaunchArgument(
+                "inspection_camera_calibration_id", default_value=""
+            ),
+            DeclareLaunchArgument(
+                "inspection_camera_calibration_sha256", default_value=""
+            ),
             OpaqueFunction(function=_compose),
         ]
     )
