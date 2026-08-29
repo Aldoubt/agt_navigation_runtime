@@ -22,7 +22,7 @@ Makefile
 
 # Runtime data
 runtime/
-results/
+/results/
 *.db3
 *.mcap
 

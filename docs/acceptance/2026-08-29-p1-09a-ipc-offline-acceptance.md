@@ -4,6 +4,28 @@ Acceptance record for the `feat/runtime-navigation-convergence-p1` branch.
 This record covers software-only IPC acceptance with the offline simulator;
 it does not claim hardware or field behavior.
 
+## Evidence Identity
+
+```text
+Accepted runtime code state:
+5106995521c73855b606d448befdbb8a6ff42f45
+
+Platform:
+Ubuntu 22.04
+ROS 2 Humble
+
+Local evidence root:
+results/p1_09a_ipc_offline/
+```
+
+The acceptance evidence was generated against the runtime code state above.
+The follow-up acceptance-document / `.gitignore` hygiene commit does not change
+runtime behavior and therefore does not invalidate that evidence.
+
+GitHub remote CI is not claimed as PASS for this code state unless a matching
+workflow run is explicitly recorded. P1-09A acceptance is currently grounded
+in the local Humble IPC evidence described here.
+
 ## Final Status
 
 ```text
@@ -22,6 +44,22 @@ Final regression:
 Overall:
 P1-09A = PASS
 ```
+
+## Gate D -> Gate E Interpretation
+
+Gate E is interpreted together with the Gate D no-obstacle closed-loop
+baseline; Gate E alone is not a mobility baseline.
+
+The pair establishes the intended offline safety behavior:
+
+```text
+Gate D: no synthetic obstacle -> command pipeline can move the simulator
+Gate E: synthetic obstacle    -> Collision Monitor / Safety stop the simulator
+```
+
+This prevents a permanently-zero downstream velocity pipeline from being
+mistaken for successful obstacle stopping when the full P1-09A gate sequence is
+used.
 
 ## Gate E Canonical Command
 
