@@ -108,3 +108,5 @@ jobs:
           else
             echo "P1 field commissioning tests not present yet"
           fi
+      - name: Run P1 RViz direct-goal guard contract
+        run: python -m pytest -q tests/navigation/test_rviz_goal_guard.py
