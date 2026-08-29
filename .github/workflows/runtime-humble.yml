@@ -51,7 +51,6 @@ jobs:
             python3-pytest \
             python3-yaml \
             python3-jsonschema
-          rm -rf /var/lib/apt/lists/*
 
       - name: Resolve selected-core ROS dependencies
         shell: bash
