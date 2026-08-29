@@ -361,13 +361,13 @@ class TaskValidationReport:
 
 
 class TaskRepository:
-    """Persist task groups below one immutable map version directory."""
+    """Persist mutable task groups below one dedicated task root."""
 
-    def __init__(self, runtime_maps_root: str | Path, map_id: str, map_version_id: str):
-        self.root = Path(runtime_maps_root).expanduser().resolve()
+    def __init__(self, tasks_root: str | Path, map_id: str, map_version_id: str):
+        self.root = Path(tasks_root).expanduser().resolve()
         self.map_id = _safe_component(map_id, "map_id")
         self.map_version_id = _safe_component(map_version_id, "map_version_id")
-        self.directory = self.root / self.map_id / "versions" / self.map_version_id / "tasks"
+        self.directory = self.root / self.map_id / self.map_version_id
 
     def list_tasks(self) -> list[dict]:
         entries = []
@@ -422,9 +422,6 @@ class TaskRepository:
             _write_json_atomic(target, candidate.to_dict(), backup_count=0)
             self._write_index_atomic()
         except Exception as exc:
-            # A task file and its index are one logical repository update. If
-            # the index replacement fails, restore the task file so a stale
-            # index cannot point at a newer, partially committed task.
             try:
                 if previous is None:
                     target.unlink(missing_ok=True)
@@ -783,7 +780,7 @@ def _load_legacy_points(value: object, *, maximum_points: int) -> list[Waypoint]
             raise TaskGroupError(f"waypoint {index} must be an object")
         try:
             point = Waypoint(
-            id=str(raw.get("id", f"wp_{index + 1:04d}")),
+                id=str(raw.get("id", f"wp_{index + 1:04d}")),
                 name=_required_text(raw, "name"),
                 x=float(raw["x"]),
                 y=float(raw["y"]),
