@@ -9,9 +9,11 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
   <depend>action_msgs</depend>
   <depend>agt_interfaces</depend>
+  <depend>camera_gimbal_interfaces</depend>
   <depend>nav_msgs</depend>
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
+  <exec_depend>autolabor_c1_bringup</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
   <test_depend>ament_cmake_pytest</test_depend>
