@@ -39,7 +39,7 @@ def test_task_registry_ros_node_uses_tasks_root_and_deployed_site_resolver():
 
     assert 'declare_parameter("tasks_root", "")' in source
     assert 'declare_parameter("sites_root", "/opt/agt/sites")' in source
-    assert 'declare_parameter("site_vehicle_profile", "/opt/agt/profiles/bunker.yaml")' in source
+    assert '"site_vehicle_profile", "/opt/agt/profiles/bunker.yaml"' in source
     assert "FilesystemSiteBindingResolver" in source
     assert "site_binding_resolver=site_binding_resolver" in source
     assert "TaskRegistry(\n            tasks_root," in source
@@ -51,10 +51,7 @@ def test_navigation_launch_forwards_single_task_store_and_site_validation_inputs
 
     assert 'DeclareLaunchArgument("tasks_root", default_value="")' in source
     assert 'DeclareLaunchArgument("sites_root", default_value="/opt/agt/sites")' in source
-    assert (
-        'DeclareLaunchArgument("site_vehicle_profile", default_value="/opt/agt/profiles/bunker.yaml")'
-        in source
-    )
+    assert '"site_vehicle_profile", default_value="/opt/agt/profiles/bunker.yaml"' in source
     task_registry = source[source.index('executable="task_registry_node.py"'):]
     assert '"tasks_root": LaunchConfiguration("tasks_root")' in task_registry
     assert '"sites_root": LaunchConfiguration("sites_root")' in task_registry
