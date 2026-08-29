@@ -11,7 +11,7 @@ DEFAULT_ROBOT_STATE_TOPIC = '/agt/system/robot_state'
 
 
 class RobotStateAdapter(Node):
-    """Read-only projection adapter for the authoritative system-manager RobotState."""
+    """Read-model adapter plus transport configuration for the operator gateway."""
 
     def __init__(self) -> None:
         super().__init__('agt_operator_gateway')
@@ -37,6 +37,12 @@ class RobotStateAdapter(Node):
         )
         self._stream_poll_s = float(
             self.declare_parameter('stream_poll_s', 0.05).value
+        )
+        self._write_api_enabled = bool(
+            self.declare_parameter('write_api_enabled', False).value
+        )
+        self._mission_command_timeout_s = float(
+            self.declare_parameter('mission_command_timeout_s', 5.0).value
         )
         raw_origins = self.declare_parameter(
             'cors_allowed_origins', ['*']
@@ -66,6 +72,8 @@ class RobotStateAdapter(Node):
             )
         if self._stream_poll_s <= 0.0:
             raise ValueError('stream_poll_s must be > 0')
+        if self._mission_command_timeout_s <= 0.0:
+            raise ValueError('mission_command_timeout_s must be > 0')
 
         self._store = GatewayStateStore(freshness_ms=freshness_ms)
 
@@ -102,6 +110,14 @@ class RobotStateAdapter(Node):
     @property
     def cors_allowed_origins(self) -> tuple[str, ...]:
         return self._cors_allowed_origins
+
+    @property
+    def write_api_enabled(self) -> bool:
+        return self._write_api_enabled
+
+    @property
+    def mission_command_timeout_s(self) -> float:
+        return self._mission_command_timeout_s
 
     def _robot_state_callback(self, message: RobotState) -> None:
         self._store.update(
