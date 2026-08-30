@@ -1,16 +1,33 @@
 # Hardware First-Vehicle Acceptance Checklist
 
-This checklist is the first ROS2 Humble / bench / vehicle acceptance procedure for `agt_hardware_bringup`.
+This is the first ROS 2 Humble / bench / vehicle acceptance procedure for the Runtime product branch. It is deliberately split into read-only hardware acceptance and later low-speed motion acceptance.
 
-Remote development does **not** satisfy any item marked `UNVERIFIED`. Record evidence on the actual robot before promoting the item to PASS.
+Remote CI does **not** satisfy any item marked `UNVERIFIED`. Record evidence on the actual robot before promoting the item to PASS.
 
-## Gate 0 — ROS2 workspace build
+## Safety boundary
 
-- [ ] `UNVERIFIED` Ubuntu/ROS2 Humble environment is sourced.
-- [ ] `UNVERIFIED` vendor dependencies (`bunker_base`, `livox_ros_driver2`) resolve.
-- [ ] `UNVERIFIED` build succeeds:
+Gates 0–5 are read-only. During these gates:
+
+- use `operation_mode:=monitor`;
+- do not publish `cmd_vel`;
+- do not start a Mission;
+- do not call `/agt/safety/set_motion_enabled`;
+- do not command the gimbal;
+- do not configure SocketCAN from ROS;
+- do not run the ROS Runtime with `sudo`.
+
+SocketCAN interface setup belongs to the OS/systemd layer and may require root/CAP_NET_ADMIN. ROS should consume an already configured CAN interface as a normal user.
+
+## Gate 0 — ROS 2 workspace build
+
+Vehicle-side values/dependencies to verify:
+
+- [ ] `UNVERIFIED` Ubuntu 22.04 / ROS 2 Humble environment is sourced.
+- [ ] `UNVERIFIED` vendor dependencies such as `bunker_base` and `livox_ros_driver2` resolve on the target computer.
+- [ ] `UNVERIFIED` target build succeeds:
 
 ```bash
+source /opt/ros/humble/setup.bash
 colcon build --symlink-install --packages-up-to agt_hardware_bringup
 source install/setup.bash
 ```
@@ -18,189 +35,207 @@ source install/setup.bash
 - [ ] `UNVERIFIED` package tests succeed:
 
 ```bash
-colcon test --packages-select agt_hardware_bringup
+colcon test --packages-select agt_description agt_hardware_bringup
 colcon test-result --verbose
 ```
 
-Do not continue to vehicle motion if build/test is not clean.
+CI also builds/tests `agt_description` + `agt_hardware_bringup` in a Humble container and executes installed CLI smoke checks. That is software evidence only; it does not replace this target-computer gate.
 
 ## Gate 1 — SocketCAN read-only evidence
 
-Vehicle values to determine:
+Determine on the actual vehicle:
 
-- [ ] `UNVERIFIED` actual CAN interface name (`can0` is only the current software default).
+- [ ] `UNVERIFIED` actual CAN interface name (`can0` is only the software default).
 - [ ] `UNVERIFIED` actual BUNKER CAN bitrate.
-- [ ] `UNVERIFIED` expected normal RX/TX error counters under idle/load.
 
 First inspect without modifying the interface:
+
+```bash
+ip -details -statistics link show <verified-interface>
+```
+
+Then run the dynamic read-only check:
 
 ```bash
 ros2 run agt_hardware_bringup socketcan_preflight.py \
   --interface <verified-interface> \
   --expected-bitrate <verified-bitrate> \
+  --observation-sec 5 \
   --json-output can_preflight.json
 ```
 
+For initial wiring-only work, `--expected-bitrate 0` means the bitrate is intentionally not asserted. Do not treat `0` as a real CAN bitrate.
+
 Acceptance:
 
-- [ ] interface exists;
-- [ ] link type is CAN;
-- [ ] interface state is UP;
-- [ ] bitrate matches the verified vehicle value;
-- [ ] CAN state is not BUS-OFF;
-- [ ] RX/TX/berr counters are captured as evidence.
+- [ ] interface exists and is a CAN link;
+- [ ] operational state is `UP`;
+- [ ] controller state is `ERROR-ACTIVE` when exposed by the kernel;
+- [ ] bitrate matches the verified vehicle value when explicitly asserted;
+- [ ] no `berr_tx` / `berr_rx` increase during the observation window;
+- [ ] no RX/TX error counter increase;
+- [ ] no RX/TX dropped counter increase;
+- [ ] JSON before/after/delta evidence is retained.
 
-The preflight must not configure or restart SocketCAN. Interface setup remains an explicit vehicle/platform operation.
+Any newly accumulating CAN error/drop counter is a blocker. Normal RX/TX packet growth is not an error.
 
-## Gate 2 — Unified bringup in monitor mode
+The preflight must not configure, restart or change the bitrate of SocketCAN.
 
-Start the integrated hardware stack **without control mode**:
+## Gate 2 — Unified BUNKER + MID360 bringup in monitor mode
+
+Start the integrated hardware stack without command execution:
 
 ```bash
 ros2 launch agt_hardware_bringup bunker_mid360.launch.py \
   operation_mode:=monitor \
   sensor_profile:=hardware_check \
   can_interface:=<verified-interface> \
-  expected_can_bitrate:=<verified-bitrate>
+  expected_can_bitrate:=<verified-bitrate-or-0>
+```
+
+The canonical `agt_description` owner starts by default and should publish:
+
+```text
+base_footprint -> base_link -> lidar_link -> livox_frame
+                                     \-----> imu_link
 ```
 
 Acceptance before any motion:
 
 - [ ] `/agt/chassis/status/raw` exists and updates;
 - [ ] `/agt/chassis/connected` becomes `true`;
-- [ ] BUNKER diagnostic is not `status_timeout`;
-- [ ] BUNKER `error_code == 0` during normal idle;
+- [ ] `/agt/chassis/rc_state` exists and updates;
+- [ ] `/agt/sensors/lidar/custom` exists and updates;
+- [ ] `/agt/sensors/imu/data` exists and updates;
+- [ ] `/diagnostics` contains `agt_sensor_monitor/*`;
 - [ ] no unexpected chassis motion occurs.
 
-## Gate 3 — MID360 network and stream evidence
+## Gate 3 — MID360 stream quality
 
-Current repository configuration is a candidate only:
+The authoritative quality source is `agt_sensor_monitor`; do not accept a sensor merely because a topic name exists.
 
-- host-side IP candidate: `192.168.1.5` — `UNVERIFIED` on installed robot;
-- MID360 IP candidate: `192.168.1.157` — `UNVERIFIED` on installed robot.
+Current persisted network configuration contains candidate values that must still be verified on the installed robot:
+
+- host-side IP: `192.168.1.5` — `UNVERIFIED` physically;
+- MID360 IP: `192.168.1.157` — `UNVERIFIED` physically.
 
 Record:
 
-- [ ] `UNVERIFIED` actual Ethernet interface name/address;
-- [ ] `UNVERIFIED` MID360 reachability from the vehicle computer;
-- [ ] `UNVERIFIED` raw lidar observed rate;
-- [ ] `UNVERIFIED` IMU observed rate;
-- [ ] `UNVERIFIED` message timestamp monotonicity/age.
+- [ ] `UNVERIFIED` actual Ethernet interface/address matches the selected Livox config;
+- [ ] `UNVERIFIED` MID360 is reachable through the installed network path;
+- [ ] lidar messages are received continuously;
+- [ ] IMU messages are received continuously;
+- [ ] timestamps are monotonic;
+- [ ] no rollback is observed;
+- [ ] stream age remains within the configured stale threshold.
 
-Runtime acceptance thresholds in the hardware-check profile:
+Hardware-check profile acceptance thresholds:
 
-- raw lidar: at least 8 Hz, stale timeout 0.5 s;
-- IMU: at least 150 Hz, stale timeout 0.2 s.
+- raw lidar: `rate_hz >= 8 Hz`, stale timeout `0.5 s`;
+- IMU: `rate_hz >= 150 Hz`, stale timeout `0.2 s`.
 
-Expected AGT topics:
+The preflight report must retain at least:
 
 ```text
-/agt/sensors/lidar/custom
-/agt/sensors/imu/data
+received_count
+rate_hz
+min_rate_hz
+rate_ok
+message_age_sec
+receive_age_sec
+stale
+timestamp_monotonic
+rollback_count
+duplicate_stamp_count
+healthy
 ```
 
-## Gate 4 — Runtime hardware health evidence
+## Gate 4 — Runtime hardware/environment preflight
 
-Run the observational vehicle preflight:
+Run after the monitor stack has reached steady state:
 
 ```bash
 ros2 run agt_hardware_bringup vehicle_preflight.py \
   --json-output hardware_preflight.json
 ```
 
-Acceptance:
+Required acceptance:
 
-- [ ] required MID360 topics are present and produce messages;
-- [ ] BUNKER raw status produces messages;
+- [ ] ROS 2 CLI is available;
+- [ ] BUNKER status is live;
 - [ ] `/agt/chassis/connected == true`;
-- [ ] `/diagnostics` contains `agt_sensor_monitor/summary`;
-- [ ] `required_streams_healthy == true`;
-- [ ] generated JSON evidence is retained with the test record.
+- [ ] RC state is live;
+- [ ] `agt_sensor_monitor/summary.required_streams_healthy == true`;
+- [ ] lidar stream quality is healthy;
+- [ ] IMU stream quality is healthy;
+- [ ] canonical `/tf_static` topology is present.
 
-Do not switch to the navigation sensor profile until the filtered lidar producer is running and validated.
+The command also records host CPU/load, available memory, free disk and thermal-zone temperature when available. Host threshold violations are `WARN`, not permission to move or an automatic motion blocker.
 
-## Gate 5 — Installed TF / coordinate validation
+Final result vocabulary:
 
-The following cannot be accepted remotely:
+```text
+PASS
+PASS_WITH_WARNINGS
+BLOCKED
+```
 
-- [ ] `UNVERIFIED` `base_link -> livox_frame` translation;
-- [ ] `UNVERIFIED` lidar mounting roll/pitch/yaw;
-- [ ] `UNVERIFIED` physical frame convention matches robot convention;
+`ready=true` means that no required preflight blocker was observed. It does **not** enable Safety motion and does not mean navigation has been field-accepted.
+
+## Gate 5 — MID360 physical extrinsic / coordinate validation
+
+Software TF topology and physical extrinsic acceptance are separate gates.
+
+The current authoritative file is:
+
+```text
+src/agt_description/config/bunker_mid360.yaml
+```
+
+It currently carries `calibration_verified: false` until the installed geometry is physically checked.
+
+Verify on the real robot:
+
+- [ ] `UNVERIFIED` `base_link -> lidar_link` x/y/z is measured against the declared base datum;
+- [ ] `UNVERIFIED` lidar roll/pitch/yaw matches the installed mount;
+- [ ] `base_footprint -> base_link -> lidar_link -> livox_frame/imu_link` is the intended frame chain;
 - [ ] RViz confirms +X forward, +Y left, +Z up as intended;
-- [ ] point cloud moves consistently with physical robot motion.
+- [ ] point cloud orientation/motion agrees with physical robot motion.
 
-Do not compensate an incorrect physical/URDF transform by silently changing SLAM parameters.
+After the persisted values are physically verified, update the configuration and only then set:
 
-## Gate 6 — BUNKER low-speed motion acceptance
+```yaml
+calibration_verified: true
+```
 
-Only after Gates 0–5 pass, explicitly start/control through the existing authorized Runtime safety path. Do not bypass `agt_safety` or `agt_chassis_command_guard`.
+Before a mapping acceptance run, require the strict gate:
 
-Validate at very low speed:
+```bash
+ros2 run agt_hardware_bringup vehicle_preflight.py \
+  --require-calibration-verified \
+  --json-output mapping_preflight.json
+```
 
-- [ ] `UNVERIFIED` positive linear command moves robot forward;
-- [ ] `UNVERIFIED` positive angular command turns in the expected ROS direction;
-- [ ] stop/timeout behavior works;
-- [ ] `UNVERIFIED` odometry linear sign is correct;
-- [ ] `UNVERIFIED` odometry yaw sign is correct;
-- [ ] BUNKER status remains connected and error-free during motion;
-- [ ] CAN counters do not show abnormal growth / BUS-OFF.
+With `calibration_verified: false`, `mapping_preflight.json` is expected to be `BLOCKED`. Do not bypass this by using `--skip-static-tf` or by silently compensating in SLAM parameters.
 
-Stop here if any direction, odometry, safety, or CAN behavior is ambiguous.
+## Gate 6 — Camera + gimbal bench acceptance
 
-## Gate 7 — Navigation profile and navigation
-
-Only after the filtered lidar pipeline is available:
+The frozen C1 inspection path is already integrated. Start it explicitly while remaining in monitor mode:
 
 ```bash
 ros2 launch agt_hardware_bringup bunker_mid360.launch.py \
   operation_mode:=monitor \
-  sensor_profile:=navigation \
+  sensor_profile:=hardware_check \
   can_interface:=<verified-interface> \
-  expected_can_bitrate:=<verified-bitrate>
+  expected_can_bitrate:=<verified-bitrate-or-0> \
+  start_inspection:=true \
+  inspection_camera_device_path:=<verified-/dev/video*> \
+  inspection_camera_gimbal_port:=<verified-serial-device> \
+  inspection_camera_calibration_id:=<verified-id> \
+  inspection_camera_calibration_sha256:=<verified-sha256>
 ```
 
-Acceptance before Nav2 motion:
-
-- [ ] `/agt/sensors/lidar/custom_filtered` exists and satisfies monitor thresholds;
-- [ ] `agt_sensor_monitor/summary` remains healthy;
-- [ ] localization/TF is valid;
-- [ ] Runtime readiness is not blocked by hardware health.
-
-Then progress separately: localization → one short goal → short controlled path → multi-point mission.
-
-## Gate 8 — Camera / gimbal integration (after visual-team delivery)
-
-The legacy evidence only proves these ROS1 interfaces existed:
-
-```text
-/cv_camera0/image_raw
-/pantilt_camera_serial0/pantilt_angle_info
-  fields: heading, roll, pitch
-```
-
-Runtime integration targets are frozen in:
-
-```text
-src/agt_hardware_bringup/config/visual_interface_contract.yaml
-```
-
-Vehicle values still `UNVERIFIED`:
-
-- [ ] actual ROS2 camera driver/launch;
-- [ ] `/dev/video*` / VID/PID;
-- [ ] resolution, FPS, exposure;
-- [ ] CameraInfo/calibration source;
-- [ ] actual ROS2 gimbal driver/launch;
-- [ ] serial device / VID/PID / baudrate;
-- [ ] angle units;
-- [ ] heading/pitch/roll sign conventions;
-- [ ] zero definition;
-- [ ] mechanical limits;
-- [ ] command interface;
-- [ ] command-to-feedback tolerance;
-- [ ] settle time before image capture.
-
-When available, run:
+Run:
 
 ```bash
 ros2 run agt_hardware_bringup vehicle_preflight.py \
@@ -209,23 +244,80 @@ ros2 run agt_hardware_bringup vehicle_preflight.py \
   --json-output inspection_hardware_preflight.json
 ```
 
-A camera image stream alone does not prove the gimbal is controllable or healthy.
+Camera acceptance:
 
-## Promotion record
+- [ ] image topic exists;
+- [ ] CameraInfo topic exists and is live;
+- [ ] device path/VID/PID, resolution/FPS/exposure are recorded;
+- [ ] camera calibration identity/hash is recorded.
 
-Do not mark the hardware stack vehicle-ready until all required gates for the intended mode are PASS.
+Frozen gimbal health source is `/camera_gimbal/health`, not legacy `/agt/gimbal/state`.
 
-Suggested evidence bundle:
+Required READY semantics:
 
 ```text
-vehicle_acceptance/<date>/
+state == 1
+camera_alive == true
+gimbal_serial_connected == true
+gimbal_feedback_alive == true
+move_action_ready == true
+busy == false
+```
+
+The preflight does not command the gimbal. Gimbal motion/settle/capture timing is accepted later through controlled `AcquireView` testing.
+
+## Gate 7 — BUNKER low-speed motion acceptance
+
+Only after Gates 0–5 pass, and only through the existing authorized Runtime safety path, progress to low-speed motion. Do not bypass `agt_safety` or `agt_chassis_command_guard`.
+
+First discover the physical RC AUTO-permit mapping instead of guessing it:
+
+```bash
+ros2 topic echo /agt/chassis/rc_state
+```
+
+Move the intended hardware switch and record its real field/value before configuring the AUTO permit adapter.
+
+At very low speed validate:
+
+- [ ] `UNVERIFIED` positive linear command moves the robot forward;
+- [ ] `UNVERIFIED` positive angular command turns in the expected ROS direction;
+- [ ] command timeout/stop behavior works;
+- [ ] `UNVERIFIED` odometry linear sign is correct;
+- [ ] `UNVERIFIED` odometry yaw sign is correct;
+- [ ] BUNKER status remains connected and healthy under motion;
+- [ ] a second dynamic CAN observation shows no abnormal error/drop growth.
+
+Stop immediately if direction, odometry, Safety, RC priority or CAN behavior is ambiguous.
+
+## Gate 8 — Mapping/navigation promotion
+
+Only after the strict mapping preflight passes:
+
+1. run the first FAST-LIVO2 mapping trial;
+2. stop normally and verify the PCD is persisted;
+3. generate/review the 2D map;
+4. verify localization;
+5. then progress to one short navigation goal;
+6. only after that proceed to multi-point inspection Mission + RETURN_HOME.
+
+Do not treat a successful static preflight as navigation field acceptance.
+
+## Evidence bundle
+
+Keep one immutable directory per bench/vehicle session:
+
+```text
+vehicle_acceptance/<date-time>/
 ├── can_preflight.json
 ├── hardware_preflight.json
-├── inspection_hardware_preflight.json   # when applicable
+├── mapping_preflight.json
+├── inspection_hardware_preflight.json   # when visual hardware is connected
 ├── ros2_topic_list.txt
 ├── diagnostics.txt
 ├── tf_snapshot.txt
 └── notes.md
 ```
 
-Status vocabulary: `PASS`, `FAIL`, `UNVERIFIED`, `NOT_APPLICABLE`.
+For physical checklist items use: `PASS`, `FAIL`, `UNVERIFIED`, `NOT_APPLICABLE`.
+For automated preflight JSON use: `PASS`, `PASS_WITH_WARNINGS`, `BLOCKED`.
