@@ -94,10 +94,21 @@ class TaskAuthoringRosAdapter:
             )
             merged: list[dict[str, float]] = []
             segments: list[dict[str, Any]] = []
-
+            targets: list[tuple[int, Mapping[str, Any], Mapping[str, Any]]] = []
             for index in range(1, len(waypoints)):
+                previous_raw = waypoints[index - 1]
                 target_raw = waypoints[index]
+                assert isinstance(previous_raw, Mapping)
                 assert isinstance(target_raw, Mapping)
+                targets.append((index, previous_raw, target_raw))
+            if bool(payload.get("loop", False)):
+                last_raw = waypoints[-1]
+                first_raw = waypoints[0]
+                assert isinstance(last_raw, Mapping)
+                assert isinstance(first_raw, Mapping)
+                targets.append((len(waypoints), last_raw, first_raw))
+
+            for _index, previous_raw, target_raw in targets:
                 goal_pose = self._pose(
                     float(target_raw["x"]),
                     float(target_raw["y"]),
@@ -109,7 +120,7 @@ class TaskAuthoringRosAdapter:
                 goal.use_start = True
                 goal.planner_id = ""
                 segment = {
-                    "fromId": str(waypoints[index - 1]["id"]),
+                    "fromId": str(previous_raw["id"]),
                     "toId": str(target_raw["id"]),
                     "ok": False,
                 }
