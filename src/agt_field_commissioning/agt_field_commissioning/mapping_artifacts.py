@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import re
 
+from .raycast_free_space import load_evidence
+
 
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
@@ -92,6 +94,64 @@ def _require_nonempty_file(path: Path) -> None:
         raise RuntimeError(f"required mapping artifact is empty: {path.name}")
 
 
+def _artifact_summary(path: Path) -> dict[str, int | str]:
+    return {
+        "size_bytes": path.stat().st_size,
+        "sha256": _sha256(path),
+    }
+
+
+def _observation_summary(paths: CommissioningRunPaths) -> dict | None:
+    binary = paths.observation_dir / "free_space_evidence.bin"
+    record = paths.observation_dir / "raycast_record.json"
+    temporary = sorted(path.name for path in paths.observation_dir.glob("*.tmp"))
+    binary_exists = binary.is_file()
+    record_exists = record.is_file()
+
+    if not binary_exists and not record_exists and not temporary:
+        return None
+
+    if temporary:
+        return {
+            "state": "INVALID",
+            "projection_quality_candidate": "pcd_fallback",
+            "reason": "temporary raycast observation artifacts remain: " + ", ".join(temporary),
+        }
+
+    if not (binary_exists and record_exists):
+        present = [path.name for path in (binary, record) if path.is_file()]
+        return {
+            "state": "INVALID",
+            "projection_quality_candidate": "pcd_fallback",
+            "reason": "incomplete raycast observation artifact pair; present=" + ",".join(present),
+        }
+
+    try:
+        snapshot = load_evidence(binary, record)
+    except (ValueError, OSError, RuntimeError) as exc:
+        return {
+            "state": "INVALID",
+            "projection_quality_candidate": "pcd_fallback",
+            "reason": str(exc),
+            binary.name: _artifact_summary(binary),
+            record.name: _artifact_summary(record),
+        }
+
+    return {
+        "state": "READY",
+        "projection_quality_candidate": "raycast_fused",
+        binary.name: _artifact_summary(binary),
+        record.name: _artifact_summary(record),
+        "frame_id": snapshot.frame_id,
+        "resolution_m": snapshot.resolution_m,
+        "origin_ix": snapshot.origin_ix,
+        "origin_iy": snapshot.origin_iy,
+        "width": snapshot.width,
+        "height": snapshot.height,
+        "stats": dict(snapshot.stats),
+    }
+
+
 def finalize_mapping_run(
     runtime_dir: str | Path,
     site_id: str,
@@ -120,16 +180,13 @@ def finalize_mapping_run(
         "run_id": paths.run_id,
         "mapping_directory": str(paths.mapping_dir),
         "artifacts": {
-            paths.localization_map.name: {
-                "size_bytes": paths.localization_map.stat().st_size,
-                "sha256": _sha256(paths.localization_map),
-            },
-            paths.processing_record.name: {
-                "size_bytes": paths.processing_record.stat().st_size,
-                "sha256": _sha256(paths.processing_record),
-            },
+            paths.localization_map.name: _artifact_summary(paths.localization_map),
+            paths.processing_record.name: _artifact_summary(paths.processing_record),
         },
     }
+    observation = _observation_summary(paths)
+    if observation is not None:
+        evidence["observation"] = observation
 
     metadata_path = paths.evidence_dir / "mapping_metadata.json"
     temporary_metadata_path = metadata_path.with_name(metadata_path.name + ".tmp")
