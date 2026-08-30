@@ -305,19 +305,34 @@ Do not treat a successful static preflight as navigation field acceptance.
 
 ## Evidence bundle
 
-Keep one immutable directory per bench/vehicle session:
+After the monitor stack has reached steady state, prefer the packaged collector so every bench/vehicle attempt uses one traceable directory:
+
+```bash
+ros2 run agt_hardware_bringup acceptance_session.py \
+  --output-root vehicle_acceptance \
+  --label <session-label> \
+  --can-interface <verified-interface> \
+  --expected-can-bitrate <verified-bitrate-or-0>
+```
+
+Add `--require-camera --require-gimbal` only when the frozen inspection hardware stack is intentionally running.
+
+The collector is read-only: it does not launch the robot stack, configure SocketCAN, enable Safety motion, publish `cmd_vel`, start a Mission, or command the gimbal. Keep one immutable directory per bench/vehicle session:
 
 ```text
-vehicle_acceptance/<date-time>/
+vehicle_acceptance/<utc-time>-<label>/
+├── session.json
 ├── can_preflight.json
 ├── hardware_preflight.json
 ├── mapping_preflight.json
-├── inspection_hardware_preflight.json   # when visual hardware is connected
+├── inspection_hardware_preflight.json   # when visual hardware is required
 ├── ros2_topic_list.txt
 ├── diagnostics.txt
 ├── tf_snapshot.txt
 └── notes.md
 ```
+
+`session.json.collection_complete=true` means the evidence commands completed and the outputs were retained; it is not a vehicle acceptance verdict. A strict `mapping_preflight.json` may still correctly report `BLOCKED` while `calibration_verified: false`.
 
 For physical checklist items use: `PASS`, `FAIL`, `UNVERIFIED`, `NOT_APPLICABLE`.
 For automated preflight JSON use: `PASS`, `PASS_WITH_WARNINGS`, `BLOCKED`.
