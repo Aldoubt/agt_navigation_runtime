@@ -4,6 +4,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 COMMISSIONING = ROOT / "src" / "agt_field_commissioning"
 MAPPING_LAUNCH = COMMISSIONING / "launch" / "field_mapping.launch.py"
+NAVIGATION_LAUNCH = COMMISSIONING / "launch" / "field_navigation.launch.py"
+MAPPING_RVIZ = COMMISSIONING / "rviz" / "field_mapping.rviz"
+NAVIGATION_RVIZ = COMMISSIONING / "rviz" / "field_navigation.rviz"
 RUNTIME_ODOMETRY_LAUNCH = ROOT / "src" / "agt_odometry" / "launch" / "fast_livo2_odometry.launch.py"
 
 
@@ -45,6 +48,32 @@ def test_phase_a_mapping_launch_does_not_start_localization_or_navigation():
     assert "navigation.launch.py" not in text
     assert "map_server" not in text
     assert "bt_navigator" not in text
+
+
+def test_phase_a_mapping_has_dedicated_optional_rviz():
+    launch = MAPPING_LAUNCH.read_text(encoding="utf-8")
+
+    assert 'DeclareLaunchArgument("start_rviz", default_value="false")' in launch
+    assert 'package="rviz2"' in launch
+    assert 'executable="rviz2"' in launch
+    assert '"field_mapping.rviz"' in launch
+
+    rviz = MAPPING_RVIZ.read_text(encoding="utf-8")
+    assert "Fixed Frame: camera_init" in rviz
+    assert "Value: /agt/commissioning/mapping/registered_points" in rviz
+    assert "Decay Time: 30" in rviz
+    assert "Value: /path" in rviz
+
+
+def test_phase_c_navigation_uses_navigation_specific_rviz():
+    launch = NAVIGATION_LAUNCH.read_text(encoding="utf-8")
+    rviz = NAVIGATION_RVIZ.read_text(encoding="utf-8")
+
+    assert '"field_navigation.rviz"' in launch
+    assert '"field_commissioning.rviz"' not in launch
+    assert "Fixed Frame: map" in rviz
+    assert "Value: /map" in rviz
+    assert "Value: /global_costmap/costmap" in rviz
 
 
 def test_phase_a_refuses_to_change_runtime_odometry_persistence_default():
