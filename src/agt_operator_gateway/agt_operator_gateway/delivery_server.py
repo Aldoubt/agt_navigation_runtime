@@ -31,6 +31,15 @@ def create_delivery_app(
     write_api_enabled = bool(gateway_options.get("write_api_enabled", False))
     command_token = str(gateway_options.get("command_token", ""))
 
+    async def add_delivery_cors_methods(
+        _request: web.Request,
+        response: web.StreamResponse,
+    ) -> None:
+        if 'Access-Control-Allow-Methods' in response.headers:
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS'
+
+    app.on_response_prepare.append(add_delivery_cors_methods)
+
     register_commissioning_routes(
         app,
         commissioning=commissioning,
