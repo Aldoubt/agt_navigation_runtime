@@ -144,7 +144,7 @@ def generate_launch_description():
             DeclareLaunchArgument("sensor_profile", default_value="hardware_check"),
             DeclareLaunchArgument("start_operator_gateway", default_value="true"),
             DeclareLaunchArgument("gateway_write_api_enabled", default_value="true"),
-            DeclareLaunchArgument("gateway_host", default_value="0.0.0.0"),
+            DeclareLaunchArgument("gateway_host", default_value="127.0.0.1"),
             DeclareLaunchArgument("gateway_port", default_value="8765"),
             DeclareLaunchArgument(
                 "mid360_user_config_path",
