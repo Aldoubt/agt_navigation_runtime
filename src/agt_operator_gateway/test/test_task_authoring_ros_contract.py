@@ -34,22 +34,34 @@ def test_task_authoring_adapter_uses_planner_and_task_registry_only() -> None:
         assert forbidden not in source
 
 
-def test_task_put_request_id_is_deterministic_and_content_bound() -> None:
+def test_task_put_request_id_is_deterministic_and_logical_content_bound() -> None:
     from agt_operator_gateway import task_authoring_model as model
 
     factory = getattr(model, "task_put_client_request_id", None)
     assert callable(factory), "task authoring must expose a deterministic request-id factory"
 
+    payload = {
+        "taskId": "inspection_01-P01-nav",
+        "siteId": "orchard_a",
+        "siteRevision": "r01",
+        "expectedRevision": 0,
+        "loop": False,
+        "loopCount": 1,
+        "waypoints": [
+            {"id": "P01", "x": 1.0, "y": 2.0, "yaw": 0.0, "dwellS": 0.0}
+        ],
+    }
     kwargs = dict(
         site_id="orchard_a",
         site_revision="r01",
         task_group_id="inspection_01-P01-nav",
         expected_revision=0,
-        content_sha256="sha256:" + "a" * 64,
+        payload=payload,
     )
     first = factory(**kwargs)
-    second = factory(**kwargs)
-    changed = factory(**{**kwargs, "content_sha256": "sha256:" + "b" * 64})
+    second = factory(**{**kwargs, "payload": dict(reversed(list(payload.items())))})
+    changed_payload = {**payload, "waypoints": [dict(payload["waypoints"][0], x=1.5)]}
+    changed = factory(**{**kwargs, "payload": changed_payload})
 
     assert first == second
     assert first != changed
