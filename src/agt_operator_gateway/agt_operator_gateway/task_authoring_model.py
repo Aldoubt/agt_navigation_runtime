@@ -41,6 +41,7 @@ class ActiveTaskSite:
     site_id: str
     site_revision: str
     snapshot: MapSnapshot
+    site_hash: str = ""
 
     @classmethod
     def from_files(
@@ -50,9 +51,11 @@ class ActiveTaskSite:
         site_revision: str,
         navigation_yaml: str | Path,
         localization_pcd: str | Path | None,
+        site_hash: str = "",
     ) -> "ActiveTaskSite":
         normalized_site = str(site_id).strip()
         normalized_revision = str(site_revision).strip()
+        normalized_hash = str(site_hash).strip()
         if not normalized_site or not normalized_revision:
             raise ValueError("active Site id and revision must be non-empty")
         yaml_path = Path(navigation_yaml).expanduser().resolve()
@@ -70,7 +73,7 @@ class ActiveTaskSite:
             )
         except TaskGroupError as exc:
             raise ValueError(f"cannot load active Site navigation map: {exc}") from exc
-        return cls(normalized_site, normalized_revision, snapshot)
+        return cls(normalized_site, normalized_revision, snapshot, normalized_hash)
 
     @property
     def image_path(self) -> Path:
@@ -153,3 +156,34 @@ def build_task_document(site: ActiveTaskSite, payload: Mapping[str, Any]) -> Tas
         raise ValueError(str(exc)) from exc
     task.content_sha256 = task.canonical_hash()
     return task
+
+
+def build_single_point_task(
+    site: ActiveTaskSite,
+    *,
+    inspection_task_id: str,
+    point: Mapping[str, Any],
+    expected_revision: int,
+) -> TaskGroup:
+    point_id = _required_text(point, "id")
+    task_group_id = f"{inspection_task_id}-{point_id}-nav"
+    return build_task_document(
+        site,
+        {
+            "taskId": task_group_id,
+            "siteId": site.site_id,
+            "siteRevision": site.site_revision,
+            "expectedRevision": expected_revision,
+            "loop": False,
+            "loopCount": 1,
+            "waypoints": [
+                {
+                    "id": point_id,
+                    "x": point["x"],
+                    "y": point["y"],
+                    "yaw": point["yaw"],
+                    "dwellS": 0.0,
+                }
+            ],
+        },
+    )
