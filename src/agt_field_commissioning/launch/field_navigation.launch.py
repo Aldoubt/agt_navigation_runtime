@@ -224,11 +224,11 @@ def _compose(context):
         Node(
             package="rviz2",
             executable="rviz2",
-            name="agt_field_commissioning_rviz",
+            name="agt_field_navigation_rviz",
             output="screen",
             arguments=[
                 "-d",
-                str(commissioning_share / "rviz" / "field_commissioning.rviz"),
+                str(commissioning_share / "rviz" / "field_navigation.rviz"),
             ],
             condition=IfCondition(LaunchConfiguration("start_rviz")),
         )
