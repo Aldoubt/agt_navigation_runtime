@@ -4,12 +4,16 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
 from typing import Callable
 
 from .map_review import PgmMap
+
+
+_PROJECTOR_PACKAGE = "agt_field_commissioning"
 
 
 def _sha256(path: Path) -> str:
@@ -35,7 +39,25 @@ def _resolve_executable(executable: str) -> str | None:
     candidate = Path(executable).expanduser()
     if candidate.is_absolute() or "/" in executable:
         return str(candidate.resolve()) if candidate.is_file() else None
-    return shutil.which(executable)
+
+    path_match = shutil.which(executable)
+    if path_match:
+        return path_match
+
+    # ROS 2 package executables are installed under
+    # <ament-prefix>/lib/<package>/ and are intentionally not required to be on
+    # the shell PATH. A sourced ROS/colcon workspace exposes those prefixes via
+    # AMENT_PREFIX_PATH, which is the same environment in which `ros2 run`
+    # resolves package executables.
+    for raw_prefix in os.environ.get("AMENT_PREFIX_PATH", "").split(os.pathsep):
+        prefix = raw_prefix.strip()
+        if not prefix:
+            continue
+        ros_candidate = Path(prefix) / "lib" / _PROJECTOR_PACKAGE / executable
+        if ros_candidate.is_file() and os.access(ros_candidate, os.X_OK):
+            return str(ros_candidate.resolve())
+
+    return None
 
 
 @dataclass(frozen=True)
@@ -90,7 +112,8 @@ class RtabmapGridBackend:
         if self._runner_injected:
             # Deterministic unit/integration tests may inject a runner that owns
             # process simulation. Production always uses the default runner and
-            # therefore still requires a real executable on disk/PATH.
+            # therefore still requires a real executable on disk/PATH or in a
+            # sourced ROS 2 AMENT_PREFIX_PATH package install.
             resolved_executable = self.executable
         else:
             resolved_executable = _resolve_executable(self.executable)
