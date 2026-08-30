@@ -255,7 +255,7 @@ def generate_launch_description():
             DeclareLaunchArgument("auto_permit_enabled_value", default_value="-1"),
             DeclareLaunchArgument("auto_permit_status_timeout", default_value="0.5"),
             DeclareLaunchArgument("run_auto_permit_freshness_s", default_value="0.75"),
-            DeclareLaunchArgument("start_inspection", default_value="true"),
+            DeclareLaunchArgument("start_inspection", default_value="false"),
             DeclareLaunchArgument("inspection_camera_device_path", default_value="/dev/video0"),
             DeclareLaunchArgument("inspection_camera_gimbal_port", default_value="/dev/ttyUSB0"),
             DeclareLaunchArgument("inspection_camera_width", default_value="1920"),
