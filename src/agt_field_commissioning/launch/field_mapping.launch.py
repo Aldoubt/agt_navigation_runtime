@@ -101,6 +101,25 @@ def _compose(context):
         )
     )
 
+    if _enabled(context, "start_raycast_observer"):
+        actions.append(
+            Node(
+                package="agt_field_commissioning",
+                executable="raycast_free_space_node.py",
+                name="agt_commissioning_raycast_free_space",
+                output="screen",
+                parameters=[
+                    {
+                        "use_sim_time": _enabled(context, "use_sim_time"),
+                        "output_dir": str(paths.observation_dir),
+                        "config_file": LaunchConfiguration("raycast_config_file").perform(context),
+                        "cloud_topic": "/agt/commissioning/mapping/registered_points",
+                        "pose_topic": LaunchConfiguration("raycast_pose_topic").perform(context),
+                    }
+                ],
+            )
+        )
+
     if _enabled(context, "start_rviz"):
         actions.append(
             Node(
@@ -142,9 +161,11 @@ def _compose(context):
 
 
 def generate_launch_description():
+    commissioning_share = Path(get_package_share_directory("agt_field_commissioning"))
     odometry_share = Path(get_package_share_directory("agt_odometry"))
     sensor_share = Path(get_package_share_directory("agt_sensor_adapters"))
     default_mid360_config = sensor_share / "config" / "mid360_network.json"
+    default_raycast_config = commissioning_share / "config" / "raycast_free_space.yaml"
 
     return LaunchDescription(
         [
@@ -163,6 +184,12 @@ def generate_launch_description():
             DeclareLaunchArgument("gateway_host", default_value="127.0.0.1"),
             DeclareLaunchArgument("gateway_port", default_value="8765"),
             DeclareLaunchArgument("start_rviz", default_value="false"),
+            DeclareLaunchArgument("start_raycast_observer", default_value="false"),
+            DeclareLaunchArgument("raycast_pose_topic", default_value="/aft_mapped_to_init"),
+            DeclareLaunchArgument(
+                "raycast_config_file",
+                default_value=str(default_raycast_config),
+            ),
             DeclareLaunchArgument(
                 "mid360_user_config_path",
                 default_value=str(default_mid360_config),
