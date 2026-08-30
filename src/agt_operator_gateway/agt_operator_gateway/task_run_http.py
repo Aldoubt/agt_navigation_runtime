@@ -112,6 +112,10 @@ def _validate_inspection_payload(raw: Any) -> dict[str, Any]:
         payload.get("expectedRevision", 0),
         "expectedRevision",
     )
+    payload["expectedHomeTaskRevision"] = _nonnegative_revision(
+        payload.get("expectedHomeTaskRevision", 0),
+        "expectedHomeTaskRevision",
+    )
 
     raw_points = payload.get("points")
     if not isinstance(raw_points, list) or not raw_points:
@@ -123,8 +127,8 @@ def _validate_inspection_payload(raw: Any) -> dict[str, Any]:
             raise ValueError(f"points[{index}] must be an object")
         point = dict(raw_point)
         point_id = _required_string(point, "id")
-        if point_id in seen_ids:
-            raise ValueError(f"duplicate inspection point id: {point_id}")
+        if point_id in seen_ids or point_id.lower() == "home":
+            raise ValueError(f"duplicate or reserved inspection point id: {point_id}")
         seen_ids.add(point_id)
         normalized_points.append(
             {
@@ -139,6 +143,15 @@ def _validate_inspection_payload(raw: Any) -> dict[str, Any]:
             }
         )
     payload["points"] = normalized_points
+
+    raw_home = payload.get("home")
+    if not isinstance(raw_home, Mapping):
+        raise ValueError("home must be an explicit map pose")
+    payload["home"] = {
+        "x": _finite_number(raw_home.get("x"), "home.x"),
+        "y": _finite_number(raw_home.get("y"), "home.y"),
+        "yaw": _finite_number(raw_home.get("yaw"), "home.yaw"),
+    }
     return payload
 
 
