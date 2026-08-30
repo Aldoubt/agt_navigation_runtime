@@ -88,6 +88,19 @@ def test_phase_c_uses_current_frozen_site_runtime_stack_only():
     assert "/commissioning/" not in text
 
 
+def test_phase_c_starts_delivery_gateway_with_run_control_not_map_commissioning():
+    text = NAV_LAUNCH.read_text(encoding="utf-8")
+
+    assert 'package="agt_operator_gateway"' in text
+    assert 'executable="operator_delivery_gateway_node.py"' in text
+    assert '"commissioning_enabled": False' in text
+    assert '"run_control_enabled": True' in text
+    assert '"run_lidar_component_id": LaunchConfiguration("run_lidar_component_id").perform(context)' in text
+    assert '"run_camera_gimbal_component_id": LaunchConfiguration("run_camera_gimbal_component_id").perform(context)' in text
+    assert 'DeclareLaunchArgument("start_operator_gateway", default_value="true")' in text
+    assert 'DeclareLaunchArgument("gateway_write_api_enabled", default_value="true")' in text
+
+
 def test_phase_c_passes_site_derived_hashes_not_operator_map_paths():
     text = NAV_LAUNCH.read_text(encoding="utf-8")
 
