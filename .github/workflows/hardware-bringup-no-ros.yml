@@ -8,6 +8,7 @@ on:
     paths:
       - 'src/agt_hardware_bringup/**'
       - 'src/agt_description/**'
+      - 'tools/test_hardware_preflight_humble.sh'
       - 'docs/acceptance/hardware-first-vehicle-checklist.md'
       - '.github/workflows/hardware-bringup-no-ros.yml'
 
@@ -22,9 +23,9 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install --upgrade pytest pyyaml
       - name: Run hardware bringup contract tests
-        run: python -m pytest -q src/agt_hardware_bringup/test
+        run: python -m pytest -q src/agt_hardware_bringup/test src/agt_description/test
       - name: Compile Python and launch files
-        run: python -m compileall -q src/agt_hardware_bringup
+        run: python -m compileall -q src/agt_hardware_bringup src/agt_description
 
   humble-install-smoke:
     runs-on: ubuntu-22.04
@@ -45,40 +46,6 @@ jobs:
             python3-yaml \
             ros-humble-ament-cmake-python \
             ros-humble-ament-cmake-pytest
-      - name: Build preflight packages on Humble
+      - name: Build/test/install preflight packages on Humble
         shell: bash
-        run: |
-          source /opt/ros/humble/setup.bash
-          colcon build \
-            --event-handlers console_direct+ \
-            --packages-select \
-              agt_description \
-              agt_hardware_bringup
-      - name: Test preflight packages on Humble
-        shell: bash
-        run: |
-          source /opt/ros/humble/setup.bash
-          source install/setup.bash
-          colcon test \
-            --event-handlers console_direct+ \
-            --packages-select \
-              agt_description \
-              agt_hardware_bringup
-          colcon test-result --verbose
-      - name: Installed preflight CLI smoke
-        shell: bash
-        run: |
-          source /opt/ros/humble/setup.bash
-          source install/setup.bash
-          ros2 run agt_hardware_bringup socketcan_preflight.py --help >/dev/null
-          ros2 run agt_hardware_bringup vehicle_preflight.py --help >/dev/null
-          python3 - <<'PY'
-          from pathlib import Path
-          from ament_index_python.packages import get_package_share_directory
-
-          hardware = Path(get_package_share_directory('agt_hardware_bringup'))
-          description = Path(get_package_share_directory('agt_description'))
-          assert (hardware / 'launch' / 'bunker_mid360.launch.py').is_file()
-          assert (description / 'launch' / 'bunker_description.launch.py').is_file()
-          assert (description / 'config' / 'bunker_mid360.yaml').is_file()
-          PY
+        run: bash tools/test_hardware_preflight_humble.sh
