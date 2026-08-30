@@ -169,7 +169,40 @@ The preflight does not issue a gimbal move. The inspection task backend remains 
 
 For first field deployment, use schema-v2 inspection tasks with `vision.execution_mode: "DEFERRED"`. Online flower inference remains outside the frozen front-half Runtime MVP.
 
-## 7. What this preflight proves
+## 7. Repeatable evidence session
+
+Once the monitor-mode hardware stack is steady, collect the read-only acceptance evidence as one immutable session instead of running and copying each command manually:
+
+```bash
+ros2 run agt_hardware_bringup acceptance_session.py \
+  --output-root vehicle_acceptance \
+  --label bench-01 \
+  --can-interface <verified-interface> \
+  --expected-can-bitrate <verified-bitrate-or-0>
+```
+
+When the camera/gimbal stack is intentionally running, add `--require-camera --require-gimbal`.
+
+The session CLI only invokes the existing read-only preflight and ROS inspection commands. It does not launch the robot stack, publish `cmd_vel`, enable Safety motion, start a Mission, command the gimbal, or configure SocketCAN. Each invocation creates a new UTC timestamped directory and retains:
+
+```text
+vehicle_acceptance/<utc-time>-<label>/
+├── session.json
+├── can_preflight.json
+├── hardware_preflight.json
+├── mapping_preflight.json
+├── inspection_hardware_preflight.json   # only when requested
+├── ros2_topic_list.txt
+├── diagnostics.txt
+├── tf_snapshot.txt
+└── notes.md
+```
+
+`session.json.collection_complete=true` means the evidence commands completed and their outputs were retained. It does **not** mean every preflight passed. In particular, the strict mapping preflight may legitimately be recorded as `BLOCKED` while `calibration_verified: false`; that blocker must remain visible until the physical extrinsic is verified.
+
+The generated `notes.md` deliberately leaves physical observations as `UNVERIFIED`. An operator must change those items only from real bench/vehicle evidence using `PASS`, `FAIL`, `UNVERIFIED`, or `NOT_APPLICABLE`.
+
+## 8. What this preflight proves
 
 A green software/bench preflight proves only the evidence it actually measured. It does not replace physical field acceptance.
 
