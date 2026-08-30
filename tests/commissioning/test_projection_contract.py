@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import json
 import os
 import pytest
 
@@ -16,12 +15,7 @@ def _write_source_pcd(path: Path) -> None:
     path.write_text("# .PCD v0.7\nDATA ascii\n0 0 0\n", encoding="ascii")
 
 
-def test_projection_builds_bounded_rtabmap_grid_command_and_record(tmp_path: Path) -> None:
-    source = tmp_path / "map.pcd"
-    _write_source_pcd(source)
-    output = tmp_path / "projection"
-    calls = []
-
+def _runner_writing_outputs(calls: list[list[str]]):
     def runner(command: list[str]) -> int:
         calls.append(command)
         pgm = Path(command[command.index("--output-pgm") + 1])
@@ -35,7 +29,19 @@ def test_projection_builds_bounded_rtabmap_grid_command_and_record(tmp_path: Pat
         )
         return 0
 
-    backend = RtabmapGridBackend(executable="/opt/agt/bin/rtabmap_grid_projector", runner=runner)
+    return runner
+
+
+def test_projection_builds_global_lio_safe_rtabmap_grid_command_and_record(tmp_path: Path) -> None:
+    source = tmp_path / "map.pcd"
+    _write_source_pcd(source)
+    output = tmp_path / "projection"
+    calls: list[list[str]] = []
+
+    backend = RtabmapGridBackend(
+        executable="/opt/agt/bin/rtabmap_grid_projector",
+        runner=_runner_writing_outputs(calls),
+    )
     result = backend.project(
         ProjectionRequest(
             source_pcd=source,
@@ -43,9 +49,6 @@ def test_projection_builds_bounded_rtabmap_grid_command_and_record(tmp_path: Pat
             resolution_m=0.05,
             max_ground_angle_deg=35.0,
             normal_k=20,
-            min_ground_height_m=-0.4,
-            max_ground_height_m=0.5,
-            max_obstacle_height_m=2.0,
         )
     )
 
@@ -58,6 +61,12 @@ def test_projection_builds_bounded_rtabmap_grid_command_and_record(tmp_path: Pat
     assert command[command.index("--input") + 1] == str(source.resolve())
     assert command[command.index("--max-ground-angle-deg") + 1] == "35.0"
     assert command[command.index("--normal-k") + 1] == "20"
+    # Finalized FAST-LIVO2 PCDs are in a global gravity-aligned frame whose Z
+    # origin is the initial LiDAR pose, not ground level. Absolute height gates
+    # must therefore be disabled by default; RTAB-Map uses 0 to mean disabled.
+    assert command[command.index("--min-ground-height") + 1] == "0.0"
+    assert command[command.index("--max-ground-height") + 1] == "0.0"
+    assert command[command.index("--max-obstacle-height") + 1] == "0.0"
 
     record = load_projection_record(result.record)
     assert record["schema_version"] == 1
@@ -67,6 +76,35 @@ def test_projection_builds_bounded_rtabmap_grid_command_and_record(tmp_path: Pat
     assert record["output_yaml_sha256"].startswith("sha256:")
     assert record["parameters"]["normals_segmentation"] is True
     assert record["parameters"]["max_ground_angle_deg"] == 35.0
+    assert record["parameters"]["min_ground_height_m"] == 0.0
+    assert record["parameters"]["max_ground_height_m"] == 0.0
+    assert record["parameters"]["max_obstacle_height_m"] == 0.0
+
+
+def test_projection_accepts_explicitly_disabled_absolute_height_gates(tmp_path: Path) -> None:
+    source = tmp_path / "map.pcd"
+    _write_source_pcd(source)
+    calls: list[list[str]] = []
+    backend = RtabmapGridBackend(executable="/opt/agt/bin/rtabmap_grid_projector", runner=_runner_writing_outputs(calls))
+
+    backend.project(
+        ProjectionRequest(
+            source_pcd=source,
+            output_dir=tmp_path / "projection",
+            min_ground_height_m=0.0,
+            max_ground_height_m=0.0,
+            max_obstacle_height_m=0.0,
+        )
+    )
+
+    assert calls
+
+
+def test_projector_passes_max_ground_angle_to_rtabmap_in_degrees() -> None:
+    root = Path(__file__).resolve().parents[2]
+    source = (root / "src/agt_field_commissioning/src/rtabmap_grid_projector.cpp").read_text(encoding="utf-8")
+    assert 'parameters["Grid/MaxGroundAngle"] = std::to_string(options.max_ground_angle_deg);' in source
+    assert "options.max_ground_angle_deg * M_PI / 180.0" not in source
 
 
 def test_projection_resolves_projector_from_ros_ament_prefix(tmp_path: Path, monkeypatch) -> None:
