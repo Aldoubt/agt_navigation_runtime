@@ -9,9 +9,12 @@ if [[ ! -f "$ROS_SETUP" ]]; then
   exit 2
 fi
 
-# ros2 is placed on PATH by the ROS environment, so source Humble before
-# validating any ROS CLI command.
+# ROS/ament environment scripts may probe variables that are intentionally
+# unset. Temporarily disable nounset only while sourcing setup files, then
+# restore the strict shell contract for the actual smoke test.
+set +u
 source "$ROS_SETUP"
+set -u
 
 for command in python3 colcon ros2; do
   if ! command -v "$command" >/dev/null 2>&1; then
@@ -53,7 +56,9 @@ colcon build \
     agt_hardware_bringup
 
 echo "[2/3] Running package tests"
+set +u
 source "$SMOKE_WS/install/setup.bash"
+set -u
 colcon test \
   --event-handlers console_direct+ \
   --packages-select \
