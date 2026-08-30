@@ -18,17 +18,23 @@ def test_ros_adapter_is_read_only_and_consumes_authoritative_robot_state():
         'create_client(',
         'create_service(',
         'ActionClient(',
+        'nav2_msgs',
+        'geometry_msgs',
     ):
         assert forbidden not in text
 
 
-def test_package_declares_only_transport_and_read_model_runtime_dependencies():
+def test_package_declares_base_transport_and_delivery_task_dependencies():
     package = read('package.xml')
-    assert '<exec_depend>agt_interfaces</exec_depend>' in package
-    assert '<exec_depend>rclpy</exec_depend>' in package
-    assert '<exec_depend>python3-aiohttp</exec_depend>' in package
-    assert 'nav2_msgs' not in package
-    assert 'geometry_msgs' not in package
+    for dependency in (
+        'agt_interfaces',
+        'agt_navigation',
+        'rclpy',
+        'python3-aiohttp',
+        'nav2_msgs',
+        'geometry_msgs',
+    ):
+        assert f'<exec_depend>{dependency}</exec_depend>' in package
 
 
 def test_default_config_matches_hmi_freshness_and_browser_contract():
