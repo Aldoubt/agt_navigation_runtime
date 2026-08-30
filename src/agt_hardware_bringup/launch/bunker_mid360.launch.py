@@ -50,6 +50,11 @@ def _compose(context):
                 "use_sim_time": use_sim_time,
                 "operation_mode": operation_mode,
                 "can_interface": can_interface,
+                "start_safety": LaunchConfiguration("start_safety").perform(context),
+                "start_auto_permit": LaunchConfiguration("start_auto_permit").perform(context),
+                "auto_permit_switch": LaunchConfiguration("auto_permit_switch").perform(context),
+                "auto_permit_enabled_value": LaunchConfiguration("auto_permit_enabled_value").perform(context),
+                "auto_permit_status_timeout": LaunchConfiguration("auto_permit_status_timeout").perform(context),
             },
         ),
         _include(
@@ -143,6 +148,11 @@ def generate_launch_description():
             DeclareLaunchArgument("can_interface", default_value="can0"),
             DeclareLaunchArgument("expected_can_bitrate", default_value="0"),
             DeclareLaunchArgument("run_can_preflight", default_value="true"),
+            DeclareLaunchArgument("start_safety", default_value="true"),
+            DeclareLaunchArgument("start_auto_permit", default_value="false"),
+            DeclareLaunchArgument("auto_permit_switch", default_value=""),
+            DeclareLaunchArgument("auto_permit_enabled_value", default_value="-1"),
+            DeclareLaunchArgument("auto_permit_status_timeout", default_value="0.5"),
             DeclareLaunchArgument(
                 "mid360_user_config_path",
                 default_value=str(default_mid360_config),
