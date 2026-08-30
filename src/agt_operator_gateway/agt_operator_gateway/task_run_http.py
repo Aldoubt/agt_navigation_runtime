@@ -53,9 +53,24 @@ def _validate_task_payload(raw: Any) -> dict[str, Any]:
     if not isinstance(raw, Mapping):
         raise ValueError("request body must be a JSON object")
     payload = dict(raw)
-    _required_string(payload, "taskId")
-    _required_string(payload, "siteId")
-    _required_string(payload, "siteRevision")
+    payload["taskId"] = _required_string(payload, "taskId")
+    payload["siteId"] = _required_string(payload, "siteId")
+    payload["siteRevision"] = _required_string(payload, "siteRevision")
+
+    expected_revision = payload.get("expectedRevision", 0)
+    if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+        raise ValueError("expectedRevision must be a non-negative integer")
+    payload["expectedRevision"] = expected_revision
+
+    loop = payload.get("loop", False)
+    loop_count = payload.get("loopCount", 1)
+    if not isinstance(loop, bool):
+        raise ValueError("loop must be boolean")
+    if isinstance(loop_count, bool) or not isinstance(loop_count, int) or loop_count <= 0:
+        raise ValueError("loopCount must be a positive integer")
+    payload["loop"] = loop
+    payload["loopCount"] = loop_count
+
     waypoints = payload.get("waypoints")
     if not isinstance(waypoints, list) or not waypoints:
         raise ValueError("waypoints must be a non-empty array")
@@ -72,7 +87,7 @@ def _validate_task_payload(raw: Any) -> dict[str, Any]:
         x = _finite_number(waypoint.get("x"), f"waypoints[{index}].x")
         y = _finite_number(waypoint.get("y"), f"waypoints[{index}].y")
         yaw = _finite_number(waypoint.get("yaw"), f"waypoints[{index}].yaw")
-        dwell_s = _finite_number(waypoint.get("dwellS"), f"waypoints[{index}].dwellS")
+        dwell_s = _finite_number(waypoint.get("dwellS", 0.0), f"waypoints[{index}].dwellS")
         if dwell_s < 0.0:
             raise ValueError(f"waypoints[{index}].dwellS must be >= 0")
         normalized_waypoints.append(
@@ -96,6 +111,24 @@ def register_task_run_routes(
 ) -> None:
     async def options(_request: web.Request) -> web.Response:
         return web.Response(status=204)
+
+    async def task_context(_request: web.Request) -> web.Response:
+        if task_authoring is None:
+            return _error(503, "TASK_AUTHORING_UNAVAILABLE", "task authoring adapter is unavailable")
+        try:
+            result = await asyncio.to_thread(task_authoring.context)
+        except Exception as exc:
+            return _error(503, "TASK_AUTHORING_UNAVAILABLE", f"task context adapter failed: {exc}")
+        return web.json_response(_with_api_version(result))
+
+    async def task_map_image(_request: web.Request) -> web.Response:
+        if task_authoring is None:
+            return _error(503, "TASK_AUTHORING_UNAVAILABLE", "task authoring adapter is unavailable")
+        try:
+            image = await asyncio.to_thread(task_authoring.map_image)
+        except Exception as exc:
+            return _error(503, "TASK_AUTHORING_UNAVAILABLE", f"task map adapter failed: {exc}")
+        return web.Response(body=image, content_type="image/x-portable-graymap")
 
     async def task_preview(request: web.Request) -> web.Response:
         guard = _require_write(
@@ -172,6 +205,8 @@ def register_task_run_routes(
         status = 202 if bool(result.get("accepted", False)) else 409
         return web.json_response(_with_api_version(result), status=status)
 
+    app.router.add_get("/api/v1/tasks/context", task_context)
+    app.router.add_get("/api/v1/tasks/map/image", task_map_image)
     app.router.add_post("/api/v1/tasks/preview", task_preview)
     app.router.add_options("/api/v1/tasks/preview", options)
     app.router.add_put("/api/v1/tasks/{task_id}", task_save)
