@@ -17,6 +17,7 @@ class CommissioningRunPaths:
     run_id: str
     run_root: Path
     mapping_dir: Path
+    observation_dir: Path
     evidence_dir: Path
     localization_map: Path
     processing_record: Path
@@ -37,6 +38,7 @@ def _paths(runtime_dir: str | Path, site_id: str, run_id: str) -> CommissioningR
     run = _validate_identity_token(run_id, "run_id")
     run_root = runtime / "commissioning" / site / run
     mapping_dir = run_root / "mapping"
+    observation_dir = run_root / "observation"
     evidence_dir = run_root / "evidence"
     return CommissioningRunPaths(
         runtime_dir=runtime,
@@ -44,6 +46,7 @@ def _paths(runtime_dir: str | Path, site_id: str, run_id: str) -> CommissioningR
         run_id=run,
         run_root=run_root,
         mapping_dir=mapping_dir,
+        observation_dir=observation_dir,
         evidence_dir=evidence_dir,
         localization_map=mapping_dir / "localization_map.pcd",
         processing_record=mapping_dir / "localization_map.processing.yaml",
@@ -69,6 +72,7 @@ def prepare_mapping_run(
         )
 
     paths.mapping_dir.mkdir(parents=True, exist_ok=True)
+    paths.observation_dir.mkdir(parents=True, exist_ok=True)
     paths.evidence_dir.mkdir(parents=True, exist_ok=True)
     return paths
 
