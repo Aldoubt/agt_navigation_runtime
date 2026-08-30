@@ -11,6 +11,11 @@ def test_cmake_installs_python_package_scripts_launch_and_config():
     assert "ament_python_install_package(${PROJECT_NAME})" in text
     assert "scripts/socketcan_preflight.py" in text
     assert "scripts/vehicle_preflight.py" in text
+    assert "file(COPY" in text
+    assert "FILE_PERMISSIONS" in text
+    assert "OWNER_EXECUTE" in text
+    assert "GROUP_EXECUTE" in text
+    assert "WORLD_EXECUTE" in text
     assert "install(DIRECTORY launch config" in text
     assert "ament_package()" in text
 
