@@ -21,6 +21,10 @@ from agt_field_commissioning.raycast_free_space import (
     save_evidence,
     world_to_cell,
 )
+from agt_field_commissioning.raycast_observer_geometry import (
+    lidar_origin_world,
+    load_lidar_to_imu_translation,
+)
 
 
 @dataclass(frozen=True)
@@ -28,6 +32,11 @@ class PoseSample:
     stamp_ns: int
     x: float
     y: float
+    z: float
+    qx: float
+    qy: float
+    qz: float
+    qw: float
 
 
 def _stamp_ns(stamp) -> int:
@@ -38,11 +47,33 @@ def _finite_xy(x: float, y: float) -> bool:
     return math.isfinite(x) and math.isfinite(y)
 
 
+def _finite_pose(sample: PoseSample) -> bool:
+    values = (
+        sample.x,
+        sample.y,
+        sample.z,
+        sample.qx,
+        sample.qy,
+        sample.qz,
+        sample.qw,
+    )
+    if not all(math.isfinite(value) for value in values):
+        return False
+    quaternion_norm_sq = (
+        sample.qx * sample.qx
+        + sample.qy * sample.qy
+        + sample.qz * sample.qz
+        + sample.qw * sample.qw
+    )
+    return quaternion_norm_sq > 1e-24
+
+
 class RaycastFreeSpaceNode(Node):
     def __init__(self) -> None:
         super().__init__("agt_commissioning_raycast_free_space")
         self.declare_parameter("output_dir", "")
         self.declare_parameter("config_file", "")
+        self.declare_parameter("lio_params_file", "")
         self.declare_parameter(
             "cloud_topic", "/agt/commissioning/mapping/registered_points"
         )
@@ -50,18 +81,22 @@ class RaycastFreeSpaceNode(Node):
 
         output_dir = str(self.get_parameter("output_dir").value).strip()
         config_file = str(self.get_parameter("config_file").value).strip()
+        lio_params_file = str(self.get_parameter("lio_params_file").value).strip()
         cloud_topic = str(self.get_parameter("cloud_topic").value).strip()
         pose_topic = str(self.get_parameter("pose_topic").value).strip()
         if not output_dir:
             raise RuntimeError("output_dir parameter is required")
         if not config_file:
             raise RuntimeError("config_file parameter is required")
+        if not lio_params_file:
+            raise RuntimeError("lio_params_file parameter is required")
         if not cloud_topic or not pose_topic:
             raise RuntimeError("cloud_topic and pose_topic must be non-empty")
 
         self.output_dir = Path(output_dir).expanduser().resolve()
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.config = load_config(config_file)
+        self.lidar_to_imu_translation = load_lidar_to_imu_translation(lio_params_file)
         self.grid = RaycastEvidenceGrid(self.config)
         self.pose_history: deque[PoseSample] = deque(maxlen=512)
         self.cloud_index = 0
@@ -89,16 +124,25 @@ class RaycastFreeSpaceNode(Node):
             f"cloud={cloud_topic} pose={pose_topic} output={self.output_dir} "
             f"resolution={self.config.resolution_m:.3f}m "
             f"point_stride={self.config.point_stride} "
-            f"max_range={self.config.max_ray_range_m:.1f}m"
+            f"max_range={self.config.max_ray_range_m:.1f}m "
+            f"lidar_to_imu_translation={self.lidar_to_imu_translation}"
         )
 
     def _on_pose(self, message: Odometry) -> None:
-        position = message.pose.pose.position
-        x = float(position.x)
-        y = float(position.y)
-        if not _finite_xy(x, y):
+        pose = message.pose.pose
+        sample = PoseSample(
+            stamp_ns=_stamp_ns(message.header.stamp),
+            x=float(pose.position.x),
+            y=float(pose.position.y),
+            z=float(pose.position.z),
+            qx=float(pose.orientation.x),
+            qy=float(pose.orientation.y),
+            qz=float(pose.orientation.z),
+            qw=float(pose.orientation.w),
+        )
+        if not _finite_pose(sample):
             return
-        self.pose_history.append(PoseSample(_stamp_ns(message.header.stamp), x, y))
+        self.pose_history.append(sample)
 
     def _nearest_pose(self, stamp_ns: int) -> PoseSample | None:
         if not self.pose_history:
@@ -156,7 +200,12 @@ class RaycastFreeSpaceNode(Node):
             self.skipped_no_pose_frames += 1
             return
 
-        origin = (pose.x, pose.y)
+        origin_xyz = lidar_origin_world(
+            position_xyz=(pose.x, pose.y, pose.z),
+            orientation_xyzw=(pose.qx, pose.qy, pose.qz, pose.qw),
+            lidar_to_imu_translation_xyz=self.lidar_to_imu_translation,
+        )
+        origin = (origin_xyz[0], origin_xyz[1])
         endpoints = list(self._iter_endpoints(message))
         if not endpoints:
             return
@@ -186,6 +235,9 @@ class RaycastFreeSpaceNode(Node):
             "skipped_frame_mismatch": self.skipped_frame_mismatch,
             "points_considered": self.points_considered,
         }
+        record["observer"]["lidar_to_imu_translation_m"] = list(
+            self.lidar_to_imu_translation
+        )
         temporary = artifact.record.with_name(artifact.record.name + ".tmp")
         temporary.write_text(
             json.dumps(record, indent=2, sort_keys=True) + "\n",
