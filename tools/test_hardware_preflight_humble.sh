@@ -70,6 +70,7 @@ colcon test-result --verbose
 echo "[3/3] Checking installed CLI/assets"
 ros2 run agt_hardware_bringup socketcan_preflight.py --help >/dev/null
 ros2 run agt_hardware_bringup vehicle_preflight.py --help >/dev/null
+ros2 run agt_hardware_bringup acceptance_session.py --help >/dev/null
 python3 - <<'PY'
 from pathlib import Path
 from ament_index_python.packages import get_package_share_directory
