@@ -14,6 +14,8 @@ from agt_operator_gateway.delivery_http_server import DeliveryGatewayHttpServer
 from agt_operator_gateway.mission_ros_adapter import MissionCommandAdapter
 from agt_operator_gateway.ros_adapter import RobotStateAdapter
 from agt_operator_gateway.run_ros_adapter import RunRosAdapter
+from agt_operator_gateway.task_authoring_model import ActiveTaskSite
+from agt_operator_gateway.task_authoring_ros_adapter import TaskAuthoringRosAdapter
 
 COMMAND_TOKEN_ENV = "AGT_OPERATOR_COMMAND_TOKEN"
 
@@ -104,6 +106,59 @@ def main(args=None) -> None:
                 f"commissioning Gateway bound to {site_id}/{run_id} under {runtime_dir}"
             )
 
+    task_authoring = None
+    task_authoring_enabled = bool(
+        node.declare_parameter("task_authoring_enabled", False).value
+    )
+    if task_authoring_enabled:
+        task_site_id = str(
+            node.declare_parameter("task_authoring_site_id", "").value
+        ).strip()
+        task_site_revision = str(
+            node.declare_parameter("task_authoring_site_revision", "").value
+        ).strip()
+        task_navigation_yaml = _path_parameter(
+            node, "task_authoring_navigation_yaml", ""
+        )
+        task_localization_pcd = _path_parameter(
+            node, "task_authoring_localization_pcd", ""
+        )
+        missing = [
+            name
+            for name, value in (
+                ("task_authoring_site_id", task_site_id),
+                ("task_authoring_site_revision", task_site_revision),
+                ("task_authoring_navigation_yaml", task_navigation_yaml),
+            )
+            if not value
+        ]
+        if missing:
+            node.get_logger().error(
+                "task authoring Gateway disabled because required parameters are missing: "
+                + ", ".join(missing)
+            )
+        else:
+            assert task_navigation_yaml is not None
+            active_task_site = ActiveTaskSite.from_files(
+                site_id=task_site_id,
+                site_revision=task_site_revision,
+                navigation_yaml=task_navigation_yaml,
+                localization_pcd=task_localization_pcd,
+            )
+            task_authoring = TaskAuthoringRosAdapter(
+                node,
+                active_site=active_task_site,
+                timeout_s=float(
+                    node.declare_parameter("task_authoring_timeout_s", 5.0).value
+                ),
+                planner_timeout_s=float(
+                    node.declare_parameter("task_preview_segment_timeout_s", 5.0).value
+                ),
+            )
+            node.get_logger().info(
+                f"task authoring Gateway bound to active Site {task_site_id}/{task_site_revision}"
+            )
+
     run_control = None
     run_control_enabled = bool(
         node.declare_parameter("run_control_enabled", False).value
@@ -143,7 +198,7 @@ def main(args=None) -> None:
         allowed_origins=node.cors_allowed_origins,
         mission_commands=mission_commands,
         commissioning=commissioning,
-        task_authoring=None,
+        task_authoring=task_authoring,
         run_control=run_control,
         write_api_enabled=write_api_enabled,
         command_token=command_token,
