@@ -48,8 +48,9 @@ if [[ "${discovered_packages[*]}" != "${expected_packages[*]}" ]]; then
   exit 3
 fi
 
-echo "[1/3] Building isolated Humble preflight packages"
+echo "[1/3] Building isolated Humble preflight packages with --symlink-install"
 colcon build \
+  --symlink-install \
   --event-handlers console_direct+ \
   --packages-select \
     agt_description \
