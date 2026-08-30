@@ -34,10 +34,12 @@ def test_field_navigation_starts_formal_mission_owner_and_shares_mission_root() 
         'get_package_share_directory("agt_mission_manager")',
         'mission_manager_share / "launch" / "mission_manager.launch.py"',
         'DeclareLaunchArgument("start_mission_manager", default_value="true")',
-        'DeclareLaunchArgument("inspection_missions_root", default_value="runtime/missions")',
-        '"inspection_authoring_missions_root": LaunchConfiguration("inspection_missions_root").perform(context)',
+        'runtime_dir = LaunchConfiguration("runtime_dir").perform(context)',
+        'mission_root = str(Path(runtime_dir).expanduser() / "missions")',
+        '"inspection_authoring_missions_root": mission_root',
     ):
         assert token in source
+    assert 'DeclareLaunchArgument("inspection_missions_root"' not in source
 
 
 def test_hardware_bringup_can_delegate_safety_ownership_to_field_navigation() -> None:
