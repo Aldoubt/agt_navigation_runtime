@@ -65,3 +65,16 @@ def test_commissioning_package_installs_launch_python_and_finalizer():
     assert "agt_hardware_bringup" in package_xml
     assert "agt_odometry" in package_xml
     assert "fast_livo" in package_xml
+
+
+def test_finalizer_is_staged_executable_for_symlink_install():
+    cmake = (COMMISSIONING / "CMakeLists.txt").read_text(encoding="utf-8")
+
+    assert "AGT_FIELD_COMMISSIONING_GENERATED_SCRIPT_DIR" in cmake
+    assert "file(COPY" in cmake
+    assert "scripts/finalize_mapping_run.py" in cmake
+    assert "FILE_PERMISSIONS" in cmake
+    assert "OWNER_EXECUTE" in cmake
+    assert "GROUP_EXECUTE" in cmake
+    assert "WORLD_EXECUTE" in cmake
+    assert "install(PROGRAMS" in cmake
