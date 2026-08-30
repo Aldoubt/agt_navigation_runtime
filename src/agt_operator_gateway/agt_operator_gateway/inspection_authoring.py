@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
 from agt_inspection.authoring_repository import InspectionAuthoringRepository
-from agt_inspection.schema import canonical_hash
+from agt_inspection.schema import InspectionTaskError, canonical_hash
 
 from .delivery_ports import TaskAuthoringPort
 from .mission_authoring import (
@@ -229,6 +229,33 @@ class InspectionAuthoringAdapter:
             ),
         }
 
+    def _put_or_recover_exact_retry(
+        self,
+        document: Mapping[str, Any],
+        *,
+        inspection_task_id: str,
+        expected_revision: int,
+    ):
+        """Keep repository CAS strict while recovering an exact lost-response retry."""
+
+        try:
+            return self._repository.put_document(
+                document,
+                expected_revision=expected_revision,
+            )
+        except InspectionTaskError as conflict:
+            try:
+                return self._repository.load(
+                    inspection_task_id,
+                    expected_revision=expected_revision + 1,
+                    expected_content_sha256=_required_text(
+                        document.get("content_sha256"),
+                        "inspection content_sha256",
+                    ),
+                )
+            except InspectionTaskError:
+                raise conflict
+
     def save(self, inspection_task_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         if not isinstance(payload, Mapping):
             raise ValueError("inspection request must be an object")
@@ -274,8 +301,9 @@ class InspectionAuthoringAdapter:
             point_bindings=bindings,
             defaults=self._defaults,
         )
-        stored = self._repository.put_document(
+        stored = self._put_or_recover_exact_retry(
             document,
+            inspection_task_id=route_id,
             expected_revision=expected_revision,
         )
 
