@@ -25,14 +25,16 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install test dependencies
-        run: python -m pip install pytest aiohttp
+        run: |
+          python -m pip install -r requirements-contracts.txt
+          python -m pip install aiohttp
       - name: Commissioning tests
         env:
-          PYTHONPATH: src/agt_field_commissioning:src/agt_operator_gateway:src/agt_site_runtime
+          PYTHONPATH: src/agt_field_commissioning:src/agt_operator_gateway:src/agt_site_runtime:src/agt_runtime_contracts
         run: python -m pytest -q tests/commissioning
       - name: Gateway pure-Python tests
         env:
-          PYTHONPATH: src/agt_operator_gateway:src/agt_field_commissioning:src/agt_site_runtime
+          PYTHONPATH: src/agt_operator_gateway:src/agt_field_commissioning:src/agt_site_runtime:src/agt_runtime_contracts
         run: python -m pytest -q src/agt_operator_gateway/test
       - name: Compile changed Python packages
         run: python -m compileall -q src/agt_field_commissioning src/agt_operator_gateway
