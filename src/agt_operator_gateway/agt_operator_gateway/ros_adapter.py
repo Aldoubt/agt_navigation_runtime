@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import copy
+from threading import Lock
+
 from agt_interfaces.msg import RobotState
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -76,6 +79,8 @@ class RobotStateAdapter(Node):
             raise ValueError('mission_command_timeout_s must be > 0')
 
         self._store = GatewayStateStore(freshness_ms=freshness_ms)
+        self._robot_state_lock = Lock()
+        self._latest_robot_state: RobotState | None = None
 
         latched = QoSProfile(depth=1)
         latched.reliability = ReliabilityPolicy.RELIABLE
@@ -119,7 +124,14 @@ class RobotStateAdapter(Node):
     def mission_command_timeout_s(self) -> float:
         return self._mission_command_timeout_s
 
+    def latest_robot_state(self) -> RobotState | None:
+        """Return a defensive copy for synchronous delivery-gate evaluation."""
+        with self._robot_state_lock:
+            return copy.deepcopy(self._latest_robot_state)
+
     def _robot_state_callback(self, message: RobotState) -> None:
+        with self._robot_state_lock:
+            self._latest_robot_state = copy.deepcopy(message)
         self._store.update(
             source_revision=int(message.revision),
             robot_snapshot=build_robot_snapshot(
