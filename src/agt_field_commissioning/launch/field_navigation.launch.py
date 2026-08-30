@@ -153,18 +153,43 @@ def _compose(context):
                 system_manager_share / "launch" / "system_manager.launch.py",
                 {"use_sim_time": use_sim_time},
             ),
-            Node(
-                package="rviz2",
-                executable="rviz2",
-                name="agt_field_commissioning_rviz",
-                output="screen",
-                arguments=[
-                    "-d",
-                    str(commissioning_share / "rviz" / "field_commissioning.rviz"),
-                ],
-                condition=IfCondition(LaunchConfiguration("start_rviz")),
-            ),
         ]
+    )
+
+    if _enabled(context, "start_operator_gateway"):
+        actions.append(
+            Node(
+                package="agt_operator_gateway",
+                executable="operator_delivery_gateway_node.py",
+                name="agt_operator_delivery_gateway",
+                output="screen",
+                parameters=[
+                    {
+                        "use_sim_time": _enabled(context, "use_sim_time"),
+                        "host": LaunchConfiguration("gateway_host").perform(context),
+                        "port": int(LaunchConfiguration("gateway_port").perform(context)),
+                        "write_api_enabled": _enabled(context, "gateway_write_api_enabled"),
+                        "commissioning_enabled": False,
+                        "run_control_enabled": True,
+                        "run_lidar_component_id": LaunchConfiguration("run_lidar_component_id").perform(context),
+                        "run_camera_gimbal_component_id": LaunchConfiguration("run_camera_gimbal_component_id").perform(context),
+                    }
+                ],
+            )
+        )
+
+    actions.append(
+        Node(
+            package="rviz2",
+            executable="rviz2",
+            name="agt_field_commissioning_rviz",
+            output="screen",
+            arguments=[
+                "-d",
+                str(commissioning_share / "rviz" / "field_commissioning.rviz"),
+            ],
+            condition=IfCondition(LaunchConfiguration("start_rviz")),
+        )
     )
     return actions
 
@@ -195,6 +220,12 @@ def generate_launch_description():
             DeclareLaunchArgument("can_interface", default_value="can0"),
             DeclareLaunchArgument("expected_can_bitrate", default_value="0"),
             DeclareLaunchArgument("run_can_preflight", default_value="true"),
+            DeclareLaunchArgument("start_operator_gateway", default_value="true"),
+            DeclareLaunchArgument("gateway_write_api_enabled", default_value="true"),
+            DeclareLaunchArgument("gateway_host", default_value="0.0.0.0"),
+            DeclareLaunchArgument("gateway_port", default_value="8765"),
+            DeclareLaunchArgument("run_lidar_component_id", default_value="lidar"),
+            DeclareLaunchArgument("run_camera_gimbal_component_id", default_value="camera_gimbal"),
             DeclareLaunchArgument(
                 "mid360_user_config_path", default_value=str(default_mid360_config)
             ),
