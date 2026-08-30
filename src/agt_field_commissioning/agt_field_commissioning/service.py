@@ -53,6 +53,7 @@ def _atomic_text(path: Path, text: str) -> None:
 class CommissioningPaths:
     root: Path
     mapping: Path
+    observation: Path
     projection: Path
     review: Path
     evidence: Path
@@ -93,6 +94,7 @@ class CommissioningService:
         return CommissioningPaths(
             root=root,
             mapping=root / "mapping",
+            observation=root / "observation",
             projection=root / "projection",
             review=root / "map_review",
             evidence=root / "evidence",
@@ -123,6 +125,10 @@ class CommissioningService:
         pcd = paths.mapping / "localization_map.pcd"
         if not pcd.is_file() or pcd.stat().st_size <= 0:
             raise RuntimeError("finalized localization_map.pcd is required before projection")
+
+        raycast_evidence = paths.observation / "free_space_evidence.bin"
+        raycast_record = paths.observation / "raycast_record.json"
+        has_raycast_pair = raycast_evidence.is_file() and raycast_record.is_file()
         request = ProjectionRequest(
             source_pcd=pcd,
             output_dir=paths.projection,
@@ -132,6 +138,8 @@ class CommissioningService:
             min_ground_height_m=float(overrides.get("min_ground_height_m", 0.0)),
             max_ground_height_m=float(overrides.get("max_ground_height_m", 0.0)),
             max_obstacle_height_m=float(overrides.get("max_obstacle_height_m", 0.0)),
+            raycast_evidence=raycast_evidence if has_raycast_pair else None,
+            raycast_record=raycast_record if has_raycast_pair else None,
         )
         result = self.projection_backend.project(request)
         key = (_identity(site_id, "site_id"), _identity(run_id, "run_id"))
