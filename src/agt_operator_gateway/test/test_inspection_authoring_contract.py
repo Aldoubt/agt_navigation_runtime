@@ -211,3 +211,55 @@ def test_inspection_authoring_requires_explicit_home_and_returns_startable_missi
     assert result["mission"]["missionVersion"] == "r0001"
     assert result["homeBinding"]["taskGroupId"] == "inspect_01-home-nav"
     assert result["mission"]["contentSha256"].startswith("sha256:")
+
+
+def test_exact_inspection_save_retry_recovers_after_lost_http_response(tmp_path) -> None:
+    from agt_inspection.authoring_repository import InspectionAuthoringRepository
+    from agt_operator_gateway.inspection_authoring import InspectionAuthoringAdapter
+    from agt_operator_gateway.mission_authoring import MissionAuthoringRepository
+
+    site = _active_site(tmp_path)
+
+    class FakeIdempotentTaskAuthoring:
+        def __init__(self):
+            self.saved = {}
+
+        def save(self, task_id, payload):
+            if task_id not in self.saved:
+                ordinal = len(self.saved) + 1
+                self.saved[task_id] = {
+                    "taskId": task_id,
+                    "revision": int(payload.get("expectedRevision", 0)) + 1,
+                    "contentSha256": "sha256:" + format(ordinal, "064x"),
+                    "duplicateRequest": False,
+                }
+            result = dict(self.saved[task_id])
+            if task_id in self.saved:
+                result["duplicateRequest"] = True
+            return result
+
+    task_authoring = FakeIdempotentTaskAuthoring()
+    adapter = InspectionAuthoringAdapter(
+        active_site=site,
+        task_authoring=task_authoring,
+        repository=InspectionAuthoringRepository(tmp_path / "maps", "orchard_a", "r01"),
+        mission_repository=MissionAuthoringRepository(tmp_path / "missions"),
+    )
+    payload = {
+        "inspectionTaskId": "inspect_retry",
+        "siteId": "orchard_a",
+        "siteRevision": "r01",
+        "expectedRevision": 0,
+        "points": [
+            {"id": "P01", "x": 1.0, "y": 2.0, "yaw": 0.1, "expectedTaskRevision": 0},
+            {"id": "P02", "x": 1.5, "y": 2.0, "yaw": 0.2, "expectedTaskRevision": 0},
+        ],
+        "home": {"x": 0.0, "y": 0.0, "yaw": 0.0},
+        "expectedHomeTaskRevision": 0,
+    }
+
+    first = adapter.save("inspect_retry", payload)
+    second = adapter.save("inspect_retry", payload)
+
+    assert second == first
+    assert len(task_authoring.saved) == 3
