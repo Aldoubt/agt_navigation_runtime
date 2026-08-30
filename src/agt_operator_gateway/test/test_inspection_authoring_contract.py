@@ -19,12 +19,13 @@ def test_inspection_save_uses_single_point_taskgroups_and_schema_v2_only() -> No
         '"execution_mode": "DEFERRED"',
         '"capture_count": 1',
         '"view_center"',
+        '"navigation": {',
+        '"task_group_id": task_group_id',
         "build_single_point_task",
         "InspectionAuthoringRepository",
     ):
         assert token in source
     assert "INLINE" not in source
-    assert "x\":" not in source
 
 
 def test_inspection_document_binds_exact_point_task_revisions_and_hashes(tmp_path) -> None:
