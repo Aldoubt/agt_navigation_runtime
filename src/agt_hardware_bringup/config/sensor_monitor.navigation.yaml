@@ -1,0 +1,12 @@
+agt_sensor_monitor:
+  ros__parameters:
+    publish_rate_hz: 2.0
+    rate_window_size: 50
+    startup_grace_sec: 3.0
+    timestamp_rollback_tolerance_sec: 0.000001
+    lidar: {enabled: true, required: true, topic: /agt/sensors/lidar/custom, message_type: livox_custom, min_rate_hz: 8.0, max_stale_sec: 0.5, max_message_age_sec: 0.5}
+    filtered_lidar: {enabled: true, required: true, topic: /agt/sensors/lidar/custom_filtered, message_type: livox_custom, min_rate_hz: 8.0, max_stale_sec: 0.5, max_message_age_sec: 0.5}
+    imu: {enabled: true, required: true, topic: /agt/sensors/imu/data, min_rate_hz: 150.0, max_stale_sec: 0.2, max_message_age_sec: 0.2}
+    camera: {enabled: false, required: false, topic: /agt/sensors/camera/image, min_rate_hz: 8.0, max_stale_sec: 0.5, max_message_age_sec: 0.5}
+    camera_info: {enabled: false, required: false, topic: /agt/sensors/camera/camera_info, min_rate_hz: 8.0, max_stale_sec: 0.5, max_message_age_sec: 0.5}
+    gnss: {enabled: false, required: false, topic: /agt/sensors/gnss/fix, min_rate_hz: 1.0, max_stale_sec: 2.0, max_message_age_sec: 2.0}
