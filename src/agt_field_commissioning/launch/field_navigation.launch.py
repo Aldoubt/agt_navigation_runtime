@@ -31,6 +31,7 @@ def _compose(context):
     contract_share = Path(get_package_share_directory("agt_runtime_contracts"))
     hardware_share = Path(get_package_share_directory("agt_hardware_bringup"))
     odometry_share = Path(get_package_share_directory("agt_odometry"))
+    perception_share = Path(get_package_share_directory("agt_perception"))
     localization_share = Path(get_package_share_directory("agt_localization"))
     site_navigation_share = Path(get_package_share_directory("agt_site_navigation"))
     navigation_share = Path(get_package_share_directory("agt_navigation"))
@@ -130,6 +131,11 @@ def _compose(context):
             _include(
                 odometry_share / "launch" / "fast_livo2_odometry.launch.py",
                 {"use_sim_time": use_sim_time},
+            ),
+            _include(
+                perception_share / "launch" / "local_obstacles.launch.py",
+                {"use_sim_time": use_sim_time},
+                condition=IfCondition(LaunchConfiguration("start_local_perception")),
             ),
             _include(
                 localization_share / "launch" / "relocalization.launch.py",
@@ -258,6 +264,7 @@ def generate_launch_description():
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("start_site_runtime", default_value="true"),
             DeclareLaunchArgument("start_hardware", default_value="true"),
+            DeclareLaunchArgument("start_local_perception", default_value="true"),
             DeclareLaunchArgument("operation_mode", default_value="control", choices=["monitor", "control"]),
             DeclareLaunchArgument("can_interface", default_value="can0"),
             DeclareLaunchArgument("expected_can_bitrate", default_value="0"),
