@@ -13,6 +13,7 @@ from agt_operator_gateway.commissioning_port import FilesystemCommissioningPort
 from agt_operator_gateway.delivery_http_server import DeliveryGatewayHttpServer
 from agt_operator_gateway.mission_ros_adapter import MissionCommandAdapter
 from agt_operator_gateway.ros_adapter import RobotStateAdapter
+from agt_operator_gateway.run_ros_adapter import RunRosAdapter
 
 COMMAND_TOKEN_ENV = "AGT_OPERATOR_COMMAND_TOKEN"
 
@@ -103,6 +104,36 @@ def main(args=None) -> None:
                 f"commissioning Gateway bound to {site_id}/{run_id} under {runtime_dir}"
             )
 
+    run_control = None
+    run_control_enabled = bool(
+        node.declare_parameter("run_control_enabled", False).value
+    )
+    if run_control_enabled:
+        run_control = RunRosAdapter(
+            node,
+            robot_state_provider=node.latest_robot_state,
+            timeout_s=float(node.declare_parameter("run_command_timeout_s", 5.0).value),
+            relocalize_timeout_s=float(
+                node.declare_parameter("run_relocalize_timeout_s", 15.0).value
+            ),
+            max_candidates=int(node.declare_parameter("run_relocalize_max_candidates", 64).value),
+            lidar_component_id=str(
+                node.declare_parameter("run_lidar_component_id", "lidar").value
+            ).strip(),
+            camera_gimbal_component_id=str(
+                node.declare_parameter("run_camera_gimbal_component_id", "camera_gimbal").value
+            ).strip(),
+            localization_freshness_s=float(
+                node.declare_parameter("run_localization_freshness_s", 2.0).value
+            ),
+            health_freshness_s=float(
+                node.declare_parameter("run_health_freshness_s", 2.0).value
+            ),
+        )
+        node.get_logger().info(
+            "run Gateway enabled; physical AUTO permit remains fail-closed until a dedicated source is integrated"
+        )
+
     server = DeliveryGatewayHttpServer(
         node.store,
         host=node.host,
@@ -113,7 +144,7 @@ def main(args=None) -> None:
         mission_commands=mission_commands,
         commissioning=commissioning,
         task_authoring=None,
-        run_control=None,
+        run_control=run_control,
         write_api_enabled=write_api_enabled,
         command_token=command_token,
     )
