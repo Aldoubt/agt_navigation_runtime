@@ -86,6 +86,12 @@ class SafetyController(Node):
         self._sensor_summary_name = self.declare_parameter(
             "sensor_summary_name", SENSOR_SUMMARY_NAME
         ).value
+        self._require_auto_permit = self.declare_parameter(
+            "require_auto_permit", False
+        ).value
+        self._auto_permit_timeout = self.declare_parameter(
+            "auto_permit_timeout", 0.5
+        ).value
 
         if self._publish_rate <= 0.0:
             raise ValueError("publish_rate must be positive")
@@ -93,6 +99,8 @@ class SafetyController(Node):
             raise ValueError("localization_status_timeout must be positive")
         if self._sensor_status_timeout <= 0.0:
             raise ValueError("sensor_status_timeout must be positive")
+        if self._auto_permit_timeout <= 0.0:
+            raise ValueError("auto_permit_timeout must be positive")
 
         self._nav_cmd = Twist()
         self._manual_cmd = Twist()
@@ -104,6 +112,8 @@ class SafetyController(Node):
         self._localization_stamp = float("-inf")
         self._sensor_input_ready = False
         self._sensor_status_stamp = float("-inf")
+        self._auto_permit = False
+        self._auto_permit_stamp = float("-inf")
         self._linear_out = 0.0
         self._angular_out = 0.0
         self._last_tick = time.monotonic()
@@ -149,6 +159,13 @@ class SafetyController(Node):
             DiagnosticArray,
             self._sensor_diagnostics_topic,
             self._sensor_diagnostics_callback,
+            10,
+            callback_group=runtime_group,
+        )
+        self.create_subscription(
+            Bool,
+            "/agt/chassis/auto_permit",
+            self._auto_permit_callback,
             10,
             callback_group=runtime_group,
         )
@@ -218,6 +235,11 @@ class SafetyController(Node):
             self._sensor_input_ready = ready
             self._sensor_status_stamp = time.monotonic()
 
+    def _auto_permit_callback(self, msg: Bool) -> None:
+        with self._state_lock:
+            self._auto_permit = bool(msg.data)
+            self._auto_permit_stamp = time.monotonic()
+
     def _localization_is_valid(self, now: float) -> bool:
         return self._localization_valid and (
             now - self._localization_stamp <= self._localization_status_timeout
@@ -228,6 +250,13 @@ class SafetyController(Node):
             return True
         return self._sensor_input_ready and (
             now - self._sensor_status_stamp <= self._sensor_status_timeout
+        )
+
+    def _auto_permit_is_ready(self, now: float) -> bool:
+        if not self._require_auto_permit:
+            return True
+        return self._auto_permit and (
+            now - self._auto_permit_stamp <= self._auto_permit_timeout
         )
 
     def _set_motion_enabled(self, request: SetBool.Request, response: SetBool.Response):
@@ -266,6 +295,8 @@ class SafetyController(Node):
                 return 0.0, 0.0, "localization_invalid", True
             if not self._sensor_input_is_ready(now):
                 return 0.0, 0.0, "sensor_input_unhealthy", True
+            if not self._auto_permit_is_ready(now):
+                return 0.0, 0.0, "auto_permit_unavailable", True
             cmd = self._nav_cmd
             source = "navigation"
         else:
@@ -317,11 +348,13 @@ class SafetyController(Node):
             "input_timeout",
             "localization_invalid",
             "sensor_input_unhealthy",
+            "auto_permit_unavailable",
         )
         status.level = DiagnosticStatus.WARN if stopped else DiagnosticStatus.OK
         status.message = self._reason
         localization_valid = self._localization_is_valid(now)
         sensor_input_ready = self._sensor_input_is_ready(now)
+        auto_permit_ready = self._auto_permit_is_ready(now)
         status.values = [
             KeyValue(key="motion_enabled", value=str(self._motion_enabled).lower()),
             KeyValue(key="estop_latched", value=str(self._estop_latched).lower()),
@@ -337,6 +370,7 @@ class SafetyController(Node):
                     and not self._estop_latched
                     and localization_valid
                     and sensor_input_ready
+                    and auto_permit_ready
                 ).lower(),
             ),
             KeyValue(key="command_source", value=self._reason),
@@ -345,6 +379,11 @@ class SafetyController(Node):
             KeyValue(
                 key="sensor_input_required",
                 value=str(self._require_sensor_input_ready).lower(),
+            ),
+            KeyValue(key="auto_permit_ready", value=str(auto_permit_ready).lower()),
+            KeyValue(
+                key="auto_permit_required",
+                value=str(self._require_auto_permit).lower(),
             ),
             KeyValue(key="linear_output", value=f"{self._linear_out:.4f}"),
             KeyValue(key="angular_output", value=f"{self._angular_out:.4f}"),
