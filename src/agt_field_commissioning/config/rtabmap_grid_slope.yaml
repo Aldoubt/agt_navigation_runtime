@@ -1,0 +1,14 @@
+schema_version: 1
+backend: rtabmap_grid
+parameters:
+  resolution_m: 0.05
+  normals_segmentation: true
+  max_ground_angle_deg: 35.0
+  normal_k: 20
+  min_ground_height_m: -0.4
+  max_ground_height_m: 0.5
+  max_obstacle_height_m: 2.0
+notes:
+  - These are first-field commissioning defaults, not a universal terrain model.
+  - Verify slope classification on the representative site before activating a Site revision.
+  - The backend never owns SLAM, localization, or map-to-odom TF.
