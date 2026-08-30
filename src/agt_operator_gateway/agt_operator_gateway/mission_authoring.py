@@ -6,7 +6,7 @@ from typing import Any, Mapping
 
 import yaml
 
-from agt_mission_manager.mission_model import Mission
+from agt_mission_manager.mission_model import Mission, validate_component
 from agt_mission_manager.mission_schema import canonical_hash, parse_mission
 
 from .task_authoring_model import ActiveTaskSite
@@ -91,35 +91,15 @@ class MissionAuthoringRepository:
         self.root = Path(root).expanduser().resolve()
 
     def path_for(self, mission_id: str, mission_version: str) -> Path:
-        mission = parse_mission(
-            {
-                "schema_version": 1,
-                "mission_id": mission_id,
-                "mission_version": mission_version,
-                "content_sha256": "sha256:" + "0" * 64,
-                "map_binding": {
-                    "map_id": "placeholder",
-                    "map_version_id": "placeholder",
-                    "manifest_sha256": "sha256:" + "0" * 64,
-                },
-                "steps": [
-                    {
-                        "id": "placeholder",
-                        "type": "INSPECTION_TASK",
-                        "inspection_task_id": "placeholder",
-                        "inspection_task_revision": 1,
-                        "expected_content_sha256": "sha256:" + "0" * 64,
-                    }
-                ],
-            }
-        )
-        return self.root / mission.mission_id / mission.mission_version / "mission.yaml"
+        safe_id = validate_component(mission_id, "mission_id")
+        safe_version = validate_component(mission_version, "mission_version")
+        return self.root / safe_id / safe_version / "mission.yaml"
 
     def put_document(self, document: Mapping[str, Any]) -> Mission:
         if not isinstance(document, Mapping):
             raise ValueError("mission document must be an object")
         candidate = parse_mission(dict(document))
-        target = self.root / candidate.mission_id / candidate.mission_version / "mission.yaml"
+        target = self.path_for(candidate.mission_id, candidate.mission_version)
         if target.is_symlink():
             raise ValueError("mission path must not be a symlink")
         if target.exists():
