@@ -99,6 +99,29 @@ def _compose(context):
             ],
         )
     )
+
+    if _enabled(context, "start_operator_gateway"):
+        actions.append(
+            Node(
+                package="agt_operator_gateway",
+                executable="operator_delivery_gateway_node.py",
+                name="agt_operator_delivery_gateway",
+                output="screen",
+                parameters=[
+                    {
+                        "use_sim_time": _enabled(context, "use_sim_time"),
+                        "host": LaunchConfiguration("gateway_host").perform(context),
+                        "port": int(LaunchConfiguration("gateway_port").perform(context)),
+                        "write_api_enabled": _enabled(context, "gateway_write_api_enabled"),
+                        "commissioning_enabled": True,
+                        "commissioning_site_id": site_id,
+                        "commissioning_run_id": run_id,
+                        "commissioning_runtime_dir": runtime_dir,
+                        "commissioning_vehicle_profile": LaunchConfiguration("platform_profile").perform(context),
+                    }
+                ],
+            )
+        )
     return actions
 
 
@@ -119,6 +142,10 @@ def generate_launch_description():
             DeclareLaunchArgument("expected_can_bitrate", default_value="0"),
             DeclareLaunchArgument("run_can_preflight", default_value="true"),
             DeclareLaunchArgument("sensor_profile", default_value="hardware_check"),
+            DeclareLaunchArgument("start_operator_gateway", default_value="true"),
+            DeclareLaunchArgument("gateway_write_api_enabled", default_value="true"),
+            DeclareLaunchArgument("gateway_host", default_value="0.0.0.0"),
+            DeclareLaunchArgument("gateway_port", default_value="8765"),
             DeclareLaunchArgument(
                 "mid360_user_config_path",
                 default_value=str(default_mid360_config),
