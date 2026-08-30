@@ -7,6 +7,10 @@ from agt_inspection.authoring_repository import InspectionAuthoringRepository
 from agt_inspection.schema import canonical_hash
 
 from .delivery_ports import TaskAuthoringPort
+from .mission_authoring import (
+    MissionAuthoringRepository,
+    build_inspection_mission_document,
+)
 from .task_authoring_model import ActiveTaskSite, build_single_point_task
 
 
@@ -154,7 +158,7 @@ def build_inspection_document(
         "description": "Created by AGT Operator HMI",
         "revision": revision,
         "content_sha256": "sha256:" + "0" * 64,
-        "count_target": "litchi_flower",
+        "count_target": defaults.count_target,
         "map_binding": {
             "map_id": site.site_id,
             "map_version_id": site.site_revision,
@@ -167,7 +171,7 @@ def build_inspection_document(
 
 
 class InspectionAuthoringAdapter:
-    """Save point navigation TaskGroups first, then publish one inspection asset."""
+    """Publish point TaskGroups, inspection asset, HOME TaskGroup and Mission."""
 
     def __init__(
         self,
@@ -175,12 +179,55 @@ class InspectionAuthoringAdapter:
         active_site: ActiveTaskSite,
         task_authoring: TaskAuthoringPort,
         repository: InspectionAuthoringRepository,
+        mission_repository: MissionAuthoringRepository,
         defaults: FrozenInspectionDefaults | None = None,
     ) -> None:
         self._active_site = active_site
         self._task_authoring = task_authoring
         self._repository = repository
+        self._mission_repository = mission_repository
         self._defaults = defaults or FrozenInspectionDefaults()
+
+    def _save_navigation_task(
+        self,
+        *,
+        inspection_task_id: str,
+        point: Mapping[str, Any],
+        expected_revision: int,
+    ) -> dict[str, Any]:
+        task = build_single_point_task(
+            self._active_site,
+            inspection_task_id=inspection_task_id,
+            point=point,
+            expected_revision=expected_revision,
+        )
+        waypoint = task.points[0]
+        task_payload = dict(
+            taskId=task.task_group_id,
+            siteId=self._active_site.site_id,
+            siteRevision=self._active_site.site_revision,
+            expectedRevision=expected_revision,
+            loop=False,
+            loopCount=1,
+            waypoints=[
+                dict(
+                    id=waypoint.id,
+                    x=waypoint.x,
+                    y=waypoint.y,
+                    yaw=waypoint.yaw,
+                    dwellS=0.0,
+                )
+            ],
+        )
+        saved = self._task_authoring.save(task.task_group_id, task_payload)
+        return {
+            "pointId": waypoint.id,
+            "taskGroupId": _required_text(saved.get("taskId"), "saved taskId"),
+            "revision": int(saved.get("revision", 0)),
+            "contentSha256": _required_text(
+                saved.get("contentSha256"), "saved contentSha256"
+            ),
+        }
 
     def save(self, inspection_task_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         if not isinstance(payload, Mapping):
@@ -196,6 +243,13 @@ class InspectionAuthoringAdapter:
         raw_points = payload.get("points")
         if not isinstance(raw_points, list) or not raw_points:
             raise ValueError("points must be a non-empty array")
+        raw_home = payload.get("home")
+        if not isinstance(raw_home, Mapping):
+            raise ValueError("home must be an explicit map pose")
+        home_expected_revision = _nonnegative_revision(
+            payload.get("expectedHomeTaskRevision", 0),
+            "expectedHomeTaskRevision",
+        )
 
         bindings: list[Mapping[str, Any]] = []
         for index, point in enumerate(raw_points):
@@ -205,40 +259,12 @@ class InspectionAuthoringAdapter:
                 point.get("expectedTaskRevision", 0),
                 f"points[{index}].expectedTaskRevision",
             )
-            task = build_single_point_task(
-                self._active_site,
-                inspection_task_id=route_id,
-                point=point,
-                expected_revision=task_expected_revision,
-            )
-            waypoint = task.points[0]
-            task_payload = dict(
-                taskId=task.task_group_id,
-                siteId=self._active_site.site_id,
-                siteRevision=self._active_site.site_revision,
-                expectedRevision=task_expected_revision,
-                loop=False,
-                loopCount=1,
-                waypoints=[
-                    dict(
-                        id=waypoint.id,
-                        x=waypoint.x,
-                        y=waypoint.y,
-                        yaw=waypoint.yaw,
-                        dwellS=0.0,
-                    )
-                ],
-            )
-            saved = self._task_authoring.save(task.task_group_id, task_payload)
             bindings.append(
-                {
-                    "pointId": waypoint.id,
-                    "taskGroupId": _required_text(saved.get("taskId"), "saved taskId"),
-                    "revision": int(saved.get("revision", 0)),
-                    "contentSha256": _required_text(
-                        saved.get("contentSha256"), "saved contentSha256"
-                    ),
-                }
+                self._save_navigation_task(
+                    inspection_task_id=route_id,
+                    point=point,
+                    expected_revision=task_expected_revision,
+                )
             )
 
         document = build_inspection_document(
@@ -252,10 +278,43 @@ class InspectionAuthoringAdapter:
             document,
             expected_revision=expected_revision,
         )
+
+        home_point = {
+            "id": "home",
+            "x": raw_home.get("x"),
+            "y": raw_home.get("y"),
+            "yaw": raw_home.get("yaw"),
+        }
+        try:
+            float(home_point["x"])
+            float(home_point["y"])
+            float(home_point["yaw"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError("home must contain numeric x, y and yaw") from exc
+        home_binding = self._save_navigation_task(
+            inspection_task_id=route_id,
+            point=home_point,
+            expected_revision=home_expected_revision,
+        )
+
+        mission_document = build_inspection_mission_document(
+            site=self._active_site,
+            inspection_task_id=stored.inspection_task_id,
+            inspection_revision=stored.revision,
+            inspection_content_sha256=stored.content_sha256,
+            home_binding=home_binding,
+        )
+        mission = self._mission_repository.put_document(mission_document)
         return {
             "inspectionTaskId": stored.inspection_task_id,
             "state": "SAVED",
             "revision": stored.revision,
             "contentSha256": stored.content_sha256,
             "pointBindings": [dict(item) for item in bindings],
+            "homeBinding": dict(home_binding),
+            "mission": {
+                "missionId": mission.mission_id,
+                "missionVersion": mission.mission_version,
+                "contentSha256": mission.content_sha256,
+            },
         }
