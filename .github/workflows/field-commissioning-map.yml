@@ -66,7 +66,8 @@ jobs:
           source /opt/ros/humble/setup.bash
           colcon build \
             --event-handlers console_direct+ \
-            --packages-select agt_field_commissioning
+            --packages-select agt_field_commissioning \
+            --cmake-args -DBUILD_TESTING=OFF
       - name: Verify installed projector executable
         shell: bash
         run: |
