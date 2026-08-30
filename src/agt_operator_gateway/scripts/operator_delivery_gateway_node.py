@@ -184,9 +184,17 @@ def main(args=None) -> None:
             health_freshness_s=float(
                 node.declare_parameter("run_health_freshness_s", 2.0).value
             ),
+            auto_permit_topic=str(
+                node.declare_parameter(
+                    "run_auto_permit_topic", "/agt/chassis/auto_permit"
+                ).value
+            ).strip(),
+            auto_permit_freshness_s=float(
+                node.declare_parameter("run_auto_permit_freshness_s", 0.75).value
+            ),
         )
         node.get_logger().info(
-            "run Gateway enabled; physical AUTO permit remains fail-closed until a dedicated source is integrated"
+            "run Gateway enabled; readiness consumes the dedicated physical AUTO permit topic"
         )
 
     server = DeliveryGatewayHttpServer(
