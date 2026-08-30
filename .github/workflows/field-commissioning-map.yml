@@ -42,3 +42,36 @@ jobs:
         run: python -m pytest -q src/agt_operator_gateway/test
       - name: Compile changed Python packages
         run: python -m compileall -q src/agt_field_commissioning src/agt_operator_gateway src/agt_inspection/agt_inspection src/agt_mission_manager/agt_mission_manager src/agt_navigation/agt_navigation
+
+  humble-projector:
+    runs-on: ubuntu-22.04
+    container:
+      image: ros:humble-ros-base-jammy
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      ROS_DISTRO: humble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install projector build dependencies
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-colcon-common-extensions \
+            ros-humble-rtabmap \
+            libpcl-dev
+      - name: Build commissioning projector on Humble
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          colcon build \
+            --event-handlers console_direct+ \
+            --packages-select agt_field_commissioning
+      - name: Verify installed projector executable
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          source install/setup.bash
+          PROJECTOR="$(ros2 pkg prefix agt_field_commissioning)/lib/agt_field_commissioning/rtabmap_grid_projector"
+          test -x "$PROJECTOR"
+          "$PROJECTOR" 2>&1 | grep -F -- '--input, --output-pgm and --output-yaml are required'
