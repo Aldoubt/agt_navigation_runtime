@@ -40,6 +40,33 @@ def test_observe_ray_marks_passage_free_endpoint_hit_and_unseen_unknown():
     assert grid.classify_world((9.2, 9.2)) == "unknown"
 
 
+def test_observe_rays_updates_each_cell_at_most_once_per_frame():
+    config = RaycastConfig(
+        resolution_m=1.0,
+        free_logodds_delta=-1.0,
+        hit_logodds_delta=2.0,
+        free_threshold=-0.5,
+        occupied_threshold=1.0,
+        min_observation_count=1,
+        min_ray_range_m=0.0,
+        max_ray_range_m=10.0,
+    )
+    grid = RaycastEvidenceGrid(config)
+
+    accepted = grid.observe_rays(
+        (0.2, 0.2),
+        [(3.2, 0.2), (3.2, 1.2)],
+    )
+
+    assert accepted == 2
+    # Both rays pass through the origin cell, but a single scan must contribute
+    # only one free observation there. Dense point count must not dominate the
+    # temporal log-odds model.
+    assert grid.cell_evidence(0, 0).observation_count == 1
+    assert grid.cell_evidence(0, 0).log_odds == pytest.approx(-1.0)
+    assert grid.stats.accepted_rays == 2
+
+
 def test_log_odds_are_clamped_and_minimum_observation_count_is_respected():
     config = RaycastConfig(
         resolution_m=1.0,
