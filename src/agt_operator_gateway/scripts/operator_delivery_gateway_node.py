@@ -13,6 +13,7 @@ from agt_inspection.authoring_repository import InspectionAuthoringRepository
 from agt_operator_gateway.commissioning_port import FilesystemCommissioningPort
 from agt_operator_gateway.delivery_http_server import DeliveryGatewayHttpServer
 from agt_operator_gateway.inspection_authoring import InspectionAuthoringAdapter
+from agt_operator_gateway.mission_authoring import MissionAuthoringRepository
 from agt_operator_gateway.mission_ros_adapter import MissionCommandAdapter
 from agt_operator_gateway.ros_adapter import RobotStateAdapter
 from agt_operator_gateway.run_ros_adapter import RunRosAdapter
@@ -178,6 +179,11 @@ def main(args=None) -> None:
             "inspection_authoring_runtime_maps_root",
             "runtime/maps",
         )
+        inspection_missions_root = _path_parameter(
+            node,
+            "inspection_authoring_missions_root",
+            "runtime/missions",
+        )
         if task_authoring is None or active_task_site is None:
             node.get_logger().error(
                 "inspection authoring disabled because task authoring is unavailable"
@@ -186,9 +192,9 @@ def main(args=None) -> None:
             node.get_logger().error(
                 "inspection authoring disabled because active Site manifest hash is unavailable"
             )
-        elif inspection_maps_root is None:
+        elif inspection_maps_root is None or inspection_missions_root is None:
             node.get_logger().error(
-                "inspection authoring disabled because runtime maps root is empty"
+                "inspection authoring disabled because maps or missions root is empty"
             )
         else:
             inspection_repository = InspectionAuthoringRepository(
@@ -200,9 +206,12 @@ def main(args=None) -> None:
                 active_site=active_task_site,
                 task_authoring=task_authoring,
                 repository=inspection_repository,
+                mission_repository=MissionAuthoringRepository(
+                    inspection_missions_root
+                ),
             )
             node.get_logger().info(
-                "inspection authoring Gateway enabled for frozen schema-v2 DEFERRED tasks"
+                "inspection authoring Gateway enabled for schema-v2 DEFERRED tasks and immutable Missions"
             )
 
     run_control = None
