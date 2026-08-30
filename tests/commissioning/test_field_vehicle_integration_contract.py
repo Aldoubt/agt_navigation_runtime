@@ -23,7 +23,7 @@ def test_field_navigation_has_single_safety_owner_and_forwards_inspection_hardwa
         '"inspection_camera_gimbal_port": LaunchConfiguration("inspection_camera_gimbal_port").perform(context)',
         '"inspection_camera_calibration_id": LaunchConfiguration("inspection_camera_calibration_id").perform(context)',
         '"inspection_camera_calibration_sha256": LaunchConfiguration("inspection_camera_calibration_sha256").perform(context)',
-        'DeclareLaunchArgument("start_inspection", default_value="true")',
+        'DeclareLaunchArgument("start_inspection", default_value="false")',
     ):
         assert token in source
 
