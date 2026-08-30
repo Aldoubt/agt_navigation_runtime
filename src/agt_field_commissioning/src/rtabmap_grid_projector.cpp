@@ -119,7 +119,20 @@ rtabmap::ParametersMap makeParameters(const Options & options)
   parameters["Grid/MaxGroundHeight"] = std::to_string(options.max_ground_height);
   parameters["Grid/MaxObstacleHeight"] = std::to_string(options.max_obstacle_height);
   parameters["Grid/3D"] = "false";
-  parameters["Grid/PreVoxelFiltering"] = "true";
+
+  // The commissioning input is a finalized FAST-LIVO2 whole-map PCD that has
+  // already been spatially reduced by the mapper. LocalGridMaker defaults are
+  // tuned for dense single-frame sensor clouds: another voxel pass followed by
+  // a 10-point cluster minimum can discard every class on a sparse frozen map.
+  parameters["Grid/PreVoxelFiltering"] = "false";
+  parameters["Grid/ClusterRadius"] = "0.15";
+  parameters["Grid/MinClusterSize"] = "1";
+
+  // A gravity-aligned orchard map can contain valid traversable slope patches
+  // at many global Z levels. The single-frame flat-obstacle heuristic selects
+  // one dominant flat plane and can reinterpret the other slope/flat patches
+  // as obstacles. Normal angle is the intended global-map ground criterion.
+  parameters["Grid/FlatObstacleDetected"] = "false";
   return parameters;
 }
 
@@ -146,6 +159,31 @@ struct Bounds
     return std::isfinite(min_x) && std::isfinite(max_x) &&
            std::isfinite(min_y) && std::isfinite(max_y) &&
            max_x >= min_x && max_y >= min_y;
+  }
+};
+
+struct CloudStats
+{
+  std::size_t finite_points{0};
+  double min_x{std::numeric_limits<double>::infinity()};
+  double max_x{-std::numeric_limits<double>::infinity()};
+  double min_y{std::numeric_limits<double>::infinity()};
+  double max_y{-std::numeric_limits<double>::infinity()};
+  double min_z{std::numeric_limits<double>::infinity()};
+  double max_z{-std::numeric_limits<double>::infinity()};
+
+  void include(const pcl::PointXYZ & point)
+  {
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
+      return;
+    }
+    ++finite_points;
+    min_x = std::min(min_x, static_cast<double>(point.x));
+    max_x = std::max(max_x, static_cast<double>(point.x));
+    min_y = std::min(min_y, static_cast<double>(point.y));
+    max_y = std::max(max_y, static_cast<double>(point.y));
+    min_z = std::min(min_z, static_cast<double>(point.z));
+    max_z = std::max(max_z, static_cast<double>(point.z));
   }
 };
 
@@ -186,10 +224,7 @@ void writeYaml(
   output << "image: " << pgm.filename().string() << "\n"
          << "resolution: " << cell_size << "\n"
          << "origin: [" << origin_x << ", " << origin_y << ", 0.0]\n"
-         << "negate: 0\n"
-         << "occupied_thresh: 0.65\n"
-         << "free_thresh: 0.196\n"
-         << "mode: trinary\n";
+         << "negate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.196\nmode: trinary\n";
   output.close();
   if (!output) {
     throw std::runtime_error("failed to write YAML output");
@@ -209,6 +244,20 @@ int main(int argc, char ** argv)
       throw std::runtime_error("failed to load a non-empty XYZ PCD: " + options.input.string());
     }
 
+    CloudStats input_stats;
+    for (const auto & point : cloud->points) {
+      input_stats.include(point);
+    }
+    std::cout << "rtabmap_grid_projector: input_points=" << cloud->size()
+              << " finite_points=" << input_stats.finite_points
+              << " x=[" << input_stats.min_x << "," << input_stats.max_x << "]"
+              << " y=[" << input_stats.min_y << "," << input_stats.max_y << "]"
+              << " z=[" << input_stats.min_z << "," << input_stats.max_z << "]"
+              << " cell=" << options.cell_size
+              << " normal_k=" << options.normal_k
+              << " max_ground_angle_deg=" << options.max_ground_angle_deg
+              << std::endl;
+
     pcl::IndicesPtr indices(new pcl::Indices());
     indices->reserve(cloud->size());
     for (std::size_t i = 0; i < cloud->size(); ++i) {
@@ -225,6 +274,13 @@ int main(int argc, char ** argv)
       cv::Point3f(0.0f, 0.0f, 0.0f),
       ground_indices,
       obstacle_indices);
+
+    const auto segmented_size = segmented ? segmented->size() : 0U;
+    std::cout << "rtabmap_grid_projector: segmented_points=" << segmented_size
+              << " ground_indices=" << ground_indices->size()
+              << " obstacle_indices=" << obstacle_indices->size()
+              << " policy={pre_voxel:false,min_cluster:1,cluster_radius:0.15,flat_obstacle:false}"
+              << std::endl;
 
     if (!segmented || segmented->empty()) {
       throw std::runtime_error("RTAB-Map segmentation returned an empty cloud");
