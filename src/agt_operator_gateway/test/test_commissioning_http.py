@@ -14,7 +14,12 @@ class FakeCommissioningPort:
         self.revision = 0
 
     def status(self):
-        return {'site_id': 'slope', 'run_id': 'run01', 'state': 'MAP_READY'}
+        return {
+            'site_id': 'slope',
+            'run_id': 'run01',
+            'state': 'MAP_READY',
+            'projection_backend': 'rtabmap_grid',
+        }
 
     def map_descriptor(self):
         return {
@@ -51,7 +56,12 @@ class FakeCommissioningPort:
 
     def save(self, revision):
         self.calls.append(('save', revision))
-        return {'site_id': 'slope', 'revision': revision, 'validated': True}
+        return {
+            'site_id': 'slope',
+            'revision': revision,
+            'site_root': f'/tmp/sites/slope/{revision}',
+            'validated': True,
+        }
 
     def activate(self, revision):
         self.calls.append(('activate', revision))
@@ -88,14 +98,23 @@ def test_commissioning_reads_and_binary_map() -> None:
         try:
             response = await client.get('/api/v1/commissioning/status')
             assert response.status == 200
-            assert (await response.json())['state'] == 'MAP_READY'
+            status = await response.json()
+            assert status['state'] == 'MAP_READY'
+            assert status['siteId'] == 'slope'
+            assert status['runId'] == 'run01'
+            assert status['projectionBackend'] == 'rtabmap_grid'
+            assert 'site_id' not in status
+            assert 'run_id' not in status
 
             response = await client.get('/api/v1/commissioning/map')
             payload = await response.json()
             assert response.status == 200
             assert payload['apiVersion'] == 'agt.operator.gateway/v1'
+            assert payload['siteId'] == 'slope'
+            assert payload['runId'] == 'run01'
             assert payload['imageUrl'] == '/api/v1/commissioning/map/image'
             assert payload['width'] == 3
+            assert 'site_id' not in payload
 
             response = await client.get('/api/v1/commissioning/map/image')
             assert response.status == 200
@@ -142,7 +161,9 @@ def test_project_save_activate_and_history_routes() -> None:
             response = await client.post('/api/v1/commissioning/project', headers=headers, json={
                 'max_ground_angle_deg': 35.0
             })
+            payload = await response.json()
             assert response.status == 200
+            assert payload['siteId'] == 'slope'
             assert port.calls[-1][0] == 'project'
 
             for endpoint, expected in (
@@ -156,12 +177,15 @@ def test_project_save_activate_and_history_routes() -> None:
             payload = await response.json()
             assert response.status == 200
             assert payload['state'] == 'SAVED'
+            assert payload['siteId'] == 'slope'
+            assert payload['siteRoot'] == '/tmp/sites/slope/r02'
             assert payload['revision'] == 'r02'
 
             response = await client.post('/api/v1/commissioning/map/activate', headers=headers, json={'revision': 'r02'})
             payload = await response.json()
             assert response.status == 200
             assert payload['state'] == 'ACTIVE'
+            assert payload['siteId'] == 'slope'
         finally:
             await client.close()
     asyncio.run(run())
