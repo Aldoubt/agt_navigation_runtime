@@ -28,6 +28,18 @@ def test_field_navigation_has_single_safety_owner_and_forwards_inspection_hardwa
         assert token in source
 
 
+def test_field_navigation_starts_formal_mission_owner_and_shares_mission_root() -> None:
+    source = text(FIELD_NAV)
+    for token in (
+        'get_package_share_directory("agt_mission_manager")',
+        'mission_manager_share / "launch" / "mission_manager.launch.py"',
+        'DeclareLaunchArgument("start_mission_manager", default_value="true")',
+        'DeclareLaunchArgument("inspection_missions_root", default_value="runtime/missions")',
+        '"inspection_authoring_missions_root": LaunchConfiguration("inspection_missions_root").perform(context)',
+    ):
+        assert token in source
+
+
 def test_hardware_bringup_can_delegate_safety_ownership_to_field_navigation() -> None:
     source = text(HARDWARE)
     assert 'DeclareLaunchArgument("start_safety", default_value="true")' in source
