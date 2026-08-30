@@ -24,6 +24,7 @@ def test_field_navigation_has_single_safety_owner_and_forwards_inspection_hardwa
         '"inspection_camera_calibration_id": LaunchConfiguration("inspection_camera_calibration_id").perform(context)',
         '"inspection_camera_calibration_sha256": LaunchConfiguration("inspection_camera_calibration_sha256").perform(context)',
         'DeclareLaunchArgument("start_inspection", default_value="false")',
+        'DeclareLaunchArgument("gateway_host", default_value="127.0.0.1")',
     ):
         assert token in source
 
