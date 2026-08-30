@@ -107,6 +107,23 @@ def test_projector_passes_max_ground_angle_to_rtabmap_in_degrees() -> None:
     assert "options.max_ground_angle_deg * M_PI / 180.0" not in source
 
 
+def test_projector_uses_finalized_global_lio_segmentation_policy() -> None:
+    root = Path(__file__).resolve().parents[2]
+    source = (root / "src/agt_field_commissioning/src/rtabmap_grid_projector.cpp").read_text(encoding="utf-8")
+
+    # The input is an already-voxelized whole-map FAST-LIVO2 PCD, not a raw
+    # single sensor frame. Re-voxelizing and requiring 10-point local clusters
+    # can remove every ground/obstacle class on sparse finalized maps.
+    assert 'parameters["Grid/PreVoxelFiltering"] = "false";' in source
+    assert 'parameters["Grid/MinClusterSize"] = "1";' in source
+    assert 'parameters["Grid/ClusterRadius"] = "0.15";' in source
+
+    # With gravity-aligned global maps, every slope-consistent surface may be
+    # valid ground at a different global Z. Do not reinterpret higher flat
+    # surfaces as obstacles using a single-frame "main plane" heuristic.
+    assert 'parameters["Grid/FlatObstacleDetected"] = "false";' in source
+
+
 def test_projection_resolves_projector_from_ros_ament_prefix(tmp_path: Path, monkeypatch) -> None:
     prefix = tmp_path / "install" / "agt_field_commissioning"
     executable = prefix / "lib" / "agt_field_commissioning" / "rtabmap_grid_projector"
