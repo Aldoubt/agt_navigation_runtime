@@ -8,6 +8,7 @@ on:
       - 'src/agt_field_commissioning/**'
       - 'src/agt_operator_gateway/**'
       - 'src/agt_inspection/**'
+      - 'src/agt_mission_manager/**'
       - 'tests/commissioning/**'
       - '.github/workflows/field-commissioning-map.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'src/agt_field_commissioning/**'
       - 'src/agt_operator_gateway/**'
       - 'src/agt_inspection/**'
+      - 'src/agt_mission_manager/**'
       - 'tests/commissioning/**'
       - '.github/workflows/field-commissioning-map.yml'
 
@@ -32,11 +34,11 @@ jobs:
           python -m pip install aiohttp
       - name: Commissioning tests
         env:
-          PYTHONPATH: src/agt_field_commissioning:src/agt_operator_gateway:src/agt_inspection:src/agt_navigation:src/agt_site_runtime:src/agt_runtime_contracts
+          PYTHONPATH: src/agt_field_commissioning:src/agt_operator_gateway:src/agt_inspection:src/agt_mission_manager:src/agt_navigation:src/agt_site_runtime:src/agt_runtime_contracts
         run: python -m pytest -q tests/commissioning
       - name: Gateway pure-Python tests
         env:
-          PYTHONPATH: src/agt_operator_gateway:src/agt_field_commissioning:src/agt_inspection:src/agt_navigation:src/agt_site_runtime:src/agt_runtime_contracts
+          PYTHONPATH: src/agt_operator_gateway:src/agt_field_commissioning:src/agt_inspection:src/agt_mission_manager:src/agt_navigation:src/agt_site_runtime:src/agt_runtime_contracts
         run: python -m pytest -q src/agt_operator_gateway/test
       - name: Compile changed Python packages
-        run: python -m compileall -q src/agt_field_commissioning src/agt_operator_gateway src/agt_inspection/agt_inspection src/agt_navigation/agt_navigation
+        run: python -m compileall -q src/agt_field_commissioning src/agt_operator_gateway src/agt_inspection/agt_inspection src/agt_mission_manager/agt_mission_manager src/agt_navigation/agt_navigation
