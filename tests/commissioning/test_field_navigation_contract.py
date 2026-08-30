@@ -88,6 +88,15 @@ def test_phase_c_uses_current_frozen_site_runtime_stack_only():
     assert "/commissioning/" not in text
 
 
+def test_phase_c_starts_local_obstacle_perception_by_default():
+    text = NAV_LAUNCH.read_text(encoding="utf-8")
+
+    assert 'get_package_share_directory("agt_perception")' in text
+    assert '"local_obstacles.launch.py"' in text
+    assert 'DeclareLaunchArgument("start_local_perception", default_value="true")' in text
+    assert 'condition=IfCondition(LaunchConfiguration("start_local_perception"))' in text
+
+
 def test_phase_c_starts_delivery_gateway_with_run_control_not_map_commissioning():
     text = NAV_LAUNCH.read_text(encoding="utf-8")
 
