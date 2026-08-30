@@ -4,7 +4,7 @@ import asyncio
 
 from aiohttp.test_utils import TestClient, TestServer
 
-from agt_operator_gateway.server import create_app
+from agt_operator_gateway.delivery_server import create_delivery_app
 from agt_operator_gateway.state_store import GatewayStateStore
 
 
@@ -71,7 +71,7 @@ def _store():
 
 
 async def _client(port, *, write_api_enabled=True, token='secret'):
-    app = create_app(
+    app = create_delivery_app(
         _store(), now_ms=lambda: 1000,
         commissioning=port,
         write_api_enabled=write_api_enabled,
@@ -169,7 +169,7 @@ def test_project_save_activate_and_history_routes() -> None:
 
 def test_commissioning_unavailable_is_explicit() -> None:
     async def run():
-        app = create_app(_store(), now_ms=lambda: 1000)
+        app = create_delivery_app(_store(), now_ms=lambda: 1000)
         client = TestClient(TestServer(app))
         await client.start_server()
         try:
