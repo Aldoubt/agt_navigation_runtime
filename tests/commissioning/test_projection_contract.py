@@ -1,11 +1,13 @@
 from pathlib import Path
 
 import json
+import os
 import pytest
 
 from agt_field_commissioning.projection import (
     ProjectionRequest,
     RtabmapGridBackend,
+    _resolve_executable,
     load_projection_record,
 )
 
@@ -65,6 +67,19 @@ def test_projection_builds_bounded_rtabmap_grid_command_and_record(tmp_path: Pat
     assert record["output_yaml_sha256"].startswith("sha256:")
     assert record["parameters"]["normals_segmentation"] is True
     assert record["parameters"]["max_ground_angle_deg"] == 35.0
+
+
+def test_projection_resolves_projector_from_ros_ament_prefix(tmp_path: Path, monkeypatch) -> None:
+    prefix = tmp_path / "install" / "agt_field_commissioning"
+    executable = prefix / "lib" / "agt_field_commissioning" / "rtabmap_grid_projector"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(0o755)
+
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setenv("AMENT_PREFIX_PATH", str(prefix))
+
+    assert _resolve_executable("rtabmap_grid_projector") == str(executable.resolve())
 
 
 def test_projection_fails_closed_when_backend_or_output_is_missing(tmp_path: Path) -> None:
