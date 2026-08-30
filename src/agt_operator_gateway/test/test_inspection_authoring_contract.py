@@ -110,3 +110,108 @@ def test_delivery_http_exposes_explicit_inspection_save_not_generic_task_alias()
     source = read("agt_operator_gateway/task_run_http.py")
     assert '"/api/v1/inspections/{inspection_task_id}"' in source
     assert "save_inspection" in source
+    assert '"home"' in source
+    assert '"expectedHomeTaskRevision"' in source
+
+
+def test_inspection_mission_is_exactly_inspection_then_return_home(tmp_path) -> None:
+    from agt_mission_manager.mission_schema import parse_mission
+    from agt_operator_gateway.mission_authoring import (
+        MissionAuthoringRepository,
+        build_inspection_mission_document,
+    )
+    from agt_operator_gateway.task_authoring_model import ActiveTaskSite
+
+    image = tmp_path / "navigation.pgm"
+    image.write_bytes(b"P5\n1 1\n255\n" + bytes((254,)))
+    yaml_path = tmp_path / "navigation.yaml"
+    yaml_path.write_text(
+        "image: navigation.pgm\nresolution: 0.5\norigin: [0.0, 0.0, 0.0]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.196\n",
+        encoding="utf-8",
+    )
+    site = ActiveTaskSite.from_files(
+        site_id="orchard_a",
+        site_revision="r01",
+        site_hash="sha256:" + "a" * 64,
+        navigation_yaml=yaml_path,
+    )
+    document = build_inspection_mission_document(
+        site=site,
+        inspection_task_id="inspect_01",
+        inspection_revision=2,
+        inspection_content_sha256="sha256:" + "b" * 64,
+        home_binding={
+            "taskGroupId": "inspect_01-home-nav",
+            "revision": 1,
+            "contentSha256": "sha256:" + "c" * 64,
+        },
+    )
+    parsed = parse_mission(document)
+    assert [step.type.name for step in parsed.steps] == ["INSPECTION_TASK", "RETURN_HOME"]
+    assert parsed.steps[0].inspection_task_id == "inspect_01"
+    assert parsed.steps[-1].task_group_id == "inspect_01-home-nav"
+    repo = MissionAuthoringRepository(tmp_path / "missions")
+    stored = repo.put_document(document)
+    assert stored.mission_id == "inspect_01-mission"
+    assert repo.path_for(stored.mission_id, stored.mission_version).is_file()
+
+
+def test_inspection_authoring_requires_explicit_home_and_returns_startable_mission(tmp_path) -> None:
+    from agt_inspection.authoring_repository import InspectionAuthoringRepository
+    from agt_operator_gateway.inspection_authoring import InspectionAuthoringAdapter
+    from agt_operator_gateway.mission_authoring import MissionAuthoringRepository
+    from agt_operator_gateway.task_authoring_model import ActiveTaskSite
+
+    image = tmp_path / "navigation.pgm"
+    image.write_bytes(b"P5\n1 1\n255\n" + bytes((254,)))
+    yaml_path = tmp_path / "navigation.yaml"
+    yaml_path.write_text(
+        "image: navigation.pgm\nresolution: 0.5\norigin: [0.0, 0.0, 0.0]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.196\n",
+        encoding="utf-8",
+    )
+    site = ActiveTaskSite.from_files(
+        site_id="orchard_a",
+        site_revision="r01",
+        site_hash="sha256:" + "a" * 64,
+        navigation_yaml=yaml_path,
+    )
+
+    class FakeTaskAuthoring:
+        def __init__(self):
+            self.revision = 0
+        def save(self, task_id, payload):
+            self.revision += 1
+            return {
+                "taskId": task_id,
+                "revision": self.revision,
+                "contentSha256": "sha256:" + format(self.revision, "064x"),
+            }
+
+    adapter = InspectionAuthoringAdapter(
+        active_site=site,
+        task_authoring=FakeTaskAuthoring(),
+        repository=InspectionAuthoringRepository(tmp_path / "maps", "orchard_a", "r01"),
+        mission_repository=MissionAuthoringRepository(tmp_path / "missions"),
+    )
+    base = {
+        "inspectionTaskId": "inspect_01",
+        "siteId": "orchard_a",
+        "siteRevision": "r01",
+        "expectedRevision": 0,
+        "points": [{"id": "P01", "x": 1.0, "y": 2.0, "yaw": 0.1, "expectedTaskRevision": 0}],
+    }
+    with pytest.raises(ValueError, match="home"):
+        adapter.save("inspect_01", base)
+
+    result = adapter.save(
+        "inspect_01",
+        {
+            **base,
+            "home": {"x": 0.0, "y": 0.0, "yaw": 0.0},
+            "expectedHomeTaskRevision": 0,
+        },
+    )
+    assert result["mission"]["missionId"] == "inspect_01-mission"
+    assert result["mission"]["missionVersion"] == "r0001"
+    assert result["homeBinding"]["taskGroupId"] == "inspect_01-home-nav"
+    assert result["mission"]["contentSha256"].startswith("sha256:")
