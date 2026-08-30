@@ -78,7 +78,9 @@ description = Path(get_package_share_directory('agt_description'))
 
 required = (
     hardware / 'launch' / 'bunker_mid360.launch.py',
-    hardware / 'config' / 'sensor_profiles.yaml',
+    hardware / 'config' / 'sensor_monitor.hardware_check.yaml',
+    hardware / 'config' / 'sensor_monitor.navigation.yaml',
+    hardware / 'config' / 'visual_interface_contract.yaml',
     description / 'launch' / 'bunker_description.launch.py',
     description / 'config' / 'bunker_mid360.yaml',
 )
