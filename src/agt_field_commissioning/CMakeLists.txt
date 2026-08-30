@@ -34,6 +34,7 @@ file(MAKE_DIRECTORY "${AGT_FIELD_COMMISSIONING_GENERATED_SCRIPT_DIR}")
 file(COPY
   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/finalize_mapping_run.py"
   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/raycast_free_space_node.py"
+  "${CMAKE_CURRENT_SOURCE_DIR}/scripts/compare_commissioning_maps.py"
   DESTINATION "${AGT_FIELD_COMMISSIONING_GENERATED_SCRIPT_DIR}"
   FILE_PERMISSIONS
     OWNER_READ OWNER_WRITE OWNER_EXECUTE
@@ -44,6 +45,7 @@ file(COPY
 install(PROGRAMS
   "${AGT_FIELD_COMMISSIONING_GENERATED_SCRIPT_DIR}/finalize_mapping_run.py"
   "${AGT_FIELD_COMMISSIONING_GENERATED_SCRIPT_DIR}/raycast_free_space_node.py"
+  "${AGT_FIELD_COMMISSIONING_GENERATED_SCRIPT_DIR}/compare_commissioning_maps.py"
   DESTINATION lib/${PROJECT_NAME}
 )
 
