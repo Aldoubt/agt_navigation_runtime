@@ -2,6 +2,7 @@ import asyncio
 
 from aiohttp.test_utils import TestClient, TestServer
 
+from agt_operator_gateway.delivery_server import create_delivery_app
 from agt_operator_gateway.server import create_app
 from agt_operator_gateway.state_store import GatewayStateStore
 
@@ -29,8 +30,25 @@ def test_default_readonly_p0_cors_allows_cross_origin_browser_get() -> None:
             )
             assert response.status == 200
             assert response.headers['Access-Control-Allow-Origin'] == '*'
-            assert 'PUT' in response.headers['Access-Control-Allow-Methods'].split(', ')
             assert 'Access-Control-Allow-Credentials' not in response.headers
+        finally:
+            await client.close()
+
+    asyncio.run(run())
+
+
+def test_delivery_gateway_cors_advertises_put_for_task_save() -> None:
+    async def run() -> None:
+        server = TestServer(create_delivery_app(_store(), now_ms=lambda: 1000))
+        client = TestClient(server)
+        await client.start_server()
+        try:
+            response = await client.get(
+                '/api/v1/health',
+                headers={'Origin': 'http://operator-laptop.local:5173'},
+            )
+            assert response.status == 200
+            assert 'PUT' in response.headers['Access-Control-Allow-Methods'].split(', ')
         finally:
             await client.close()
 
