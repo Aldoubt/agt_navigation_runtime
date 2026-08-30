@@ -9,8 +9,10 @@ from ament_index_python.packages import get_package_share_directory
 import rclpy
 
 from agt_field_commissioning.service import CommissioningService
+from agt_inspection.authoring_repository import InspectionAuthoringRepository
 from agt_operator_gateway.commissioning_port import FilesystemCommissioningPort
 from agt_operator_gateway.delivery_http_server import DeliveryGatewayHttpServer
+from agt_operator_gateway.inspection_authoring import InspectionAuthoringAdapter
 from agt_operator_gateway.mission_ros_adapter import MissionCommandAdapter
 from agt_operator_gateway.ros_adapter import RobotStateAdapter
 from agt_operator_gateway.run_ros_adapter import RunRosAdapter
@@ -107,6 +109,7 @@ def main(args=None) -> None:
             )
 
     task_authoring = None
+    active_task_site = None
     task_authoring_enabled = bool(
         node.declare_parameter("task_authoring_enabled", False).value
     )
@@ -116,6 +119,9 @@ def main(args=None) -> None:
         ).strip()
         task_site_revision = str(
             node.declare_parameter("task_authoring_site_revision", "").value
+        ).strip()
+        task_site_hash = str(
+            node.declare_parameter("task_authoring_site_hash", "").value
         ).strip()
         task_navigation_yaml = _path_parameter(
             node, "task_authoring_navigation_yaml", ""
@@ -142,6 +148,7 @@ def main(args=None) -> None:
             active_task_site = ActiveTaskSite.from_files(
                 site_id=task_site_id,
                 site_revision=task_site_revision,
+                site_hash=task_site_hash,
                 navigation_yaml=task_navigation_yaml,
                 localization_pcd=task_localization_pcd,
             )
@@ -157,6 +164,45 @@ def main(args=None) -> None:
             )
             node.get_logger().info(
                 f"task authoring Gateway bound to active Site {task_site_id}/{task_site_revision}"
+            )
+
+    inspection_authoring = None
+    inspection_authoring_enabled = bool(
+        node.declare_parameter(
+            "inspection_authoring_enabled", task_authoring_enabled
+        ).value
+    )
+    if inspection_authoring_enabled:
+        inspection_maps_root = _path_parameter(
+            node,
+            "inspection_authoring_runtime_maps_root",
+            "runtime/maps",
+        )
+        if task_authoring is None or active_task_site is None:
+            node.get_logger().error(
+                "inspection authoring disabled because task authoring is unavailable"
+            )
+        elif not active_task_site.site_hash:
+            node.get_logger().error(
+                "inspection authoring disabled because active Site manifest hash is unavailable"
+            )
+        elif inspection_maps_root is None:
+            node.get_logger().error(
+                "inspection authoring disabled because runtime maps root is empty"
+            )
+        else:
+            inspection_repository = InspectionAuthoringRepository(
+                inspection_maps_root,
+                active_task_site.site_id,
+                active_task_site.site_revision,
+            )
+            inspection_authoring = InspectionAuthoringAdapter(
+                active_site=active_task_site,
+                task_authoring=task_authoring,
+                repository=inspection_repository,
+            )
+            node.get_logger().info(
+                "inspection authoring Gateway enabled for frozen schema-v2 DEFERRED tasks"
             )
 
     run_control = None
@@ -207,6 +253,7 @@ def main(args=None) -> None:
         mission_commands=mission_commands,
         commissioning=commissioning,
         task_authoring=task_authoring,
+        inspection_authoring=inspection_authoring,
         run_control=run_control,
         write_api_enabled=write_api_enabled,
         command_token=command_token,
