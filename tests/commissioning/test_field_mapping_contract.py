@@ -21,6 +21,20 @@ def test_phase_a_mapping_launch_is_dedicated_and_persistent():
     assert '"/agt/commissioning/mapping/registered_points"' in text
 
 
+def test_phase_a_mapping_launch_exposes_same_run_to_delivery_gateway():
+    text = MAPPING_LAUNCH.read_text(encoding="utf-8")
+
+    assert 'package="agt_operator_gateway"' in text
+    assert 'executable="operator_delivery_gateway_node.py"' in text
+    assert '"commissioning_enabled": True' in text
+    assert '"commissioning_site_id": site_id' in text
+    assert '"commissioning_run_id": run_id' in text
+    assert '"commissioning_runtime_dir": runtime_dir' in text
+    assert '"commissioning_vehicle_profile": LaunchConfiguration("platform_profile").perform(context)' in text
+    assert 'DeclareLaunchArgument("start_operator_gateway", default_value="true")' in text
+    assert 'DeclareLaunchArgument("gateway_write_api_enabled", default_value="true")' in text
+
+
 def test_phase_a_mapping_launch_does_not_start_localization_or_navigation():
     text = MAPPING_LAUNCH.read_text(encoding="utf-8")
 
