@@ -43,6 +43,8 @@ def _compose(context):
     site_vehicle_profile = LaunchConfiguration("site_vehicle_profile").perform(context)
     site_id = LaunchConfiguration("site_id").perform(context)
     site_revision = LaunchConfiguration("site_revision").perform(context)
+    runtime_dir = LaunchConfiguration("runtime_dir").perform(context)
+    mission_root = str(Path(runtime_dir).expanduser() / "missions")
     use_sim_time = LaunchConfiguration("use_sim_time").perform(context)
 
     assets = resolve_active_frozen_site(
@@ -155,7 +157,7 @@ def _compose(context):
                 {
                     "params_file": LaunchConfiguration("nav2_params_file").perform(context),
                     "map": str(assets.navigation_yaml),
-                    "runtime_dir": LaunchConfiguration("runtime_dir").perform(context),
+                    "runtime_dir": runtime_dir,
                     "tasks_root": LaunchConfiguration("tasks_root").perform(context),
                     "sites_root": sites_root,
                     "site_vehicle_profile": site_vehicle_profile,
@@ -181,9 +183,7 @@ def _compose(context):
         actions.append(
             _include(
                 mission_manager_share / "launch" / "mission_manager.launch.py",
-                {
-                    "runtime_dir": LaunchConfiguration("runtime_dir").perform(context),
-                },
+                {"runtime_dir": runtime_dir},
             )
         )
 
@@ -209,7 +209,7 @@ def _compose(context):
                         "task_authoring_localization_pcd": str(assets.localization_pcd),
                         "inspection_authoring_enabled": True,
                         "inspection_authoring_runtime_maps_root": LaunchConfiguration("inspection_runtime_maps_root").perform(context),
-                        "inspection_authoring_missions_root": LaunchConfiguration("inspection_missions_root").perform(context),
+                        "inspection_authoring_missions_root": mission_root,
                         "run_control_enabled": True,
                         "run_lidar_component_id": LaunchConfiguration("run_lidar_component_id").perform(context),
                         "run_camera_gimbal_component_id": LaunchConfiguration("run_camera_gimbal_component_id").perform(context),
@@ -275,7 +275,6 @@ def generate_launch_description():
             DeclareLaunchArgument("inspection_camera_fps", default_value="30.0"),
             DeclareLaunchArgument("inspection_capture_output_root", default_value="runtime/camera_gimbal_capture"),
             DeclareLaunchArgument("inspection_runtime_maps_root", default_value="runtime/maps"),
-            DeclareLaunchArgument("inspection_missions_root", default_value="runtime/missions"),
             DeclareLaunchArgument("inspection_evidence_root", default_value="runtime/inspections"),
             DeclareLaunchArgument("inspection_camera_calibration_id", default_value=""),
             DeclareLaunchArgument("inspection_camera_calibration_sha256", default_value=""),
