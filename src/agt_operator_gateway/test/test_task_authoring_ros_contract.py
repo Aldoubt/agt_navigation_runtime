@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import re
 
 import pytest
 
@@ -31,6 +32,33 @@ def test_task_authoring_adapter_uses_planner_and_task_registry_only() -> None:
         "/agt/chassis",
     ):
         assert forbidden not in source
+
+
+def test_task_put_request_id_is_deterministic_and_content_bound() -> None:
+    from agt_operator_gateway import task_authoring_model as model
+
+    factory = getattr(model, "task_put_client_request_id", None)
+    assert callable(factory), "task authoring must expose a deterministic request-id factory"
+
+    kwargs = dict(
+        site_id="orchard_a",
+        site_revision="r01",
+        task_group_id="inspection_01-P01-nav",
+        expected_revision=0,
+        content_sha256="sha256:" + "a" * 64,
+    )
+    first = factory(**kwargs)
+    second = factory(**kwargs)
+    changed = factory(**{**kwargs, "content_sha256": "sha256:" + "b" * 64})
+
+    assert first == second
+    assert first != changed
+    assert len(first) <= 128
+    assert re.fullmatch(r"[A-Za-z0-9_.-]+", first)
+
+    adapter_source = read("agt_operator_gateway/task_authoring_ros_adapter.py")
+    assert "task_put_client_request_id(" in adapter_source
+    assert "uuid4" not in adapter_source
 
 
 def test_task_authoring_model_binds_exact_site_and_rejects_unpersisted_dwell(tmp_path) -> None:
