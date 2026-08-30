@@ -1,0 +1,38 @@
+name: Field Commissioning Map
+
+on:
+  push:
+    branches:
+      - feat/field-commissioning-hmi-map-flow
+    paths:
+      - 'src/agt_field_commissioning/**'
+      - 'src/agt_operator_gateway/**'
+      - 'tests/commissioning/**'
+      - '.github/workflows/field-commissioning-map.yml'
+  pull_request:
+    paths:
+      - 'src/agt_field_commissioning/**'
+      - 'src/agt_operator_gateway/**'
+      - 'tests/commissioning/**'
+      - '.github/workflows/field-commissioning-map.yml'
+
+jobs:
+  no-ros-contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install pytest aiohttp
+      - name: Commissioning tests
+        env:
+          PYTHONPATH: src/agt_field_commissioning:src/agt_operator_gateway:src/agt_site_runtime
+        run: python -m pytest -q tests/commissioning
+      - name: Gateway pure-Python tests
+        env:
+          PYTHONPATH: src/agt_operator_gateway:src/agt_field_commissioning:src/agt_site_runtime
+        run: python -m pytest -q src/agt_operator_gateway/test
+      - name: Compile changed Python packages
+        run: python -m compileall -q src/agt_field_commissioning src/agt_operator_gateway
