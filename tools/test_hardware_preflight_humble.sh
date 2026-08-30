@@ -9,6 +9,10 @@ if [[ ! -f "$ROS_SETUP" ]]; then
   exit 2
 fi
 
+# ros2 is placed on PATH by the ROS environment, so source Humble before
+# validating any ROS CLI command.
+source "$ROS_SETUP"
+
 for command in python3 colcon ros2; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "ERROR: required command not found: $command" >&2
@@ -31,7 +35,6 @@ mkdir -p "$SMOKE_WS/src"
 cp -a "$ROOT/src/agt_description" "$SMOKE_WS/src/agt_description"
 cp -a "$ROOT/src/agt_hardware_bringup" "$SMOKE_WS/src/agt_hardware_bringup"
 
-source "$ROS_SETUP"
 cd "$SMOKE_WS"
 
 mapfile -t discovered_packages < <(colcon list --names-only | sort)
