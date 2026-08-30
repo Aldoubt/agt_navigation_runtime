@@ -33,6 +33,7 @@ def test_phase_a_mapping_launch_exposes_same_run_to_delivery_gateway():
     assert '"commissioning_vehicle_profile": LaunchConfiguration("platform_profile").perform(context)' in text
     assert 'DeclareLaunchArgument("start_operator_gateway", default_value="true")' in text
     assert 'DeclareLaunchArgument("gateway_write_api_enabled", default_value="true")' in text
+    assert 'DeclareLaunchArgument("gateway_host", default_value="127.0.0.1")' in text
 
 
 def test_phase_a_mapping_launch_does_not_start_localization_or_navigation():
