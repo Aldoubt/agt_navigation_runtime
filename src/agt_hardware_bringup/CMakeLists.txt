@@ -16,6 +16,7 @@ file(MAKE_DIRECTORY "${PREFLIGHT_SCRIPT_BUILD_DIR}")
 file(COPY
   scripts/socketcan_preflight.py
   scripts/vehicle_preflight.py
+  scripts/acceptance_session.py
   DESTINATION "${PREFLIGHT_SCRIPT_BUILD_DIR}"
   FILE_PERMISSIONS
     OWNER_READ OWNER_WRITE OWNER_EXECUTE
@@ -26,6 +27,7 @@ file(COPY
 install(PROGRAMS
   "${PREFLIGHT_SCRIPT_BUILD_DIR}/socketcan_preflight.py"
   "${PREFLIGHT_SCRIPT_BUILD_DIR}/vehicle_preflight.py"
+  "${PREFLIGHT_SCRIPT_BUILD_DIR}/acceptance_session.py"
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -43,6 +45,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_description_preflight_contract test/test_description_preflight_contract.py)
   ament_add_pytest_test(test_package_contract test/test_package_contract.py)
   ament_add_pytest_test(test_visual_interface_contract test/test_visual_interface_contract.py)
+  ament_add_pytest_test(test_acceptance_session test/test_acceptance_session.py)
 endif()
 
 ament_package()
