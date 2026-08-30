@@ -39,6 +39,16 @@ def create_delivery_app(
         if 'Access-Control-Allow-Methods' in response.headers:
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS'
 
+    async def delivery_options(_request: web.Request) -> web.Response:
+        """Accept browser CORS preflight for additive delivery API routes.
+
+        Origin validation and CORS response headers remain owned by the base
+        Gateway middleware/response hook.  This handler only ensures that
+        browser preflight does not stop at aiohttp's default 405 response for
+        commissioning/task/run write routes added after create_app().
+        """
+        return web.Response(status=204)
+
     app.on_response_prepare.append(add_delivery_cors_methods)
 
     register_commissioning_routes(
@@ -55,4 +65,10 @@ def create_delivery_app(
         write_api_enabled=write_api_enabled,
         command_token=command_token,
     )
+
+    # Base mission commands already have explicit OPTIONS routes.  Delivery
+    # capabilities are registered later, so provide a narrow API-wide fallback
+    # for their browser preflight requests instead of duplicating an OPTIONS
+    # registration for every POST/PUT endpoint.
+    app.router.add_route('OPTIONS', '/api/v1/{tail:.*}', delivery_options)
     return app
