@@ -8,7 +8,7 @@ import math
 from pathlib import Path
 import struct
 import sys
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 import yaml
 
@@ -180,32 +180,72 @@ class RaycastEvidenceGrid:
         )
         self._cells[cell] = [log_odds, count + 1]
 
-    def observe_ray(
+    def _ray_cells(
         self,
         origin_xy: tuple[float, float],
         endpoint_xy: tuple[float, float],
-    ) -> bool:
+    ) -> list[tuple[int, int]] | None:
         ox, oy = float(origin_xy[0]), float(origin_xy[1])
         ex, ey = float(endpoint_xy[0]), float(endpoint_xy[1])
         if not all(math.isfinite(value) for value in (ox, oy, ex, ey)):
             self.stats.rejected_nonfinite += 1
-            return False
+            return None
         distance = math.hypot(ex - ox, ey - oy)
         if distance < self.config.min_ray_range_m or distance > self.config.max_ray_range_m:
             self.stats.rejected_range += 1
-            return False
+            return None
 
         start = world_to_cell((ox, oy), self.config.resolution_m)
         end = world_to_cell((ex, ey), self.config.resolution_m)
         cells = grid_ray_cells(start, end)
         if not cells:
             self.stats.rejected_range += 1
-            return False
-        for cell in cells[:-1]:
+            return None
+        return cells
+
+    def observe_rays(
+        self,
+        origin_xy: tuple[float, float],
+        endpoints_xy: Iterable[tuple[float, float]],
+    ) -> int:
+        """Accumulate one registered cloud while bounding per-frame cell weight.
+
+        A dense scan can contain many rays traversing the same cells. Those
+        overlapping rays are merged before updating the temporal log-odds map,
+        so a cell receives at most one observation per registered cloud. If a
+        cell is both a pass-through cell and an endpoint in the same cloud, the
+        endpoint/hit interpretation wins for that frame.
+        """
+        free_cells: set[tuple[int, int]] = set()
+        hit_cells: set[tuple[int, int]] = set()
+        accepted = 0
+
+        for endpoint_xy in endpoints_xy:
+            cells = self._ray_cells(origin_xy, endpoint_xy)
+            if cells is None:
+                continue
+            free_cells.update(cells[:-1])
+            hit_cells.add(cells[-1])
+            accepted += 1
+
+        if accepted <= 0:
+            return 0
+
+        free_cells.difference_update(hit_cells)
+        for cell in free_cells:
             self._update(cell, self.config.free_logodds_delta)
-        self._update(cells[-1], self.config.hit_logodds_delta)
-        self.stats.accepted_rays += 1
-        return True
+        for cell in hit_cells:
+            self._update(cell, self.config.hit_logodds_delta)
+
+        self.stats.accepted_rays += accepted
+        return accepted
+
+    def observe_ray(
+        self,
+        origin_xy: tuple[float, float],
+        endpoint_xy: tuple[float, float],
+    ) -> bool:
+        return self.observe_rays(origin_xy, (endpoint_xy,)) == 1
 
     def cell_evidence(self, ix: int, iy: int) -> CellEvidence:
         raw = self._cells.get((int(ix), int(iy)))
