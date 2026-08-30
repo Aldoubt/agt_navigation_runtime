@@ -9,6 +9,7 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
   <exec_depend>action_msgs</exec_depend>
   <exec_depend>agt_field_commissioning</exec_depend>
+  <exec_depend>agt_inspection</exec_depend>
   <exec_depend>agt_interfaces</exec_depend>
   <exec_depend>agt_navigation</exec_depend>
   <exec_depend>agt_runtime_contracts</exec_depend>
