@@ -30,9 +30,12 @@ struct Options
   double cell_size{0.05};
   double max_ground_angle_deg{35.0};
   int normal_k{20};
-  double min_ground_height{-0.4};
-  double max_ground_height{0.5};
-  double max_obstacle_height{2.0};
+  // A finalized LIO map is expressed in a global frame whose Z origin is the
+  // initial LiDAR pose, not a ground-height datum. RTAB-Map defines zero as
+  // disabled for these absolute height gates, so zero is the frame-safe default.
+  double min_ground_height{0.0};
+  double max_ground_height{0.0};
+  double max_obstacle_height{0.0};
 };
 
 std::string requireValue(int argc, char ** argv, int * index)
@@ -84,8 +87,21 @@ Options parseOptions(int argc, char ** argv)
   if (options.normal_k < 3) {
     throw std::runtime_error("normal-k must be >= 3");
   }
-  if (!(options.min_ground_height < options.max_ground_height)) {
-    throw std::runtime_error("min ground height must be smaller than max ground height");
+  if (
+    options.min_ground_height != 0.0 &&
+    options.max_ground_height != 0.0 &&
+    !(options.min_ground_height < options.max_ground_height))
+  {
+    throw std::runtime_error(
+            "min ground height must be smaller than max ground height when both are enabled");
+  }
+  if (
+    options.min_ground_height != 0.0 &&
+    options.max_obstacle_height != 0.0 &&
+    !(options.max_obstacle_height > options.min_ground_height))
+  {
+    throw std::runtime_error(
+            "max obstacle height must exceed min ground height when both are enabled");
   }
   return options;
 }
@@ -96,7 +112,9 @@ rtabmap::ParametersMap makeParameters(const Options & options)
   parameters["Grid/CellSize"] = std::to_string(options.cell_size);
   parameters["Grid/NormalsSegmentation"] = "true";
   parameters["Grid/NormalK"] = std::to_string(options.normal_k);
-  parameters["Grid/MaxGroundAngle"] = std::to_string(options.max_ground_angle_deg * M_PI / 180.0);
+  // RTAB-Map's Grid/MaxGroundAngle parameter is expressed in degrees and is
+  // converted internally by LocalGridMaker. Do not convert it a second time.
+  parameters["Grid/MaxGroundAngle"] = std::to_string(options.max_ground_angle_deg);
   parameters["Grid/MinGroundHeight"] = std::to_string(options.min_ground_height);
   parameters["Grid/MaxGroundHeight"] = std::to_string(options.max_ground_height);
   parameters["Grid/MaxObstacleHeight"] = std::to_string(options.max_obstacle_height);
