@@ -29,6 +29,7 @@ def test_default_readonly_p0_cors_allows_cross_origin_browser_get() -> None:
             )
             assert response.status == 200
             assert response.headers['Access-Control-Allow-Origin'] == '*'
+            assert 'PUT' in response.headers['Access-Control-Allow-Methods'].split(', ')
             assert 'Access-Control-Allow-Credentials' not in response.headers
         finally:
             await client.close()
