@@ -25,6 +25,7 @@ def _include(path: Path, arguments: dict[str, str] | None = None):
 
 
 def _compose(context):
+    commissioning_share = Path(get_package_share_directory("agt_field_commissioning"))
     hardware_share = Path(get_package_share_directory("agt_hardware_bringup"))
     odometry_share = Path(get_package_share_directory("agt_odometry"))
     sensor_share = Path(get_package_share_directory("agt_sensor_adapters"))
@@ -100,6 +101,21 @@ def _compose(context):
         )
     )
 
+    if _enabled(context, "start_rviz"):
+        actions.append(
+            Node(
+                package="rviz2",
+                executable="rviz2",
+                name="agt_field_mapping_rviz",
+                output="screen",
+                arguments=[
+                    "-d",
+                    str(commissioning_share / "rviz" / "field_mapping.rviz"),
+                ],
+                parameters=[{"use_sim_time": _enabled(context, "use_sim_time")}],
+            )
+        )
+
     if _enabled(context, "start_operator_gateway"):
         actions.append(
             Node(
@@ -146,6 +162,7 @@ def generate_launch_description():
             DeclareLaunchArgument("gateway_write_api_enabled", default_value="true"),
             DeclareLaunchArgument("gateway_host", default_value="127.0.0.1"),
             DeclareLaunchArgument("gateway_port", default_value="8765"),
+            DeclareLaunchArgument("start_rviz", default_value="false"),
             DeclareLaunchArgument(
                 "mid360_user_config_path",
                 default_value=str(default_mid360_config),
