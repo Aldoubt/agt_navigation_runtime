@@ -157,13 +157,12 @@ class RaycastFreeSpaceNode(Node):
             return
 
         origin = (pose.x, pose.y)
-        frame_points = 0
-        for endpoint in self._iter_endpoints(message):
-            frame_points += 1
-            self.points_considered += 1
-            self.grid.observe_ray(origin, endpoint)
-        if frame_points > 0:
-            self.processed_frames += 1
+        endpoints = list(self._iter_endpoints(message))
+        if not endpoints:
+            return
+        self.points_considered += len(endpoints)
+        self.grid.observe_rays(origin, endpoints)
+        self.processed_frames += 1
 
     def save(self) -> None:
         if self._saved:
