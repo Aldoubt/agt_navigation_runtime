@@ -10,6 +10,8 @@ from aiohttp import WSMsgType, web
 
 from .command_guard import (
     CommandReplayStore,
+    ControlLeaseDecision,
+    ControlLeaseStore,
     ReplayKind,
     canonical_fingerprint,
     verify_bearer_token,
@@ -109,6 +111,15 @@ def _command_http_result(
     }
 
 
+def _control_payload(decision: ControlLeaseDecision) -> dict[str, Any]:
+    return {
+        'apiVersion': GATEWAY_API_VERSION,
+        'acquired': bool(decision.acquired),
+        'controllerId': decision.controller_id,
+        'expiresAtMs': decision.expires_at_ms,
+    }
+
+
 def create_app(
     store: GatewayStateStore,
     *,
@@ -121,6 +132,8 @@ def create_app(
     write_api_enabled: bool = False,
     command_token: str = '',
     command_replay_store: CommandReplayStore | None = None,
+    control_lease_required: bool = False,
+    control_lease_store: ControlLeaseStore | None = None,
 ) -> web.Application:
     if stream_poll_s <= 0.0:
         raise ValueError('stream_poll_s must be > 0')
@@ -132,7 +145,9 @@ def create_app(
     clock = now_ms or (lambda: int(time() * 1000))
     started = int(clock() if started_at_ms is None else started_at_ms)
     replay_store = command_replay_store or CommandReplayStore(now_ms=clock)
+    lease_store = control_lease_store or ControlLeaseStore(now_ms=clock)
     command_token = str(command_token)
+    control_lease_required = bool(control_lease_required)
 
     @web.middleware
     async def origin_guard(request: web.Request, handler):
@@ -168,8 +183,23 @@ def create_app(
             )
         return snapshot
 
+    def require_write_authorization(request: web.Request) -> web.Response | None:
+        if not write_api_enabled or not command_token:
+            return _json_error(
+                403,
+                'WRITE_API_DISABLED',
+                'mission write API is disabled',
+            )
+        if not verify_bearer_token(
+            request.headers.get('Authorization'),
+            command_token,
+        ):
+            return _json_error(401, 'UNAUTHORIZED', 'invalid command authorization')
+        return None
+
     async def health(_request: web.Request) -> web.Response:
         connected = store.is_runtime_connected(clock())
+        lease = lease_store.snapshot()
         return web.json_response({
             'apiVersion': GATEWAY_API_VERSION,
             'timestampMs': int(clock()),
@@ -180,6 +210,11 @@ def create_app(
             'runtime': {
                 'connected': connected,
                 'adapter': 'agt_system_manager',
+            },
+            'control': {
+                'required': control_lease_required,
+                'controllerId': lease.controller_id,
+                'expiresAtMs': lease.expires_at_ms,
             },
         })
 
@@ -207,32 +242,82 @@ def create_app(
     async def command_options(_request: web.Request) -> web.Response:
         return web.Response(status=204)
 
+    async def control_status(_request: web.Request) -> web.Response:
+        return web.json_response(_control_payload(lease_store.snapshot()))
+
+    async def control_command(request: web.Request) -> web.Response:
+        authorization_error = require_write_authorization(request)
+        if authorization_error is not None:
+            return authorization_error
+
+        action = request.path.rsplit('/', 1)[-1].lower()
+        if action not in {'acquire', 'renew', 'release'}:
+            return _json_error(404, 'UNKNOWN_CONTROL_COMMAND', 'unknown control lease command')
+
+        try:
+            raw = await request.json()
+            if not isinstance(raw, dict):
+                raise ValueError('request body must be a JSON object')
+            client_id = _required_string(raw, 'clientId', maximum_length=128)
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            return _json_error(400, 'INVALID_CONTROL_REQUEST', str(exc))
+
+        if action == 'acquire':
+            decision = lease_store.acquire(client_id)
+            if not decision.acquired:
+                payload = _control_payload(decision)
+                payload.update({
+                    'code': 'CONTROL_LEASE_HELD',
+                    'message': 'control lease is held by another client',
+                })
+                return web.json_response(payload, status=409)
+            return web.json_response(_control_payload(decision), status=200)
+
+        if action == 'renew':
+            decision = lease_store.renew(client_id)
+            if not decision.acquired:
+                payload = _control_payload(decision)
+                payload.update({
+                    'code': 'CONTROL_LEASE_NOT_OWNER',
+                    'message': 'client does not own the active control lease',
+                })
+                return web.json_response(payload, status=409)
+            return web.json_response(_control_payload(decision), status=200)
+
+        before = lease_store.snapshot()
+        decision = lease_store.release(client_id)
+        if before.controller_id not in (None, client_id):
+            payload = _control_payload(decision)
+            payload.update({
+                'code': 'CONTROL_LEASE_NOT_OWNER',
+                'message': 'client does not own the active control lease',
+            })
+            return web.json_response(payload, status=409)
+        return web.json_response(_control_payload(decision), status=200)
+
     async def mission_command(request: web.Request) -> web.Response:
         command = request.path.rsplit('/', 1)[-1].upper()
         if command not in {'START', 'PAUSE', 'RESUME', 'CANCEL'}:
             return _json_error(404, 'UNKNOWN_COMMAND', 'unknown mission command')
-        if not write_api_enabled or not command_token:
-            return _json_error(
-                403,
-                'WRITE_API_DISABLED',
-                'mission write API is disabled',
-            )
+        authorization_error = require_write_authorization(request)
+        if authorization_error is not None:
+            return authorization_error
         if mission_commands is None:
             return _json_error(
                 503,
                 'COMMAND_ADAPTER_UNAVAILABLE',
                 'mission command adapter is unavailable',
             )
-        if not verify_bearer_token(
-            request.headers.get('Authorization'),
-            command_token,
-        ):
-            return _json_error(401, 'UNAUTHORIZED', 'invalid command authorization')
 
         try:
             raw = await request.json()
             if not isinstance(raw, dict):
                 raise ValueError('request body must be a JSON object')
+            client_id = (
+                _required_string(raw, 'clientId', maximum_length=128)
+                if control_lease_required
+                else _optional_string(raw, 'clientId', maximum_length=128)
+            )
             client_request_id = _required_string(
                 raw,
                 'clientRequestId',
@@ -251,12 +336,24 @@ def create_app(
                 mission_version = ''
                 expected_hash = ''
                 fingerprint_payload = {'missionId': mission_id}
+            if client_id:
+                fingerprint_payload['clientId'] = client_id
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return _json_error(
                 400,
                 'INVALID_COMMAND_REQUEST',
                 str(exc),
             )
+
+        if control_lease_required:
+            lease = lease_store.renew(client_id)
+            if not lease.acquired:
+                return _json_error(
+                    409,
+                    'CONTROL_LEASE_REQUIRED',
+                    'client does not own an active control lease',
+                    client_request_id=client_request_id,
+                )
 
         try:
             snapshot = require_fresh_snapshot()
@@ -401,6 +498,11 @@ def create_app(
     app.router.add_get('/api/v1/robot', robot)
     app.router.add_get('/api/v1/mission', mission)
     app.router.add_get('/api/v1/stream', stream)
+    app.router.add_get('/api/v1/control', control_status)
+    for action in ('acquire', 'renew', 'release'):
+        path = f'/api/v1/control/{action}'
+        app.router.add_post(path, control_command)
+        app.router.add_options(path, command_options)
     for command_name in ('start', 'pause', 'resume', 'cancel'):
         path = f'/api/v1/mission/{command_name}'
         app.router.add_post(path, mission_command)
@@ -422,6 +524,8 @@ class GatewayHttpServer:
         write_api_enabled: bool = False,
         command_token: str = '',
         command_replay_store: CommandReplayStore | None = None,
+        control_lease_required: bool = False,
+        control_lease_store: ControlLeaseStore | None = None,
     ) -> None:
         from threading import Event, Thread
 
@@ -439,6 +543,8 @@ class GatewayHttpServer:
         self._write_api_enabled = bool(write_api_enabled)
         self._command_token = str(command_token)
         self._command_replay_store = command_replay_store
+        self._control_lease_required = bool(control_lease_required)
+        self._control_lease_store = control_lease_store
         self._stop_event = Event()
         self._started_event = Event()
         self._thread = Thread(
@@ -482,6 +588,8 @@ class GatewayHttpServer:
                 write_api_enabled=self._write_api_enabled,
                 command_token=self._command_token,
                 command_replay_store=self._command_replay_store,
+                control_lease_required=self._control_lease_required,
+                control_lease_store=self._control_lease_store,
             )
         )
         await runner.setup()

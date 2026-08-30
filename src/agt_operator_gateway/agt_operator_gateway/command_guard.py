@@ -39,6 +39,101 @@ class _ReplayEntry:
         return self.completed_at_ms is not None
 
 
+@dataclass(frozen=True)
+class ControlLeaseDecision:
+    acquired: bool
+    controller_id: str | None
+    expires_at_ms: int | None
+
+
+class ControlLeaseStore:
+    """Single-controller lease with bounded lifetime and thread-safe renewal."""
+
+    def __init__(
+        self,
+        *,
+        now_ms: Callable[[], int] | None = None,
+        ttl_ms: int = 15_000,
+    ) -> None:
+        if ttl_ms <= 0:
+            raise ValueError('ttl_ms must be > 0')
+        self._now_ms = now_ms or (lambda: int(time() * 1000))
+        self._ttl_ms = int(ttl_ms)
+        self._controller_id: str | None = None
+        self._expires_at_ms: int | None = None
+        self._lock = RLock()
+
+    @property
+    def ttl_ms(self) -> int:
+        return self._ttl_ms
+
+    def acquire(self, client_id: str) -> ControlLeaseDecision:
+        normalized = self._normalize_client_id(client_id)
+        now = int(self._now_ms())
+        with self._lock:
+            self._expire_if_needed(now)
+            if self._controller_id not in (None, normalized):
+                return self._decision(False)
+            self._controller_id = normalized
+            self._expires_at_ms = now + self._ttl_ms
+            return self._decision(True)
+
+    def renew(self, client_id: str) -> ControlLeaseDecision:
+        normalized = self._normalize_client_id(client_id)
+        now = int(self._now_ms())
+        with self._lock:
+            self._expire_if_needed(now)
+            if self._controller_id != normalized:
+                return self._decision(False)
+            self._expires_at_ms = now + self._ttl_ms
+            return self._decision(True)
+
+    def release(self, client_id: str) -> ControlLeaseDecision:
+        normalized = self._normalize_client_id(client_id)
+        now = int(self._now_ms())
+        with self._lock:
+            self._expire_if_needed(now)
+            if self._controller_id == normalized:
+                self._controller_id = None
+                self._expires_at_ms = None
+            return self._decision(False)
+
+    def snapshot(self) -> ControlLeaseDecision:
+        now = int(self._now_ms())
+        with self._lock:
+            self._expire_if_needed(now)
+            return self._decision(False)
+
+    def is_controller(self, client_id: str) -> bool:
+        normalized = self._normalize_client_id(client_id)
+        now = int(self._now_ms())
+        with self._lock:
+            self._expire_if_needed(now)
+            return self._controller_id == normalized
+
+    def _expire_if_needed(self, now: int) -> None:
+        if self._expires_at_ms is None or now < self._expires_at_ms:
+            return
+        self._controller_id = None
+        self._expires_at_ms = None
+
+    def _decision(self, acquired: bool) -> ControlLeaseDecision:
+        return ControlLeaseDecision(
+            acquired=bool(acquired),
+            controller_id=self._controller_id,
+            expires_at_ms=self._expires_at_ms,
+        )
+
+    @staticmethod
+    def _normalize_client_id(client_id: str) -> str:
+        normalized = str(client_id).strip()
+        if not normalized:
+            raise ValueError('client_id must not be empty')
+        if len(normalized) > 128:
+            raise ValueError('client_id exceeds maximum length 128')
+        return normalized
+
+
 def verify_bearer_token(header: str | None, expected_token: str) -> bool:
     expected = str(expected_token)
     if not expected or not header or not header.startswith('Bearer '):

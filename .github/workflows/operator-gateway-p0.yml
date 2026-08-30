@@ -5,6 +5,7 @@ on:
     branches:
       - feat/operator-gateway-p0
       - feat/operator-gateway-p1-mission-control
+      - feat/operator-gateway-control-lease
     paths:
       - 'src/agt_operator_gateway/**'
       - 'src/agt_interfaces/msg/**'
@@ -58,6 +59,7 @@ jobs:
           src/agt_operator_gateway/test/test_interface_compatibility.py
           src/agt_operator_gateway/test/test_command_guard.py
           src/agt_operator_gateway/test/test_mission_command_http.py
+          src/agt_operator_gateway/test/test_control_lease_http.py
           src/agt_operator_gateway/test/test_mission_ros_contract.py
       - name: Compile Python and launch assets
         run: >-

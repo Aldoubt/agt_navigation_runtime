@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from agt_operator_gateway.command_guard import (
     CommandReplayStore,
+    ControlLeaseStore,
     ReplayKind,
     canonical_fingerprint,
     verify_bearer_token,
@@ -91,3 +92,53 @@ def test_completed_oldest_entry_is_evicted_when_cache_is_full() -> None:
     now[0] = 1001
     assert store.begin('req-b', second).kind is ReplayKind.NEW
     assert store.begin('req-a', first).kind is ReplayKind.CAPACITY
+
+
+def test_control_lease_allows_only_one_controller_until_release() -> None:
+    now = [1000]
+    store = ControlLeaseStore(now_ms=lambda: now[0], ttl_ms=15_000)
+
+    first = store.acquire('laptop-a')
+    blocked = store.acquire('laptop-b')
+
+    assert first.acquired is True
+    assert first.controller_id == 'laptop-a'
+    assert first.expires_at_ms == 16_000
+    assert blocked.acquired is False
+    assert blocked.controller_id == 'laptop-a'
+    assert store.is_controller('laptop-a') is True
+    assert store.is_controller('laptop-b') is False
+
+    released = store.release('laptop-a')
+    assert released.controller_id is None
+    assert store.acquire('laptop-b').acquired is True
+
+
+def test_control_lease_renew_extends_expiry_and_expired_owner_can_be_replaced() -> None:
+    now = [1000]
+    store = ControlLeaseStore(now_ms=lambda: now[0], ttl_ms=1000)
+
+    store.acquire('robot-local')
+    now[0] = 1500
+    renewed = store.renew('robot-local')
+    assert renewed.acquired is True
+    assert renewed.expires_at_ms == 2500
+
+    now[0] = 2501
+    assert store.is_controller('robot-local') is False
+    replacement = store.acquire('laptop-remote')
+    assert replacement.acquired is True
+    assert replacement.controller_id == 'laptop-remote'
+
+
+def test_control_lease_non_owner_cannot_renew_or_release_current_owner() -> None:
+    store = ControlLeaseStore(now_ms=lambda: 1000, ttl_ms=15_000)
+    store.acquire('laptop-a')
+
+    renew = store.renew('laptop-b')
+    release = store.release('laptop-b')
+
+    assert renew.acquired is False
+    assert renew.controller_id == 'laptop-a'
+    assert release.controller_id == 'laptop-a'
+    assert store.is_controller('laptop-a') is True

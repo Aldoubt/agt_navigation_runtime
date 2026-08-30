@@ -1,0 +1,26 @@
+agt_operator_gateway:
+  ros__parameters:
+    # Production HMI topology: Caddy is the only LAN-facing HTTP server and
+    # reverse-proxies /api/* to this loopback-only gateway.
+    host: 127.0.0.1
+    port: 8765
+    robot_id: agt-robot
+    robot_name: AGT Robot
+    robot_state_topic: /agt/system/robot_state
+    runtime_freshness_ms: 1500
+    offline_after_ms: 5000
+    stream_poll_s: 0.05
+
+    # Writes only become active when AGT_OPERATOR_COMMAND_TOKEN is also set.
+    # When active, operator_gateway_node.py additionally requires an exclusive
+    # expiring Control Lease before START/PAUSE/RESUME/CANCEL are dispatched.
+    write_api_enabled: true
+    mission_command_timeout_s: 5.0
+
+    # Planned fixed robot address is 192.168.50.10. Add/change entries here if
+    # the production hostname or robot LAN address changes.
+    cors_allowed_origins:
+      - 'http://127.0.0.1'
+      - 'http://localhost'
+      - 'http://192.168.50.10'
+      - 'http://agt-robot.local'
