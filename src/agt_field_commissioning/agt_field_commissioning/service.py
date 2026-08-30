@@ -129,9 +129,9 @@ class CommissioningService:
             resolution_m=float(overrides.get("resolution_m", 0.05)),
             max_ground_angle_deg=float(overrides.get("max_ground_angle_deg", 35.0)),
             normal_k=int(overrides.get("normal_k", 20)),
-            min_ground_height_m=float(overrides.get("min_ground_height_m", -0.4)),
-            max_ground_height_m=float(overrides.get("max_ground_height_m", 0.5)),
-            max_obstacle_height_m=float(overrides.get("max_obstacle_height_m", 2.0)),
+            min_ground_height_m=float(overrides.get("min_ground_height_m", 0.0)),
+            max_ground_height_m=float(overrides.get("max_ground_height_m", 0.0)),
+            max_obstacle_height_m=float(overrides.get("max_obstacle_height_m", 0.0)),
         )
         result = self.projection_backend.project(request)
         key = (_identity(site_id, "site_id"), _identity(run_id, "run_id"))
