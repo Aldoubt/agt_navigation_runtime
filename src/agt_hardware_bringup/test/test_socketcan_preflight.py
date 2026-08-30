@@ -123,6 +123,34 @@ def test_dynamic_observation_rejects_new_errors_and_reports_deltas():
     assert "counter_increase:rx_errors:+3" in blockers
 
 
+def test_dynamic_observation_accepts_recovering_controller_error_counters():
+    module = load_module()
+    before_text = HEALTHY.replace(
+        "berr-counter tx 0 rx 0", "berr-counter tx 4 rx 3"
+    )
+    before = module.parse_ip_link_details(before_text)
+    after = module.parse_ip_link_details(HEALTHY)
+
+    ok, blockers, deltas = module.evaluate_can_observation(before, after, 500000)
+
+    assert ok is True
+    assert blockers == []
+    assert deltas["berr_tx"] == -4
+    assert deltas["berr_rx"] == -3
+
+
+def test_dynamic_observation_rejects_cumulative_link_counter_reset():
+    module = load_module()
+    before_text = HEALTHY.replace("1234     0       0", "1234     7       0")
+    before = module.parse_ip_link_details(before_text)
+    after = module.parse_ip_link_details(HEALTHY)
+
+    ok, blockers, _ = module.evaluate_can_observation(before, after, 500000)
+
+    assert ok is False
+    assert "counter_reset:rx_errors:7->0" in blockers
+
+
 def test_dynamic_observation_accepts_packet_growth_without_error_growth():
     module = load_module()
     before = module.parse_ip_link_details(HEALTHY)
