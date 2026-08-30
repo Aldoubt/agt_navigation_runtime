@@ -67,9 +67,13 @@ class ProjectionRequest:
     resolution_m: float = 0.05
     max_ground_angle_deg: float = 35.0
     normal_k: int = 20
-    min_ground_height_m: float = -0.4
-    max_ground_height_m: float = 0.5
-    max_obstacle_height_m: float = 2.0
+    # Finalized FAST-LIVO2 maps use a global gravity-aligned frame whose Z
+    # origin is the initial LiDAR pose, not a ground-height datum. RTAB-Map uses
+    # zero for these parameters to disable absolute Z clipping, which is the
+    # only frame-safe default for a whole LIO map (including slopes).
+    min_ground_height_m: float = 0.0
+    max_ground_height_m: float = 0.0
+    max_obstacle_height_m: float = 0.0
 
     def validate(self) -> None:
         source = Path(self.source_pcd).expanduser()
@@ -81,10 +85,16 @@ class ProjectionRequest:
             raise ValueError("max_ground_angle_deg must be between 0 and 90")
         if int(self.normal_k) < 3:
             raise ValueError("normal_k must be >= 3")
-        if float(self.min_ground_height_m) >= float(self.max_ground_height_m):
-            raise ValueError("min_ground_height_m must be less than max_ground_height_m")
-        if float(self.max_obstacle_height_m) <= float(self.min_ground_height_m):
-            raise ValueError("max_obstacle_height_m must exceed min_ground_height_m")
+
+        min_ground = float(self.min_ground_height_m)
+        max_ground = float(self.max_ground_height_m)
+        max_obstacle = float(self.max_obstacle_height_m)
+        # RTAB-Map defines 0 as "disabled" for all three absolute height gates.
+        # Validate only pairs that are actually enabled.
+        if min_ground != 0.0 and max_ground != 0.0 and min_ground >= max_ground:
+            raise ValueError("min_ground_height_m must be less than max_ground_height_m when both are enabled")
+        if min_ground != 0.0 and max_obstacle != 0.0 and max_obstacle <= min_ground:
+            raise ValueError("max_obstacle_height_m must exceed min_ground_height_m when both are enabled")
 
 
 @dataclass(frozen=True)
