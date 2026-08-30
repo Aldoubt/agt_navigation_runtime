@@ -65,6 +65,18 @@ def test_phase_a_mapping_has_dedicated_optional_rviz():
     assert "Value: /path" in rviz
 
 
+def test_phase_a_mapping_has_optional_run_scoped_raycast_observer():
+    launch = MAPPING_LAUNCH.read_text(encoding="utf-8")
+
+    assert 'DeclareLaunchArgument("start_raycast_observer", default_value="false")' in launch
+    assert 'DeclareLaunchArgument("raycast_pose_topic", default_value="/aft_mapped_to_init")' in launch
+    assert 'DeclareLaunchArgument(' in launch and '"raycast_config_file"' in launch
+    assert 'executable="raycast_free_space_node.py"' in launch
+    assert '"output_dir": str(paths.observation_dir)' in launch
+    assert '"cloud_topic": "/agt/commissioning/mapping/registered_points"' in launch
+    assert '"pose_topic": LaunchConfiguration("raycast_pose_topic").perform(context)' in launch
+
+
 def test_phase_c_navigation_uses_navigation_specific_rviz():
     launch = NAVIGATION_LAUNCH.read_text(encoding="utf-8")
     rviz = NAVIGATION_RVIZ.read_text(encoding="utf-8")
@@ -83,25 +95,31 @@ def test_phase_a_refuses_to_change_runtime_odometry_persistence_default():
     assert '"pcd_save.interval": -1' in text
 
 
-def test_commissioning_package_installs_launch_python_and_finalizer():
+def test_commissioning_package_installs_launch_python_finalizer_and_raycast_observer():
     cmake = (COMMISSIONING / "CMakeLists.txt").read_text(encoding="utf-8")
     package_xml = (COMMISSIONING / "package.xml").read_text(encoding="utf-8")
 
     assert "ament_python_install_package(${PROJECT_NAME})" in cmake
     assert "scripts/finalize_mapping_run.py" in cmake
+    assert "scripts/raycast_free_space_node.py" in cmake
     assert "launch" in cmake
     assert "ament_cmake_python" in package_xml
     assert "agt_hardware_bringup" in package_xml
     assert "agt_odometry" in package_xml
     assert "fast_livo" in package_xml
+    assert "rclpy" in package_xml
+    assert "sensor_msgs" in package_xml
+    assert "sensor_msgs_py" in package_xml
+    assert "nav_msgs" in package_xml
 
 
-def test_finalizer_is_staged_executable_for_symlink_install():
+def test_finalizer_and_raycast_observer_are_staged_executables_for_symlink_install():
     cmake = (COMMISSIONING / "CMakeLists.txt").read_text(encoding="utf-8")
 
     assert "AGT_FIELD_COMMISSIONING_GENERATED_SCRIPT_DIR" in cmake
     assert "file(COPY" in cmake
     assert "scripts/finalize_mapping_run.py" in cmake
+    assert "scripts/raycast_free_space_node.py" in cmake
     assert "FILE_PERMISSIONS" in cmake
     assert "OWNER_EXECUTE" in cmake
     assert "GROUP_EXECUTE" in cmake
