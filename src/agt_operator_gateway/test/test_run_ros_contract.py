@@ -42,7 +42,8 @@ def test_relocalize_request_is_explicit_bounded_auto_search() -> None:
 
 def test_run_readiness_is_fail_closed_and_does_not_invent_auto_permit() -> None:
     source = read("agt_operator_gateway/run_ros_adapter.py")
-    assert "latest_robot_state" in source
+    assert "self._robot_state_provider" in source
+    assert "state = self._robot_state_provider()" in source
     assert '"autoPermit": False' in source
     assert '"AUTO_PERMIT_SOURCE_UNAVAILABLE"' in source
     assert "self._lidar_component_id" in source
