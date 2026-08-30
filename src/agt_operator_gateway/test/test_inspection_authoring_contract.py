@@ -15,7 +15,7 @@ def test_inspection_save_uses_single_point_taskgroups_and_schema_v2_only() -> No
     source = read("agt_operator_gateway/inspection_authoring.py")
     for token in (
         "schema_version",
-        '"count_target": "litchi_flower"',
+        'count_target: str = "litchi_flower"',
         '"execution_mode": "DEFERRED"',
         '"capture_count": 1',
         '"view_center"',
@@ -114,12 +114,7 @@ def test_delivery_http_exposes_explicit_inspection_save_not_generic_task_alias()
     assert '"expectedHomeTaskRevision"' in source
 
 
-def test_inspection_mission_is_exactly_inspection_then_return_home(tmp_path) -> None:
-    from agt_mission_manager.mission_schema import parse_mission
-    from agt_operator_gateway.mission_authoring import (
-        MissionAuthoringRepository,
-        build_inspection_mission_document,
-    )
+def _active_site(tmp_path):
     from agt_operator_gateway.task_authoring_model import ActiveTaskSite
 
     image = tmp_path / "navigation.pgm"
@@ -129,12 +124,25 @@ def test_inspection_mission_is_exactly_inspection_then_return_home(tmp_path) -> 
         "image: navigation.pgm\nresolution: 0.5\norigin: [0.0, 0.0, 0.0]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.196\n",
         encoding="utf-8",
     )
-    site = ActiveTaskSite.from_files(
+    pcd = tmp_path / "localization_map.pcd"
+    pcd.write_bytes(b"pcd")
+    return ActiveTaskSite.from_files(
         site_id="orchard_a",
         site_revision="r01",
         site_hash="sha256:" + "a" * 64,
         navigation_yaml=yaml_path,
+        localization_pcd=pcd,
     )
+
+
+def test_inspection_mission_is_exactly_inspection_then_return_home(tmp_path) -> None:
+    from agt_mission_manager.mission_schema import parse_mission
+    from agt_operator_gateway.mission_authoring import (
+        MissionAuthoringRepository,
+        build_inspection_mission_document,
+    )
+
+    site = _active_site(tmp_path)
     document = build_inspection_mission_document(
         site=site,
         inspection_task_id="inspect_01",
@@ -160,21 +168,8 @@ def test_inspection_authoring_requires_explicit_home_and_returns_startable_missi
     from agt_inspection.authoring_repository import InspectionAuthoringRepository
     from agt_operator_gateway.inspection_authoring import InspectionAuthoringAdapter
     from agt_operator_gateway.mission_authoring import MissionAuthoringRepository
-    from agt_operator_gateway.task_authoring_model import ActiveTaskSite
 
-    image = tmp_path / "navigation.pgm"
-    image.write_bytes(b"P5\n1 1\n255\n" + bytes((254,)))
-    yaml_path = tmp_path / "navigation.yaml"
-    yaml_path.write_text(
-        "image: navigation.pgm\nresolution: 0.5\norigin: [0.0, 0.0, 0.0]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.196\n",
-        encoding="utf-8",
-    )
-    site = ActiveTaskSite.from_files(
-        site_id="orchard_a",
-        site_revision="r01",
-        site_hash="sha256:" + "a" * 64,
-        navigation_yaml=yaml_path,
-    )
+    site = _active_site(tmp_path)
 
     class FakeTaskAuthoring:
         def __init__(self):
