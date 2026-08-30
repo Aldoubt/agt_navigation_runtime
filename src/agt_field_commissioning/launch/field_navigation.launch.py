@@ -34,6 +34,7 @@ def _compose(context):
     localization_share = Path(get_package_share_directory("agt_localization"))
     site_navigation_share = Path(get_package_share_directory("agt_site_navigation"))
     navigation_share = Path(get_package_share_directory("agt_navigation"))
+    mission_manager_share = Path(get_package_share_directory("agt_mission_manager"))
     safety_share = Path(get_package_share_directory("agt_safety"))
     system_manager_share = Path(get_package_share_directory("agt_system_manager"))
 
@@ -176,6 +177,16 @@ def _compose(context):
         ]
     )
 
+    if _enabled(context, "start_mission_manager"):
+        actions.append(
+            _include(
+                mission_manager_share / "launch" / "mission_manager.launch.py",
+                {
+                    "runtime_dir": LaunchConfiguration("runtime_dir").perform(context),
+                },
+            )
+        )
+
     if _enabled(context, "start_operator_gateway"):
         actions.append(
             Node(
@@ -198,6 +209,7 @@ def _compose(context):
                         "task_authoring_localization_pcd": str(assets.localization_pcd),
                         "inspection_authoring_enabled": True,
                         "inspection_authoring_runtime_maps_root": LaunchConfiguration("inspection_runtime_maps_root").perform(context),
+                        "inspection_authoring_missions_root": LaunchConfiguration("inspection_missions_root").perform(context),
                         "run_control_enabled": True,
                         "run_lidar_component_id": LaunchConfiguration("run_lidar_component_id").perform(context),
                         "run_camera_gimbal_component_id": LaunchConfiguration("run_camera_gimbal_component_id").perform(context),
@@ -263,9 +275,11 @@ def generate_launch_description():
             DeclareLaunchArgument("inspection_camera_fps", default_value="30.0"),
             DeclareLaunchArgument("inspection_capture_output_root", default_value="runtime/camera_gimbal_capture"),
             DeclareLaunchArgument("inspection_runtime_maps_root", default_value="runtime/maps"),
+            DeclareLaunchArgument("inspection_missions_root", default_value="runtime/missions"),
             DeclareLaunchArgument("inspection_evidence_root", default_value="runtime/inspections"),
             DeclareLaunchArgument("inspection_camera_calibration_id", default_value=""),
             DeclareLaunchArgument("inspection_camera_calibration_sha256", default_value=""),
+            DeclareLaunchArgument("start_mission_manager", default_value="true"),
             DeclareLaunchArgument("start_operator_gateway", default_value="true"),
             DeclareLaunchArgument("gateway_write_api_enabled", default_value="true"),
             DeclareLaunchArgument("gateway_host", default_value="0.0.0.0"),
