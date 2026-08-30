@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -82,13 +82,20 @@ class RtabmapGridBackend:
         runner: Callable[[list[str]], int] | None = None,
     ) -> None:
         self.executable = str(executable)
+        self._runner_injected = runner is not None
         self.runner = runner or _default_runner
 
     def project(self, request: ProjectionRequest) -> ProjectionResult:
         request.validate()
-        resolved_executable = _resolve_executable(self.executable)
-        if resolved_executable is None:
-            raise RuntimeError(f"projector executable is not available: {self.executable}")
+        if self._runner_injected:
+            # Deterministic unit/integration tests may inject a runner that owns
+            # process simulation. Production always uses the default runner and
+            # therefore still requires a real executable on disk/PATH.
+            resolved_executable = self.executable
+        else:
+            resolved_executable = _resolve_executable(self.executable)
+            if resolved_executable is None:
+                raise RuntimeError(f"projector executable is not available: {self.executable}")
 
         source = Path(request.source_pcd).expanduser().resolve()
         output_dir = Path(request.output_dir).expanduser().resolve()
