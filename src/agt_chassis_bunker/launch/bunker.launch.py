@@ -30,6 +30,10 @@ def generate_launch_description():
             DeclareLaunchArgument("is_bunker_mini", default_value="false"),
             DeclareLaunchArgument("start_driver", default_value="true"),
             DeclareLaunchArgument("start_safety", default_value="true"),
+            DeclareLaunchArgument("start_auto_permit", default_value="false"),
+            DeclareLaunchArgument("auto_permit_switch", default_value=""),
+            DeclareLaunchArgument("auto_permit_enabled_value", default_value="-1"),
+            DeclareLaunchArgument("auto_permit_status_timeout", default_value="0.5"),
             DeclareLaunchArgument("publish_driver_odom_tf", default_value="false"),
             DeclareLaunchArgument(
                 "chassis_config",
@@ -86,6 +90,23 @@ def generate_launch_description():
                 parameters=[
                     LaunchConfiguration("backend_config"),
                     {"use_sim_time": use_sim_time},
+                ],
+            ),
+            Node(
+                package="agt_chassis_bunker",
+                executable="bunker_rc_auto_permit.py",
+                name="agt_bunker_rc_auto_permit",
+                output="screen",
+                condition=IfCondition(LaunchConfiguration("start_auto_permit")),
+                parameters=[
+                    {
+                        "input_topic": "/agt/chassis/rc_state",
+                        "output_topic": "/agt/chassis/auto_permit",
+                        "switch_name": LaunchConfiguration("auto_permit_switch"),
+                        "enabled_value": LaunchConfiguration("auto_permit_enabled_value"),
+                        "status_timeout": LaunchConfiguration("auto_permit_status_timeout"),
+                        "use_sim_time": use_sim_time,
+                    }
                 ],
             ),
             Node(
