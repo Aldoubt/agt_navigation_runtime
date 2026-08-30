@@ -113,6 +113,7 @@ def _compose(context):
                         "use_sim_time": _enabled(context, "use_sim_time"),
                         "output_dir": str(paths.observation_dir),
                         "config_file": LaunchConfiguration("raycast_config_file").perform(context),
+                        "lio_params_file": LaunchConfiguration("params_file").perform(context),
                         "cloud_topic": "/agt/commissioning/mapping/registered_points",
                         "pose_topic": LaunchConfiguration("raycast_pose_topic").perform(context),
                     }
