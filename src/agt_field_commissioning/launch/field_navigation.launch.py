@@ -281,7 +281,7 @@ def generate_launch_description():
             DeclareLaunchArgument("start_mission_manager", default_value="true"),
             DeclareLaunchArgument("start_operator_gateway", default_value="true"),
             DeclareLaunchArgument("gateway_write_api_enabled", default_value="true"),
-            DeclareLaunchArgument("gateway_host", default_value="0.0.0.0"),
+            DeclareLaunchArgument("gateway_host", default_value="127.0.0.1"),
             DeclareLaunchArgument("gateway_port", default_value="8765"),
             DeclareLaunchArgument("run_lidar_component_id", default_value="lidar"),
             DeclareLaunchArgument("run_camera_gimbal_component_id", default_value="camera_gimbal"),
