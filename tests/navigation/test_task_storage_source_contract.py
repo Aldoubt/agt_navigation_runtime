@@ -97,8 +97,14 @@ def test_navigation_launch_forwards_single_task_store_and_site_validation_inputs
     assert 'DeclareLaunchArgument("tasks_root", default_value="")' in source
     assert 'DeclareLaunchArgument("sites_root", default_value="/opt/agt/sites")' in source
     assert '"site_vehicle_profile", default_value="/opt/agt/profiles/bunker.yaml"' in source
+    assert (
+        '"capability_executable", default_value="navigation_capability_server.py"'
+        in source
+    )
 
-    capability = source[source.index('executable="navigation_capability_server.py"'):]
+    capability = source[
+        source.index('executable=LaunchConfiguration("capability_executable")'):
+    ]
     assert '"tasks_root": LaunchConfiguration("tasks_root")' in capability
 
     task_registry = source[source.index('executable="task_registry_node.py"'):]
