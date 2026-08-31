@@ -406,7 +406,6 @@ def test_capture_failure_stops_route_after_retry_exhaustion_by_default(tmp_path)
         assert "capture failed at tree_01" in wrapped.result.message
         assert "images saved to:" in wrapped.result.message
 
-        # Default acceptance policy is fail-closed: P02 is never dispatched.
         assert len(received) == 1
         assert (received[0].pose.position.x, received[0].pose.position.y) == (4.0, 5.0)
         assert len(capture_calls) == 2
@@ -436,6 +435,162 @@ def test_capture_failure_stops_route_after_retry_exhaustion_by_default(tmp_path)
         capture_service.destroy()
         nav_server.destroy()
         for node in (client_node, camera_node, nav_node, server):
+            node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_navigation_failure_stops_before_capture_and_next_waypoint(tmp_path):
+    task = _prepare_task(
+        tmp_path,
+        points=[
+            Waypoint("tree_01", "Tree 01", 4.0, 5.0, 0.25),
+            Waypoint("tree_02", "Tree 02", 6.0, 5.0, -0.25),
+        ],
+    )
+    poses = iter([_pose(1.0, 2.0, 0.0)])
+    if not rclpy.ok():
+        rclpy.init()
+
+    server = SERVER.FieldCaptureCapabilityServer(
+        field_pose_provider=lambda: next(poses),
+        parameter_overrides=[
+            Parameter("require_safety_ready", value=False),
+            Parameter("require_localization_valid", value=False),
+            Parameter("require_task_readiness", value=False),
+            Parameter("maps_root", value=str(tmp_path)),
+            Parameter("tasks_root", value=str(tmp_path / "tasks")),
+            Parameter("runtime_dir", value=str(tmp_path / "runtime")),
+            Parameter("field_capture_root", value=str(tmp_path / "inspection_runs")),
+            Parameter("field_capture_backend", value="placeholder"),
+        ],
+    )
+    _set_map(server)
+
+    nav_node = Node("mock_navigation_failure")
+    received = []
+
+    def execute_nav(goal_handle):
+        received.append(goal_handle.request.pose)
+        goal_handle.abort()
+        return NavigateToPose.Result()
+
+    nav_server = ActionServer(nav_node, NavigateToPose, "navigate_to_pose", execute_nav)
+    client_node = Node("field_capture_navigation_failure_client")
+    client = ActionClient(
+        client_node,
+        ExecuteWaypointTask,
+        "/agt/navigation/execute_waypoint_task",
+    )
+    executor, thread = _start_executor(server, nav_node, client_node)
+    try:
+        assert client.wait_for_server(timeout_sec=2.0)
+        handle = _wait(client.send_goal_async(_request(task, "field-nav-failure-001")))
+        assert handle.accepted
+        wrapped = _wait(handle.get_result_async())
+
+        assert wrapped.status == GoalStatus.STATUS_ABORTED
+        assert wrapped.result.success is False
+        assert len(received) == 1
+        assert (received[0].pose.position.x, received[0].pose.position.y) == (4.0, 5.0)
+
+        run_dir = next((tmp_path / "inspection_runs").iterdir())
+        point_results = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted(run_dir.glob("P*/result.json"))
+        ]
+        assert len(point_results) == 1
+        point_result = point_results[0]
+        assert point_result["navigation"]["success"] is False
+        assert point_result["capture"]["success"] is False
+        assert point_result["capture"]["message"] == "not attempted because navigation failed"
+        assert point_result["image"] is None
+
+        summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+        assert summary["success"] is False
+        assert summary["return_home_success"] is False
+        assert summary["completed_waypoints"] == 0
+        assert summary["total_waypoints"] == 2
+    finally:
+        executor.shutdown(timeout_sec=2.0)
+        thread.join(timeout=2.0)
+        nav_server.destroy()
+        for node in (client_node, nav_node, server):
+            node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_return_home_failure_preserves_successful_capture_evidence(tmp_path):
+    task = _prepare_task(tmp_path)
+    poses = iter([_pose(1.0, 2.0, 0.0), _pose(4.1, 5.1, 0.3)])
+    if not rclpy.ok():
+        rclpy.init()
+
+    server = SERVER.FieldCaptureCapabilityServer(
+        field_pose_provider=lambda: next(poses),
+        parameter_overrides=[
+            Parameter("require_safety_ready", value=False),
+            Parameter("require_localization_valid", value=False),
+            Parameter("require_task_readiness", value=False),
+            Parameter("maps_root", value=str(tmp_path)),
+            Parameter("tasks_root", value=str(tmp_path / "tasks")),
+            Parameter("runtime_dir", value=str(tmp_path / "runtime")),
+            Parameter("field_capture_root", value=str(tmp_path / "inspection_runs")),
+            Parameter("field_capture_backend", value="placeholder"),
+        ],
+    )
+    _set_map(server)
+
+    nav_node = Node("mock_return_home_failure")
+    received = []
+
+    def execute_nav(goal_handle):
+        received.append(goal_handle.request.pose)
+        if len(received) == 1:
+            goal_handle.succeed()
+        else:
+            goal_handle.abort()
+        return NavigateToPose.Result()
+
+    nav_server = ActionServer(nav_node, NavigateToPose, "navigate_to_pose", execute_nav)
+    client_node = Node("field_capture_return_home_failure_client")
+    client = ActionClient(
+        client_node,
+        ExecuteWaypointTask,
+        "/agt/navigation/execute_waypoint_task",
+    )
+    executor, thread = _start_executor(server, nav_node, client_node)
+    try:
+        assert client.wait_for_server(timeout_sec=2.0)
+        handle = _wait(client.send_goal_async(_request(task, "field-home-failure-001")))
+        assert handle.accepted
+        wrapped = _wait(handle.get_result_async())
+
+        assert wrapped.status == GoalStatus.STATUS_ABORTED
+        assert wrapped.result.success is False
+        assert wrapped.result.blocker_code == "RETURN_HOME_FAILED"
+        assert len(received) == 2
+        assert (received[0].pose.position.x, received[0].pose.position.y) == (4.0, 5.0)
+        assert (received[1].pose.position.x, received[1].pose.position.y) == (1.0, 2.0)
+
+        run_dir = next((tmp_path / "inspection_runs").iterdir())
+        point_dir = next(run_dir.glob("P01_*"))
+        assert (point_dir / "image.pgm").is_file()
+        point_result = json.loads((point_dir / "result.json").read_text(encoding="utf-8"))
+        assert point_result["navigation"]["success"] is True
+        assert point_result["capture"]["success"] is True
+
+        summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+        assert summary["success"] is False
+        assert summary["return_home_success"] is False
+        assert summary["completed_waypoints"] == 1
+        assert summary["total_waypoints"] == 1
+    finally:
+        executor.shutdown(timeout_sec=2.0)
+        thread.join(timeout=2.0)
+        nav_server.destroy()
+        for node in (client_node, nav_node, server):
             node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
