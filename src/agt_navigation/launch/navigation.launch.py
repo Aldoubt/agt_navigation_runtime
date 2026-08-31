@@ -62,6 +62,7 @@ def generate_launch_description():
                 "field_capture_camera_id", default_value="inspection_camera"
             ),
             DeclareLaunchArgument("field_capture_retry_count", default_value="1"),
+            DeclareLaunchArgument("field_capture_continue_on_failure", default_value="true"),
             DeclareLaunchArgument("field_capture_settle_sec", default_value="0.0"),
             DeclareLaunchArgument("field_capture_service_timeout", default_value="2.0"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
@@ -172,6 +173,9 @@ def generate_launch_description():
                         "field_capture_camera_id": LaunchConfiguration("field_capture_camera_id"),
                         "field_capture_retry_count": ParameterValue(
                             LaunchConfiguration("field_capture_retry_count"), value_type=int
+                        ),
+                        "field_capture_continue_on_failure": ParameterValue(
+                            LaunchConfiguration("field_capture_continue_on_failure"), value_type=bool
                         ),
                         "field_capture_settle_sec": ParameterValue(
                             LaunchConfiguration("field_capture_settle_sec"), value_type=float
