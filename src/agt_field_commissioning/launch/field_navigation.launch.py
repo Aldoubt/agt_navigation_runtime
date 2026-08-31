@@ -145,6 +145,7 @@ def _compose(context):
                     "global_map_processing_record": (
                         str(assets.processing_record) if assets.processing_record else ""
                     ),
+                    "configured_candidates_yaml": LaunchConfiguration("configured_candidates_yaml").perform(context),
                     "map_id": assets.site_id,
                     "map_hash": assets.localization_pcd_sha256,
                     "backend": LaunchConfiguration("localization_backend").perform(context),
@@ -203,6 +204,7 @@ def _compose(context):
                         "localization_pcd_sha256": assets.localization_pcd_sha256,
                         "task_group_id": LaunchConfiguration("rviz_task_group_id").perform(context),
                         "task_name": LaunchConfiguration("rviz_task_name").perform(context),
+                        "auto_load_saved_task": _enabled(context, "rviz_auto_load_task"),
                     }
                 ],
                 condition=IfCondition(LaunchConfiguration("start_rviz_task_editor")),
@@ -333,6 +335,7 @@ def generate_launch_description():
                 "mid360_user_config_path", default_value=str(default_mid360_config)
             ),
             DeclareLaunchArgument("localization_backend", default_value="ndt"),
+            DeclareLaunchArgument("configured_candidates_yaml", default_value=""),
             DeclareLaunchArgument(
                 "nav2_params_file", default_value=str(default_nav2_params)
             ),
@@ -340,6 +343,7 @@ def generate_launch_description():
             DeclareLaunchArgument("start_rviz_task_editor", default_value="true"),
             DeclareLaunchArgument("rviz_task_group_id", default_value="field_inspection"),
             DeclareLaunchArgument("rviz_task_name", default_value="RViz Field Inspection"),
+            DeclareLaunchArgument("rviz_auto_load_task", default_value="false"),
             DeclareLaunchArgument("start_rviz", default_value="true"),
             OpaqueFunction(function=_compose),
         ]
