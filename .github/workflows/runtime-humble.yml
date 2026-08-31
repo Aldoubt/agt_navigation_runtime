@@ -53,6 +53,7 @@ jobs:
             python3-pytest \
             python3-yaml \
             python3-jsonschema
+          python3 -m pip install -r requirements-contracts.txt
 
       - name: Resolve selected-core ROS dependencies
         shell: bash
