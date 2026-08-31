@@ -188,6 +188,25 @@ def _compose(context):
                     "enable_rviz_goal_bridge": LaunchConfiguration("enable_rviz_goal_bridge").perform(context),
                 },
             ),
+            Node(
+                package="agt_navigation",
+                executable="rviz_task_editor.py",
+                name="agt_rviz_task_editor",
+                output="screen",
+                parameters=[
+                    {
+                        "use_sim_time": _enabled(context, "use_sim_time"),
+                        "map_id": assets.site_id,
+                        "map_version_id": assets.site_revision,
+                        "map_yaml_sha256": assets.navigation_yaml_sha256,
+                        "map_image_sha256": assets.navigation_image_sha256,
+                        "localization_pcd_sha256": assets.localization_pcd_sha256,
+                        "task_group_id": LaunchConfiguration("rviz_task_group_id").perform(context),
+                        "task_name": LaunchConfiguration("rviz_task_name").perform(context),
+                    }
+                ],
+                condition=IfCondition(LaunchConfiguration("start_rviz_task_editor")),
+            ),
             _include(
                 system_manager_share / "launch" / "system_manager.launch.py",
                 {"use_sim_time": use_sim_time},
@@ -318,6 +337,9 @@ def generate_launch_description():
                 "nav2_params_file", default_value=str(default_nav2_params)
             ),
             DeclareLaunchArgument("enable_rviz_goal_bridge", default_value="false"),
+            DeclareLaunchArgument("start_rviz_task_editor", default_value="true"),
+            DeclareLaunchArgument("rviz_task_group_id", default_value="field_inspection"),
+            DeclareLaunchArgument("rviz_task_name", default_value="RViz Field Inspection"),
             DeclareLaunchArgument("start_rviz", default_value="true"),
             OpaqueFunction(function=_compose),
         ]
