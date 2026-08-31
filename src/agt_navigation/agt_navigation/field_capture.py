@@ -4,7 +4,9 @@ from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 import re
+import shutil
 from typing import Any
+from urllib.parse import unquote, urlparse
 
 
 @dataclass(frozen=True)
@@ -85,6 +87,72 @@ class FieldCaptureRun:
         """Write a valid tiny grayscale PGM for hardware-free commissioning tests."""
         path = Path(point_dir) / "image.pgm"
         path.write_bytes(b"P5\n1 1\n255\n\x80")
+        return path
+
+    @staticmethod
+    def copy_local_image_uri(point_dir: Path, image_uri: str) -> Path:
+        """Copy a camera-produced local file into the mission evidence directory."""
+        parsed = urlparse(str(image_uri))
+        if parsed.scheme not in ("", "file"):
+            raise ValueError(f"only local image_uri values are supported, got {parsed.scheme!r}")
+        source = Path(unquote(parsed.path if parsed.scheme else str(image_uri))).expanduser()
+        if not source.is_file():
+            raise ValueError(f"camera image_uri does not exist: {source}")
+        suffix = source.suffix if source.suffix else ".img"
+        destination = Path(point_dir) / f"image{suffix.lower()}"
+        shutil.copy2(source, destination)
+        return destination
+
+    @staticmethod
+    def write_sensor_image(
+        point_dir: Path,
+        *,
+        width: int,
+        height: int,
+        step: int,
+        encoding: str,
+        data: bytes | bytearray | memoryview,
+    ) -> Path:
+        """Persist common sensor_msgs/Image payloads without cv_bridge/OpenCV.
+
+        rgb8/bgr8 are written as portable PPM and mono8 as PGM. Row padding is
+        removed using ``step`` so the artifact is a normal image file that can be
+        inspected with standard image viewers.
+        """
+        width = int(width)
+        height = int(height)
+        step = int(step)
+        encoding = str(encoding).lower()
+        if width <= 0 or height <= 0:
+            raise ValueError("captured image width and height must be positive")
+        channels = 1 if encoding == "mono8" else 3 if encoding in ("rgb8", "bgr8") else 0
+        if channels == 0:
+            raise ValueError(f"unsupported capture encoding: {encoding}")
+        row_bytes = width * channels
+        if step < row_bytes:
+            raise ValueError("captured image step is smaller than the packed row size")
+        payload = bytes(data)
+        if len(payload) < step * height:
+            raise ValueError("captured image payload is shorter than height*step")
+
+        packed = bytearray()
+        for row in range(height):
+            begin = row * step
+            row_data = payload[begin : begin + row_bytes]
+            if encoding == "bgr8":
+                for offset in range(0, len(row_data), 3):
+                    packed.extend((row_data[offset + 2], row_data[offset + 1], row_data[offset]))
+            else:
+                packed.extend(row_data)
+
+        point_dir = Path(point_dir)
+        if channels == 1:
+            path = point_dir / "image.pgm"
+            header = f"P5\n{width} {height}\n255\n".encode("ascii")
+        else:
+            path = point_dir / "image.ppm"
+            header = f"P6\n{width} {height}\n255\n".encode("ascii")
+        path.write_bytes(header + bytes(packed))
         return path
 
     def record_waypoint(
