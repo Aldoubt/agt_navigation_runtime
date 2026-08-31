@@ -75,15 +75,7 @@ jobs:
           source /opt/ros/humble/setup.bash
           colcon build \
             --event-handlers console_direct+ \
-            --packages-select \
-              agt_interfaces \
-              agt_runtime_contracts \
-              agt_site_runtime \
-              agt_site_navigation \
-              agt_system_manager \
-              agt_navigation \
-              agt_safety \
-              agt_operator_gateway
+            --packages-up-to agt_operator_gateway
 
       - name: Test convergence core on Humble
         shell: bash
