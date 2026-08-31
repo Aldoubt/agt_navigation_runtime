@@ -108,6 +108,19 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /plan
       Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Inspection Task Points
+      Namespaces:
+        agt_rviz_task_arrows: true
+        agt_rviz_task_labels: true
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /agt/navigation/task_markers
+      Value: true
     - Class: rviz_default_plugins/RobotModel
       Collision Enabled: false
       Description Source: Topic
@@ -149,7 +162,7 @@ Visualization Manager:
       Y std deviation: 0.5
       Theta std deviation: 0.261799
     - Class: rviz_default_plugins/SetGoal
-      Topic: /goal_pose
+      Topic: /agt/rviz/task_point
   Transformation:
     Current:
       Class: rviz_default_plugins/TF
