@@ -49,6 +49,21 @@ def generate_launch_description():
             DeclareLaunchArgument("route_controller_id_reverse", default_value="FollowPath"),
             DeclareLaunchArgument("route_goal_checker_id", default_value="general_goal_checker"),
             DeclareLaunchArgument("route_progress_checker_id", default_value="progress_checker"),
+            DeclareLaunchArgument(
+                "capability_executable", default_value="navigation_capability_server.py"
+            ),
+            DeclareLaunchArgument("field_capture_enabled", default_value="false"),
+            DeclareLaunchArgument("field_capture_root", default_value=""),
+            DeclareLaunchArgument("field_capture_backend", default_value="placeholder"),
+            DeclareLaunchArgument(
+                "field_capture_service", default_value="/agt/camera/capture"
+            ),
+            DeclareLaunchArgument(
+                "field_capture_camera_id", default_value="inspection_camera"
+            ),
+            DeclareLaunchArgument("field_capture_retry_count", default_value="1"),
+            DeclareLaunchArgument("field_capture_settle_sec", default_value="0.0"),
+            DeclareLaunchArgument("field_capture_service_timeout", default_value="2.0"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("autostart", default_value="false"),
             DeclareLaunchArgument("enable_rviz_goal_bridge", default_value="false"),
@@ -122,7 +137,7 @@ def generate_launch_description():
             ),
             Node(
                 package="agt_navigation",
-                executable="navigation_capability_server.py",
+                executable=LaunchConfiguration("capability_executable"),
                 name="agt_waypoint_task_server",
                 output="screen",
                 parameters=[
@@ -148,6 +163,22 @@ def generate_launch_description():
                         "route_controller_id_reverse": LaunchConfiguration("route_controller_id_reverse"),
                         "route_goal_checker_id": LaunchConfiguration("route_goal_checker_id"),
                         "route_progress_checker_id": LaunchConfiguration("route_progress_checker_id"),
+                        "field_capture_enabled": ParameterValue(
+                            LaunchConfiguration("field_capture_enabled"), value_type=bool
+                        ),
+                        "field_capture_root": LaunchConfiguration("field_capture_root"),
+                        "field_capture_backend": LaunchConfiguration("field_capture_backend"),
+                        "field_capture_service": LaunchConfiguration("field_capture_service"),
+                        "field_capture_camera_id": LaunchConfiguration("field_capture_camera_id"),
+                        "field_capture_retry_count": ParameterValue(
+                            LaunchConfiguration("field_capture_retry_count"), value_type=int
+                        ),
+                        "field_capture_settle_sec": ParameterValue(
+                            LaunchConfiguration("field_capture_settle_sec"), value_type=float
+                        ),
+                        "field_capture_service_timeout": ParameterValue(
+                            LaunchConfiguration("field_capture_service_timeout"), value_type=float
+                        ),
                     }
                 ],
             ),
