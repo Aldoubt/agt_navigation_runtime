@@ -16,7 +16,7 @@ from agt_site_runtime.activation_store import ActivationStore
 from agt_site_runtime.models import ActiveSelection
 
 from .map_review import MapEdit, MapReviewDraft, PgmMap
-from .projection import ProjectionRequest, RtabmapGridBackend
+from .projection import LightweightPcdGridBackend, ProjectionRequest
 
 
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
@@ -84,7 +84,7 @@ class CommissioningService:
         self.vehicle_profile = Path(vehicle_profile).expanduser().resolve()
         self.vehicle_schema = Path(vehicle_schema).expanduser().resolve()
         self.site_schema = Path(site_schema).expanduser().resolve()
-        self.projection_backend = projection_backend or RtabmapGridBackend()
+        self.projection_backend = projection_backend or LightweightPcdGridBackend()
         self._drafts: dict[tuple[str, str], MapReviewDraft] = {}
 
     def _paths(self, site_id: str, run_id: str) -> CommissioningPaths:
