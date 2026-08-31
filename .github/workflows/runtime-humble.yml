@@ -58,15 +58,7 @@ jobs:
           source /opt/ros/humble/setup.bash
           rosdep init 2>/dev/null || true
           rosdep update
-          rosdep install --from-paths \
-            src/agt_interfaces \
-            src/agt_runtime_contracts \
-            src/agt_site_runtime \
-            src/agt_site_navigation \
-            src/agt_system_manager \
-            src/agt_navigation \
-            src/agt_safety \
-            src/agt_operator_gateway \
+          rosdep install --from-paths . \
             --ignore-src --rosdistro humble -r -y
 
       - name: Build convergence core on Humble
