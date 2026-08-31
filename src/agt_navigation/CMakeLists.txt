@@ -29,6 +29,7 @@ set(AGT_NAVIGATION_ENTRYPOINTS
   route_controller_smoke.py
   route_system_smoke.py
   route_system_smoke_fixture.py
+  rviz_task_editor.py
   start_waypoint_preview_rviz.sh
   task_registry_node.py
   waypoint_task_server.py
