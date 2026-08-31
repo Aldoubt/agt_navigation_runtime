@@ -293,15 +293,13 @@ def test_capture_failure_records_failure_continues_route_and_returns_home(tmp_pa
         assert handle.accepted
         wrapped = _wait(handle.get_result_async())
 
-        # Two inspection goals are still attempted and HOME is still executed.
+        # Explicit continue mode attempts both inspection goals and HOME.
         assert len(received) == 3
         assert (received[0].pose.position.x, received[0].pose.position.y) == (4.0, 5.0)
         assert (received[1].pose.position.x, received[1].pose.position.y) == (6.0, 5.0)
         assert (received[2].pose.position.x, received[2].pose.position.y) == (1.0, 2.0)
-        # retry_count=1 means two capture attempts at each waypoint.
         assert len(capture_calls) == 4
 
-        # Inspection result fails because captures failed, even though route+HOME completed.
         assert wrapped.status == GoalStatus.STATUS_ABORTED
         assert wrapped.result.success is False
         assert "capture_failures=2" in wrapped.result.message
@@ -323,6 +321,114 @@ def test_capture_failure_records_failure_continues_route_and_returns_home(tmp_pa
         assert summary["success"] is False
         assert summary["return_home_success"] is True
         assert summary["completed_waypoints"] == 2
+        assert summary["total_waypoints"] == 2
+    finally:
+        executor.shutdown(timeout_sec=2.0)
+        thread.join(timeout=2.0)
+        capture_service.destroy()
+        nav_server.destroy()
+        for node in (client_node, camera_node, nav_node, server):
+            node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_capture_failure_stops_route_after_retry_exhaustion_by_default(tmp_path):
+    task = _prepare_task(
+        tmp_path,
+        points=[
+            Waypoint("tree_01", "Tree 01", 4.0, 5.0, 0.25),
+            Waypoint("tree_02", "Tree 02", 6.0, 5.0, -0.25),
+        ],
+    )
+    poses = iter([_pose(1.0, 2.0, 0.0), _pose(4.1, 5.1, 0.3)])
+    if not rclpy.ok():
+        rclpy.init()
+
+    server = SERVER.FieldCaptureCapabilityServer(
+        field_pose_provider=lambda: next(poses),
+        parameter_overrides=[
+            Parameter("require_safety_ready", value=False),
+            Parameter("require_localization_valid", value=False),
+            Parameter("require_task_readiness", value=False),
+            Parameter("maps_root", value=str(tmp_path)),
+            Parameter("tasks_root", value=str(tmp_path / "tasks")),
+            Parameter("runtime_dir", value=str(tmp_path / "runtime")),
+            Parameter("field_capture_root", value=str(tmp_path / "inspection_runs")),
+            Parameter("field_capture_backend", value="service"),
+            Parameter("field_capture_retry_count", value=1),
+            Parameter("field_capture_service_timeout", value=1.0),
+        ],
+    )
+    _set_map(server)
+
+    nav_node = Node("mock_fail_closed_navigate_to_pose")
+    received = []
+
+    def execute_nav(goal_handle):
+        received.append(goal_handle.request.pose)
+        goal_handle.succeed()
+        return NavigateToPose.Result()
+
+    nav_server = ActionServer(nav_node, NavigateToPose, "navigate_to_pose", execute_nav)
+
+    camera_node = Node("mock_fail_closed_capture_camera")
+    capture_calls = []
+
+    def capture_callback(request, response):
+        capture_calls.append((request.request_id, request.camera_id))
+        response.success = False
+        response.error_code = CaptureImage.Response.ERROR_CAPTURE_FAILED
+        response.message = "CAMERA_TIMEOUT"
+        return response
+
+    capture_service = camera_node.create_service(
+        CaptureImage, "/agt/camera/capture", capture_callback
+    )
+
+    client_node = Node("field_capture_fail_closed_action_client")
+    client = ActionClient(
+        client_node,
+        ExecuteWaypointTask,
+        "/agt/navigation/execute_waypoint_task",
+    )
+    executor, thread = _start_executor(server, nav_node, camera_node, client_node)
+    try:
+        assert client.wait_for_server(timeout_sec=2.0)
+        handle = _wait(
+            client.send_goal_async(_request(task, "field-capture-fail-closed-001"))
+        )
+        assert handle.accepted
+        wrapped = _wait(handle.get_result_async())
+
+        assert wrapped.status == GoalStatus.STATUS_ABORTED
+        assert wrapped.result.success is False
+        assert "capture failed at tree_01" in wrapped.result.message
+        assert "images saved to:" in wrapped.result.message
+
+        # Default acceptance policy is fail-closed: P02 is never dispatched.
+        assert len(received) == 1
+        assert (received[0].pose.position.x, received[0].pose.position.y) == (4.0, 5.0)
+        assert len(capture_calls) == 2
+
+        run_dir = next((tmp_path / "inspection_runs").iterdir())
+        point_results = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted(run_dir.glob("P*/result.json"))
+        ]
+        assert len(point_results) == 1
+        point_result = point_results[0]
+        assert point_result["navigation"]["success"] is True
+        assert point_result["capture"]["success"] is False
+        assert point_result["capture"]["retry_count"] == 1
+        assert point_result["capture"]["message"] == "CAMERA_TIMEOUT"
+        assert point_result["image"] is None
+        assert point_result["capture_pose"] == {"x": 4.1, "y": 5.1, "yaw": 0.3}
+
+        summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+        assert summary["success"] is False
+        assert summary["return_home_success"] is False
+        assert summary["completed_waypoints"] == 1
         assert summary["total_waypoints"] == 2
     finally:
         executor.shutdown(timeout_sec=2.0)
