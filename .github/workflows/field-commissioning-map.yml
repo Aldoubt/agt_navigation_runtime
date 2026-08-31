@@ -67,6 +67,10 @@ jobs:
         shell: bash
         run: |
           source /opt/ros/humble/setup.bash
+          rm -rf /tmp/field_tools_ws
+          mkdir -p /tmp/field_tools_ws/src
+          cp -a src/agt_field_commissioning /tmp/field_tools_ws/src/
+          cd /tmp/field_tools_ws
           colcon build \
             --event-handlers console_direct+ \
             --packages-select agt_field_commissioning \
@@ -75,7 +79,7 @@ jobs:
         shell: bash
         run: |
           source /opt/ros/humble/setup.bash
-          source install/setup.bash
+          source /tmp/field_tools_ws/install/setup.bash
           PREFIX="$(ros2 pkg prefix agt_field_commissioning)"
           EDITOR="$PREFIX/lib/agt_field_commissioning/edit_navigation_map.py"
           test -x "$EDITOR"
