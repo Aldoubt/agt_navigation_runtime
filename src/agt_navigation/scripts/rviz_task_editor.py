@@ -4,7 +4,8 @@
 
 RViz clicks only edit an in-memory draft. SAVE/LOAD use the authoritative Task
 Registry and START references the exact last-saved TaskGroup revision/hash.
-This node intentionally owns no direct Nav2 motion action.
+Optional startup loading only loads/visualizes the saved task; it never starts
+motion and this node intentionally owns no direct Nav2 motion action.
 """
 
 from __future__ import annotations
@@ -81,6 +82,9 @@ class RvizTaskEditor(Node):
         self.service_timeout_s = float(
             self.declare_parameter("service_timeout_s", 2.0).value
         )
+        self.auto_load_saved_task = bool(
+            self.declare_parameter("auto_load_saved_task", False).value
+        )
         if not self.map_id or not self.map_version_id or not self.task_group_id:
             raise ValueError("map_id, map_version_id and task_group_id are required")
         if self.service_timeout_s <= 0.0:
@@ -90,6 +94,7 @@ class RvizTaskEditor(Node):
         self._map: OccupancyGrid | None = None
         self._saved_revision = 0
         self._active_goal = None
+        self._initial_load_timer = None
         group = ReentrantCallbackGroup()
 
         transient_qos = QoSProfile(depth=1)
@@ -154,6 +159,8 @@ class RvizTaskEditor(Node):
 
         self._publish_markers()
         self._status("READY", "click RViz Nav Goal to add task points")
+        if self.auto_load_saved_task:
+            self._schedule_initial_load()
 
     def _status(self, state: str, message: str = "", **extra) -> None:
         output = String()
@@ -309,49 +316,79 @@ class RvizTaskEditor(Node):
         )
         return response
 
-    async def _load(self, _request, response):
-        if not self._get_task.wait_for_service(timeout_sec=self.service_timeout_s):
-            response.success = False
-            response.message = "Task Registry get service is unavailable"
-            return response
+    def _make_get_request(self):
         request = GetTaskGroup.Request()
         request.map_id = self.map_id
         request.map_version_id = self.map_version_id
         request.task_group_id = self.task_group_id
         request.task_revision = 0
-        try:
-            result = await self._get_task.call_async(request)
-        except Exception as exc:  # pragma: no cover - ROS transport boundary
-            response.success = False
-            response.message = f"Task Registry get failed: {exc}"
-            return response
+        return request
+
+    def _apply_loaded_task(self, result) -> str:
         if not result.success:
-            response.success = False
-            response.message = result.technical_message or result.operator_message
-            self._status(
-                "LOAD_FAILED", response.message, blocker_code=result.blocker_code
-            )
-            return response
+            message = result.technical_message or result.operator_message
+            self._status("LOAD_FAILED", message, blocker_code=result.blocker_code)
+            raise DraftStateError(message)
         try:
             task = TaskGroup.from_dict(json.loads(result.task_json))
             self._draft.load_task(task)
         except (json.JSONDecodeError, TaskGroupError, DraftStateError) as exc:
-            response.success = False
-            response.message = f"stored task is invalid: {exc}"
-            return response
+            raise DraftStateError(f"stored task is invalid: {exc}") from exc
         self._saved_revision = int(result.revision)
         self._publish_markers()
-        response.success = True
-        response.message = (
+        message = (
             f"loaded {result.task_group_id} revision {result.revision}; START remains manual"
         )
         self._status(
             "LOADED",
-            response.message,
+            message,
             revision=int(result.revision),
             point_count=len(self._draft.points),
         )
+        return message
+
+    async def _load(self, _request, response):
+        if not self._get_task.wait_for_service(timeout_sec=self.service_timeout_s):
+            response.success = False
+            response.message = "Task Registry get service is unavailable"
+            return response
+        try:
+            result = await self._get_task.call_async(self._make_get_request())
+            response.message = self._apply_loaded_task(result)
+        except Exception as exc:  # pragma: no cover - ROS transport boundary
+            response.success = False
+            response.message = str(exc)
+            return response
+        response.success = True
         return response
+
+    def _schedule_initial_load(self) -> None:
+        self._status(
+            "AUTO_LOAD_PENDING",
+            f"waiting to load saved task {self.task_group_id}; START remains manual",
+        )
+        self._initial_load_timer = self.create_timer(0.5, self._initial_load_tick)
+
+    def _initial_load_tick(self) -> None:
+        if not self._get_task.service_is_ready():
+            return
+        if self._initial_load_timer is not None:
+            timer = self._initial_load_timer
+            self._initial_load_timer = None
+            timer.cancel()
+            self.destroy_timer(timer)
+        future = self._get_task.call_async(self._make_get_request())
+        future.add_done_callback(self._initial_load_result)
+
+    def _initial_load_result(self, future) -> None:
+        try:
+            result = future.result()
+            self._apply_loaded_task(result)
+        except Exception as exc:  # pragma: no cover - ROS transport boundary
+            self._status(
+                "AUTO_LOAD_FAILED",
+                f"saved task was not auto-loaded: {exc}; START remains manual",
+            )
 
     async def _start(self, _request, response):
         try:
