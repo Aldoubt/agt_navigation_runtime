@@ -161,17 +161,35 @@ class FieldCaptureRun:
         index: int,
         waypoint_id: str,
         target: Pose2D,
-        capture: Pose2D,
-        image_path: Path | str,
-        status: str,
+        capture: Pose2D | None,
+        image_path: Path | str | None,
+        navigation_success: bool,
+        navigation_message: str = "",
+        capture_success: bool,
+        capture_retry_count: int = 0,
         capture_message: str = "",
     ) -> Path:
+        """Persist one waypoint result with navigation and capture kept independent.
+
+        A failed capture may legitimately have no image. Keeping the two outcomes
+        separate allows acceptance runs to distinguish mobility failures from
+        inspection-sensor failures without guessing from a combined status string.
+        """
+        retry_count = int(capture_retry_count)
+        if retry_count < 0:
+            raise ValueError("capture_retry_count must be >= 0")
+        if capture_success and image_path is None:
+            raise ValueError("successful capture requires image_path")
+
         point_dir = self.point_dir(index, waypoint_id)
-        image = Path(image_path)
-        try:
-            image_value = str(image.resolve().relative_to(self.run_dir.resolve()))
-        except ValueError:
-            image_value = str(image)
+        image_value: str | None = None
+        if image_path is not None:
+            image = Path(image_path)
+            try:
+                image_value = str(image.resolve().relative_to(self.run_dir.resolve()))
+            except ValueError:
+                image_value = str(image)
+
         waypoint_path = point_dir / "waypoint.json"
         _atomic_json(
             waypoint_path,
@@ -186,14 +204,21 @@ class FieldCaptureRun:
         _atomic_json(
             result_path,
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "waypoint_id": str(waypoint_id),
                 "index": int(index),
                 "target_pose": target.to_dict(),
-                "capture_pose": capture.to_dict(),
+                "capture_pose": capture.to_dict() if capture is not None else None,
                 "image": image_value,
-                "status": str(status),
-                "capture_message": str(capture_message),
+                "navigation": {
+                    "success": bool(navigation_success),
+                    "message": str(navigation_message),
+                },
+                "capture": {
+                    "success": bool(capture_success),
+                    "retry_count": retry_count,
+                    "message": str(capture_message),
+                },
             },
         )
         return result_path
