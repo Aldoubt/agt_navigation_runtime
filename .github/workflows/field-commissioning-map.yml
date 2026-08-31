@@ -4,8 +4,10 @@ on:
   push:
     branches:
       - feat/field-commissioning-hmi-map-flow
+      - feat/field-real-vehicle-integration
     paths:
       - 'src/agt_field_commissioning/**'
+      - 'src/agt_navigation/**'
       - 'src/agt_operator_gateway/**'
       - 'src/agt_inspection/**'
       - 'src/agt_mission_manager/**'
@@ -14,6 +16,7 @@ on:
   pull_request:
     paths:
       - 'src/agt_field_commissioning/**'
+      - 'src/agt_navigation/**'
       - 'src/agt_operator_gateway/**'
       - 'src/agt_inspection/**'
       - 'src/agt_mission_manager/**'
@@ -43,7 +46,7 @@ jobs:
       - name: Compile changed Python packages
         run: python -m compileall -q src/agt_field_commissioning src/agt_operator_gateway src/agt_inspection/agt_inspection src/agt_mission_manager/agt_mission_manager src/agt_navigation/agt_navigation
 
-  humble-projector:
+  humble-field-tools:
     runs-on: ubuntu-22.04
     container:
       image: ros:humble-ros-base-jammy
@@ -52,15 +55,15 @@ jobs:
       ROS_DISTRO: humble
     steps:
       - uses: actions/checkout@v4
-      - name: Install projector build dependencies
+      - name: Install field tool dependencies
         shell: bash
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
             python3-colcon-common-extensions \
-            ros-humble-rtabmap \
-            libpcl-dev
-      - name: Build commissioning projector on Humble
+            python3-opencv \
+            python3-yaml
+      - name: Build commissioning tools on Humble
         shell: bash
         run: |
           source /opt/ros/humble/setup.bash
@@ -68,11 +71,14 @@ jobs:
             --event-handlers console_direct+ \
             --packages-select agt_field_commissioning \
             --cmake-args -DBUILD_TESTING=OFF
-      - name: Verify installed projector executable
+      - name: Verify lightweight map editor and archived projector default
         shell: bash
         run: |
           source /opt/ros/humble/setup.bash
           source install/setup.bash
-          PROJECTOR="$(ros2 pkg prefix agt_field_commissioning)/lib/agt_field_commissioning/rtabmap_grid_projector"
-          test -x "$PROJECTOR"
-          "$PROJECTOR" 2>&1 | grep -F -- '--input, --output-pgm and --output-yaml are required'
+          PREFIX="$(ros2 pkg prefix agt_field_commissioning)"
+          EDITOR="$PREFIX/lib/agt_field_commissioning/edit_navigation_map.py"
+          test -x "$EDITOR"
+          "$EDITOR" --help | grep -F 'Nav2 map YAML'
+          python3 -c 'import cv2, yaml'
+          test ! -e "$PREFIX/lib/agt_field_commissioning/rtabmap_grid_projector"
