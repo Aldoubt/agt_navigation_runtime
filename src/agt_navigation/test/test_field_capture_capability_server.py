@@ -7,6 +7,7 @@ import time
 from action_msgs.msg import GoalStatus
 from agt_interfaces.action import ExecuteWaypointTask
 from agt_interfaces.msg import MapVersionSummary
+from agt_interfaces.srv import CaptureImage
 from agt_navigation.task_group import MapBinding, TaskGroup, Waypoint
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateToPose
@@ -48,9 +49,11 @@ def _pose(x, y, yaw=0.0):
     return pose
 
 
-def _prepare_task(root: Path):
+def _prepare_task(root: Path, points=None):
     task_root = root / "tasks" / "orchard" / "map_v1"
     task_root.mkdir(parents=True, exist_ok=True)
+    if points is None:
+        points = [Waypoint("tree_01", "Tree 01", 4.0, 5.0, 0.25)]
     task = TaskGroup(
         task_group_id="inspection",
         name="Inspection",
@@ -69,7 +72,7 @@ def _prepare_task(root: Path):
             height=10,
             origin=(0.0, 0.0, 0.0),
         ),
-        points=[Waypoint("tree_01", "Tree 01", 4.0, 5.0, 0.25)],
+        points=list(points),
     )
     task.content_sha256 = task.canonical_hash()
     (task_root / "inspection.json").write_text(
@@ -116,7 +119,7 @@ def _set_map(server):
     server._active_map_callback(active)
 
 
-def _request(task):
+def _request(task, request_id="field-capture-test-001"):
     goal = ExecuteWaypointTask.Goal()
     goal.map_id = "orchard"
     goal.map_version_id = "map_v1"
@@ -124,8 +127,17 @@ def _request(task):
     goal.task_revision = 1
     goal.expected_content_sha256 = task.content_sha256
     goal.loop_count = 1
-    goal.client_request_id = "field-capture-test-001"
+    goal.client_request_id = request_id
     return goal
+
+
+def _start_executor(*nodes):
+    executor = MultiThreadedExecutor(num_threads=max(7, len(nodes) + 4))
+    for node in nodes:
+        executor.add_node(node)
+    thread = threading.Thread(target=executor.spin, daemon=True)
+    thread.start()
+    return executor, thread
 
 
 def test_field_capture_executes_point_capture_then_returns_home(tmp_path):
@@ -164,11 +176,7 @@ def test_field_capture_executes_point_capture_then_returns_home(tmp_path):
         ExecuteWaypointTask,
         "/agt/navigation/execute_waypoint_task",
     )
-    executor = MultiThreadedExecutor(num_threads=7)
-    for node in (server, nav_node, client_node):
-        executor.add_node(node)
-    thread = threading.Thread(target=executor.spin, daemon=True)
-    thread.start()
+    executor, thread = _start_executor(server, nav_node, client_node)
     try:
         assert client.wait_for_server(timeout_sec=2.0)
         handle = _wait(client.send_goal_async(_request(task)))
@@ -192,6 +200,9 @@ def test_field_capture_executes_point_capture_then_returns_home(tmp_path):
         point_result = json.loads(
             (point_dirs[0] / "result.json").read_text(encoding="utf-8")
         )
+        assert point_result["schema_version"] == 2
+        assert point_result["navigation"]["success"] is True
+        assert point_result["capture"]["success"] is True
         assert point_result["capture_pose"] == {"x": 4.1, "y": 5.1, "yaw": 0.3}
         summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
         assert summary["success"] is True
@@ -202,6 +213,123 @@ def test_field_capture_executes_point_capture_then_returns_home(tmp_path):
         thread.join(timeout=2.0)
         nav_server.destroy()
         for node in (client_node, nav_node, server):
+            node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_capture_failure_records_failure_continues_route_and_returns_home(tmp_path):
+    task = _prepare_task(
+        tmp_path,
+        points=[
+            Waypoint("tree_01", "Tree 01", 4.0, 5.0, 0.25),
+            Waypoint("tree_02", "Tree 02", 6.0, 5.0, -0.25),
+        ],
+    )
+    poses = iter(
+        [
+            _pose(1.0, 2.0, 0.0),
+            _pose(4.1, 5.1, 0.3),
+            _pose(6.1, 5.1, -0.2),
+        ]
+    )
+    if not rclpy.ok():
+        rclpy.init()
+
+    server = SERVER.FieldCaptureCapabilityServer(
+        field_pose_provider=lambda: next(poses),
+        parameter_overrides=[
+            Parameter("require_safety_ready", value=False),
+            Parameter("require_localization_valid", value=False),
+            Parameter("require_task_readiness", value=False),
+            Parameter("maps_root", value=str(tmp_path)),
+            Parameter("tasks_root", value=str(tmp_path / "tasks")),
+            Parameter("runtime_dir", value=str(tmp_path / "runtime")),
+            Parameter("field_capture_root", value=str(tmp_path / "inspection_runs")),
+            Parameter("field_capture_backend", value="service"),
+            Parameter("field_capture_retry_count", value=1),
+            Parameter("field_capture_continue_on_failure", value=True),
+            Parameter("field_capture_service_timeout", value=1.0),
+        ],
+    )
+    _set_map(server)
+
+    nav_node = Node("mock_capture_failure_navigate_to_pose")
+    received = []
+
+    def execute_nav(goal_handle):
+        received.append(goal_handle.request.pose)
+        goal_handle.succeed()
+        return NavigateToPose.Result()
+
+    nav_server = ActionServer(nav_node, NavigateToPose, "navigate_to_pose", execute_nav)
+
+    camera_node = Node("mock_failing_capture_camera")
+    capture_calls = []
+
+    def capture_callback(request, response):
+        capture_calls.append((request.request_id, request.camera_id))
+        response.success = False
+        response.error_code = CaptureImage.Response.ERROR_CAPTURE_FAILED
+        response.message = "CAMERA_TIMEOUT"
+        return response
+
+    capture_service = camera_node.create_service(
+        CaptureImage, "/agt/camera/capture", capture_callback
+    )
+
+    client_node = Node("field_capture_failure_action_client")
+    client = ActionClient(
+        client_node,
+        ExecuteWaypointTask,
+        "/agt/navigation/execute_waypoint_task",
+    )
+    executor, thread = _start_executor(server, nav_node, camera_node, client_node)
+    try:
+        assert client.wait_for_server(timeout_sec=2.0)
+        handle = _wait(
+            client.send_goal_async(_request(task, "field-capture-failure-001"))
+        )
+        assert handle.accepted
+        wrapped = _wait(handle.get_result_async())
+
+        # Two inspection goals are still attempted and HOME is still executed.
+        assert len(received) == 3
+        assert (received[0].pose.position.x, received[0].pose.position.y) == (4.0, 5.0)
+        assert (received[1].pose.position.x, received[1].pose.position.y) == (6.0, 5.0)
+        assert (received[2].pose.position.x, received[2].pose.position.y) == (1.0, 2.0)
+        # retry_count=1 means two capture attempts at each waypoint.
+        assert len(capture_calls) == 4
+
+        # Inspection result fails because captures failed, even though route+HOME completed.
+        assert wrapped.status == GoalStatus.STATUS_ABORTED
+        assert wrapped.result.success is False
+        assert "capture_failures=2" in wrapped.result.message
+        assert "return_home=SUCCESS" in wrapped.result.message
+
+        run_dir = next((tmp_path / "inspection_runs").iterdir())
+        point_results = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted(run_dir.glob("P*/result.json"))
+        ]
+        assert len(point_results) == 2
+        assert all(item["navigation"]["success"] is True for item in point_results)
+        assert all(item["capture"]["success"] is False for item in point_results)
+        assert all(item["capture"]["retry_count"] == 1 for item in point_results)
+        assert all(item["capture"]["message"] == "CAMERA_TIMEOUT" for item in point_results)
+        assert all(item["image"] is None for item in point_results)
+
+        summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+        assert summary["success"] is False
+        assert summary["return_home_success"] is True
+        assert summary["completed_waypoints"] == 2
+        assert summary["total_waypoints"] == 2
+    finally:
+        executor.shutdown(timeout_sec=2.0)
+        thread.join(timeout=2.0)
+        capture_service.destroy()
+        nav_server.destroy()
+        for node in (client_node, camera_node, nav_node, server):
             node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
