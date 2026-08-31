@@ -163,18 +163,30 @@ class FieldCaptureRun:
         target: Pose2D,
         capture: Pose2D | None,
         image_path: Path | str | None,
-        navigation_success: bool,
+        navigation_success: bool | None = None,
+        capture_success: bool | None = None,
         navigation_message: str = "",
-        capture_success: bool,
         capture_retry_count: int = 0,
         capture_message: str = "",
+        status: str | None = None,
     ) -> Path:
         """Persist one waypoint result with navigation and capture kept independent.
 
-        A failed capture may legitimately have no image. Keeping the two outcomes
-        separate allows acceptance runs to distinguish mobility failures from
-        inspection-sensor failures without guessing from a combined status string.
+        ``status`` is accepted temporarily for the existing ROS execution server;
+        it is normalized immediately into the v2 split outcome and is never
+        written to disk. New callers should pass the two explicit success flags.
         """
+        if status is not None:
+            legacy_success = str(status).upper() == "SUCCESS"
+            if navigation_success is None:
+                navigation_success = legacy_success
+            if capture_success is None:
+                capture_success = legacy_success
+        if navigation_success is None or capture_success is None:
+            raise ValueError(
+                "navigation_success and capture_success are required for waypoint evidence"
+            )
+
         retry_count = int(capture_retry_count)
         if retry_count < 0:
             raise ValueError("capture_retry_count must be >= 0")
