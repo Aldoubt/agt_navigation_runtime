@@ -8,6 +8,7 @@ outcomes:
 - Capture failures are recorded per waypoint and, by default, stop the task
   after the configured retry budget is exhausted.
 - The overall inspection action still fails when one or more captures fail.
+- Continuing after capture failure remains an explicit opt-in field/debug mode.
 
 Task Registry, Site binding and runtime readiness validation stay owned by the
 existing NavigationCapabilityServer.

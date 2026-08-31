@@ -4,12 +4,14 @@ import shutil
 
 import yaml
 
+from agt_field_commissioning.map_review import PgmMap
 from agt_field_commissioning.projection import ProjectionResult
 from agt_field_commissioning.raycast_free_space import (
     RaycastConfig,
     RaycastEvidenceGrid,
     save_evidence,
 )
+from agt_field_commissioning.reviewed_site import ReviewedSitePublisher
 from agt_field_commissioning.service import CommissioningService
 from agt_runtime_contracts.validator import validate_runtime_contracts
 
@@ -78,9 +80,9 @@ def _prepare_observation(run_root: Path) -> tuple[Path, Path]:
     return artifact.binary, artifact.record
 
 
-def _service(tmp_path: Path) -> CommissioningService:
+def _service(tmp_path: Path, cls=CommissioningService) -> CommissioningService:
     repo = Path(__file__).resolve().parents[2]
-    return CommissioningService(
+    return cls(
         runtime_dir=tmp_path / "runtime",
         sites_root=tmp_path / "sites",
         state_root=tmp_path / "state",
@@ -175,6 +177,33 @@ def test_save_review_is_fail_closed_and_never_overwrites_revision(tmp_path: Path
         assert "already exists" in str(exc)
     else:
         raise AssertionError("existing immutable Site revision must not be overwritten")
+
+
+def test_save_review_preserves_external_review_bitmap_after_process_restart(tmp_path: Path) -> None:
+    first_process = _service(tmp_path)
+    _prepare_run(tmp_path / "runtime", "slope", "run01")
+    first_process.project("slope", "run01")
+
+    reviewed_pgm = (
+        tmp_path
+        / "runtime"
+        / "commissioning"
+        / "slope"
+        / "run01"
+        / "map_review"
+        / "reviewed_map.pgm"
+    )
+    edited = PgmMap.load(reviewed_pgm)
+    pixels = bytearray(edited.pixels)
+    pixels[0] = 254
+    PgmMap(edited.width, edited.height, edited.max_value, bytes(pixels)).write(reviewed_pgm)
+
+    second_process = _service(tmp_path, ReviewedSitePublisher)
+    saved = second_process.save_review("slope", "run01", "r02")
+    deployed = PgmMap.load(Path(saved["site_root"]) / "map" / "navigation.pgm")
+
+    assert deployed.pixels[0] == 254
+    assert PgmMap.load(reviewed_pgm).pixels[0] == 254
 
 
 def test_service_rejects_unsafe_identity(tmp_path: Path) -> None:
