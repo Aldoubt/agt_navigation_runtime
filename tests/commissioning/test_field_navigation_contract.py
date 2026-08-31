@@ -117,7 +117,7 @@ def test_phase_c_uses_sequential_field_capture_backend_by_default():
     assert '"field_capture_continue_on_failure": LaunchConfiguration("field_capture_continue_on_failure").perform(context)' in text
     assert 'DeclareLaunchArgument("field_capture_backend", default_value="placeholder")' in text
     assert 'DeclareLaunchArgument("field_capture_retry_count", default_value="1")' in text
-    assert 'DeclareLaunchArgument("field_capture_continue_on_failure", default_value="true")' in text
+    assert 'DeclareLaunchArgument("field_capture_continue_on_failure", default_value="false")' in text
     assert 'DeclareLaunchArgument("field_capture_service", default_value="/agt/camera/capture")' in text
 
 

@@ -157,6 +157,7 @@ def test_field_capture_executes_point_capture_then_returns_home(tmp_path):
             Parameter("runtime_dir", value=str(tmp_path / "runtime")),
             Parameter("field_capture_root", value=str(tmp_path / "inspection_runs")),
             Parameter("field_capture_backend", value="placeholder"),
+            Parameter("field_capture_settle_enabled", value=False),
         ],
     )
     _set_map(server)
@@ -250,6 +251,7 @@ def test_capture_failure_records_failure_continues_route_and_returns_home(tmp_pa
             Parameter("field_capture_retry_count", value=1),
             Parameter("field_capture_continue_on_failure", value=True),
             Parameter("field_capture_service_timeout", value=1.0),
+            Parameter("field_capture_settle_enabled", value=False),
         ],
     )
     _set_map(server)
@@ -356,8 +358,9 @@ def test_capture_failure_stops_route_after_retry_exhaustion_by_default(tmp_path)
             Parameter("runtime_dir", value=str(tmp_path / "runtime")),
             Parameter("field_capture_root", value=str(tmp_path / "inspection_runs")),
             Parameter("field_capture_backend", value="service"),
-            Parameter("field_capture_retry_count", value=1),
-            Parameter("field_capture_service_timeout", value=1.0),
+                Parameter("field_capture_retry_count", value=1),
+                Parameter("field_capture_service_timeout", value=1.0),
+                Parameter("field_capture_settle_enabled", value=False),
         ],
     )
     _set_map(server)
@@ -403,7 +406,7 @@ def test_capture_failure_stops_route_after_retry_exhaustion_by_default(tmp_path)
 
         assert wrapped.status == GoalStatus.STATUS_ABORTED
         assert wrapped.result.success is False
-        assert "capture failed at tree_01" in wrapped.result.message
+        assert "capture failed at Tree 01" in wrapped.result.message
         assert "images saved to:" in wrapped.result.message
 
         assert len(received) == 1
@@ -461,8 +464,11 @@ def test_navigation_failure_stops_before_capture_and_next_waypoint(tmp_path):
             Parameter("maps_root", value=str(tmp_path)),
             Parameter("tasks_root", value=str(tmp_path / "tasks")),
             Parameter("runtime_dir", value=str(tmp_path / "runtime")),
-            Parameter("field_capture_root", value=str(tmp_path / "inspection_runs")),
-            Parameter("field_capture_backend", value="placeholder"),
+                Parameter("field_capture_root", value=str(tmp_path / "inspection_runs")),
+                Parameter("field_capture_backend", value="placeholder"),
+                Parameter("field_capture_settle_enabled", value=False),
+                Parameter("field_capture_settle_enabled", value=False),
+            Parameter("field_capture_settle_enabled", value=False),
         ],
     )
     _set_map(server)
@@ -538,6 +544,7 @@ def test_return_home_failure_preserves_successful_capture_evidence(tmp_path):
             Parameter("runtime_dir", value=str(tmp_path / "runtime")),
             Parameter("field_capture_root", value=str(tmp_path / "inspection_runs")),
             Parameter("field_capture_backend", value="placeholder"),
+            Parameter("field_capture_settle_enabled", value=False),
         ],
     )
     _set_map(server)

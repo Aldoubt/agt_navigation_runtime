@@ -59,6 +59,16 @@ See [`docs/architecture/runtime_boundary.md`](docs/architecture/runtime_boundary
 
 ## Current Status
 
+### Field inspection acceptance path
+
+Developer acceptance starts with the existing MID360 rosbag and the unified
+`field_navigation` launch: FAST-LIVO2 → Nav2 → RViz waypoint task → odometry
+settle gate → `placeholder` capture → HOME → run evidence. After that passes,
+repeat on the BUNKER with a fresh odometry bag and calibrate the settle
+parameters. The real camera driver is a separate final step, connected through
+`/agt/camera/capture`; this repository does not start a real camera in the
+placeholder flow. See [`docs/runbooks/field-rosbag-acceptance.md`](docs/runbooks/field-rosbag-acceptance.md).
+
 Current milestone: **V3-02 Odometry / Localization Separation — Acceptance PASS**
 
 V3-02 acceptance is recorded in [`docs/acceptance/v3-02-acceptance.md`](docs/acceptance/v3-02-acceptance.md). The acceptance evidence includes the cloud contract suite, an independent ROS 2 Humble 23-package build, zero-failure `agt_odometry` package tests, and successful ROS launch-argument resolution

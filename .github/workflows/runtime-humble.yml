@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'feat/runtime-navigation-convergence-*'
+      - 'feat/field-real-vehicle-integration'
     paths:
       - 'src/agt_interfaces/**'
       - 'src/agt_runtime_contracts/**'
@@ -11,6 +12,7 @@ on:
       - 'src/agt_site_navigation/**'
       - 'src/agt_system_manager/**'
       - 'src/agt_navigation/**'
+      - 'src/agt_field_commissioning/**'
       - 'src/agt_safety/**'
       - 'src/agt_operator_gateway/**'
       - 'third_party/**'
@@ -25,6 +27,7 @@ on:
       - 'src/agt_site_navigation/**'
       - 'src/agt_system_manager/**'
       - 'src/agt_navigation/**'
+      - 'src/agt_field_commissioning/**'
       - 'src/agt_safety/**'
       - 'src/agt_operator_gateway/**'
       - 'third_party/**'

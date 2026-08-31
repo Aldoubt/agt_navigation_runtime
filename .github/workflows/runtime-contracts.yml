@@ -10,6 +10,7 @@ on:
       - 'feat/runtime-convergence-*'
       - 'feat/runtime-site-*'
       - 'feat/runtime-navigation-convergence-*'
+      - 'feat/field-real-vehicle-integration'
   pull_request:
     paths:
       - 'profiles/platforms/**'
@@ -120,6 +121,7 @@ jobs:
           python -m pytest -q \
             tests/navigation/test_rviz_goal_guard.py \
             tests/navigation/test_rviz_task_editor_contract.py \
-            tests/navigation/test_field_capture_acceptance_defaults.py
+            tests/navigation/test_field_capture_acceptance_defaults.py \
+            tests/navigation/test_field_capture_settle_contract.py
       - name: Run P1 Humble workflow contract
         run: python -m pytest -q tests/humble/test_p1_08_workflow_contract.py

@@ -169,6 +169,7 @@ class FieldCaptureRun:
         capture_retry_count: int = 0,
         capture_message: str = "",
         status: str | None = None,
+        settle: dict[str, Any] | None = None,
     ) -> Path:
         """Persist one waypoint result with navigation and capture kept independent.
 
@@ -231,6 +232,7 @@ class FieldCaptureRun:
                     "retry_count": retry_count,
                     "message": str(capture_message),
                 },
+                "settle": dict(settle or {}),
             },
         )
         return result_path

@@ -25,12 +25,15 @@ from pathlib import Path
 from action_msgs.msg import GoalStatus
 from agt_interfaces.srv import CaptureImage
 from agt_navigation.field_capture import FieldCaptureRun, Pose2D
+from agt_navigation.odometry_settle_monitor import OdometrySettleMonitor
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateToPose
+from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.task import Future
 
 
 _CAPABILITY_SCRIPT = Path(__file__).with_name("navigation_capability_server.py")
@@ -87,6 +90,29 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         self.field_capture_settle_sec = float(
             self.declare_parameter("field_capture_settle_sec", 0.0).value
         )
+        self.field_capture_settle_enabled = bool(
+            self.declare_parameter("field_capture_settle_enabled", True).value
+        )
+        self.field_capture_settle_odom_topic = str(
+            self.declare_parameter(
+                "field_capture_settle_odom_topic", "/agt/odometry/odometry"
+            ).value
+        ).strip()
+        self.field_capture_settle_linear_velocity_threshold = float(
+            self.declare_parameter("field_capture_settle_linear_velocity_threshold", 0.05).value
+        )
+        self.field_capture_settle_angular_velocity_threshold = float(
+            self.declare_parameter("field_capture_settle_angular_velocity_threshold", 0.05).value
+        )
+        self.field_capture_settle_stable_duration = float(
+            self.declare_parameter("field_capture_settle_stable_duration", 1.0).value
+        )
+        self.field_capture_settle_timeout = float(
+            self.declare_parameter("field_capture_settle_timeout", 10.0).value
+        )
+        self.field_capture_settle_odom_stale_timeout = float(
+            self.declare_parameter("field_capture_settle_odom_stale_timeout", 0.5).value
+        )
         self.field_capture_service_timeout = float(
             self.declare_parameter("field_capture_service_timeout", 2.0).value
         )
@@ -101,6 +127,13 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
             raise ValueError("field_capture_settle_sec must be >= 0")
         if self.field_capture_service_timeout <= 0.0:
             raise ValueError("field_capture_service_timeout must be positive")
+        self._settle_monitor = OdometrySettleMonitor(
+            linear_velocity_threshold=self.field_capture_settle_linear_velocity_threshold,
+            angular_velocity_threshold=self.field_capture_settle_angular_velocity_threshold,
+            stable_duration=self.field_capture_settle_stable_duration,
+            timeout=self.field_capture_settle_timeout,
+            odom_stale_timeout=self.field_capture_settle_odom_stale_timeout,
+        )
         if self.field_capture_backend == "service" and not self.field_capture_camera_id:
             raise ValueError("field_capture_camera_id is required for service capture")
 
@@ -113,6 +146,67 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
             self.field_capture_service,
             callback_group=field_group,
         )
+        self._settle_subscription = self.create_subscription(
+            Odometry, self.field_capture_settle_odom_topic, self._settle_odom_callback, 20
+        )
+
+    def _settle_odom_callback(self, message: Odometry) -> None:
+        stamp = message.header.stamp.sec + message.header.stamp.nanosec * 1e-9
+        now = self.get_clock().now().nanoseconds * 1e-9
+        self._settle_monitor.update(
+            vx=message.twist.twist.linear.x,
+            vy=message.twist.twist.linear.y,
+            wz=message.twist.twist.angular.z,
+            odom_stamp=stamp,
+            now=now,
+        )
+
+    async def _sleep_ros(self, duration: float) -> None:
+        """Yield through an rclpy timer (ROS action callbacks have no asyncio loop)."""
+        future = Future()
+        timer = None
+
+        def finish_sleep():
+            timer.cancel()
+            future.set_result(None)
+
+        timer = self.create_timer(float(duration), finish_sleep)
+        await future
+
+    async def _wait_for_settle(self, goal_handle, run, index, point):
+        now = self.get_clock().now().nanoseconds * 1e-9
+        self._settle_monitor.start(now)
+        self._publish_status(
+            "WAITING_FOR_SETTLE", backend="FIELD_CAPTURE", waypoint_id=point.name,
+            waypoint_index=index, odom_topic=self.field_capture_settle_odom_topic,
+        )
+        while True:
+            if goal_handle.is_cancel_requested:
+                return False, {"result": "CANCELED", "reason": "task canceled"}
+            gate_problem = self._runtime_gate_problem()
+            if gate_problem is not None:
+                return False, {
+                    "result": "RUNTIME_GATE_LOST",
+                    "reason": gate_problem.technical_message,
+                    "runtime_gate_problem": gate_problem,
+                }
+            status = self._settle_monitor.status(
+                self.get_clock().now().nanoseconds * 1e-9
+            )
+            if status.settled:
+                self._publish_status(
+                    "SETTLED", backend="FIELD_CAPTURE", waypoint_id=point.name,
+                    waypoint_index=index, settle_duration=status.stable_duration,
+                )
+                return True, {"result": "SETTLED", "stable_duration": status.stable_duration}
+            if status.state in ("STALE", "INVALID", "TIMEOUT"):
+                self._publish_status(
+                    "SETTLE_TIMEOUT", backend="FIELD_CAPTURE", waypoint_id=point.name,
+                    waypoint_index=index, settle_result=status.state, reason=status.reason,
+                )
+                return False, {"result": status.state, "reason": status.reason,
+                               "stable_duration": status.stable_duration}
+            await self._sleep_ros(0.05)
 
     def _localization_callback(self, message):
         super()._localization_callback(message)
@@ -567,8 +661,43 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                     waypoint_id=point.name,
                     waypoint_index=index,
                 )
+                settle_evidence = {"result": "DISABLED"}
+                if self.field_capture_settle_enabled:
+                    settled, settle_evidence = await self._wait_for_settle(
+                        goal_handle, run, index, point
+                    )
+                    if not settled:
+                        capture_pose = self._capture_pose_after_failure()
+                        run.record_waypoint(
+                            index=index,
+                            waypoint_id=point.name,
+                            target=self._point_pose2d(point),
+                            capture=capture_pose,
+                            image_path=None,
+                            navigation_success=True,
+                            navigation_message="arrived",
+                            capture_success=False,
+                            capture_retry_count=0,
+                            capture_message="not attempted because odometry settle gate failed",
+                            settle=settle_evidence,
+                        )
+                        gate_problem = settle_evidence.get("runtime_gate_problem")
+                        return self._fail_field_goal(
+                            goal_handle,
+                            result,
+                            gate_problem or _BASE.blocker(
+                                "SETTLE_TIMEOUT",
+                                f"robot did not settle at {point.name}: {settle_evidence.get('reason', settle_evidence.get('result'))}",
+                                error_code=ERROR_CAPTURE_FAILED,
+                            ),
+                            run=run,
+                            completed_waypoints=completed,
+                            total_waypoints=total,
+                        )
                 if self.field_capture_settle_sec > 0.0:
-                    await asyncio.sleep(self.field_capture_settle_sec)
+                    # Backward-compatible minimum dwell, never a substitute for
+                    # the odometry gate when that gate is enabled.
+                    await self._sleep_ros(self.field_capture_settle_sec)
                 self._publish_status(
                     "CAPTURING",
                     backend="FIELD_CAPTURE",
@@ -607,6 +736,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                         capture_success=False,
                         capture_retry_count=retries_used,
                         capture_message=capture_error,
+                        settle=settle_evidence,
                     )
                     completed = index
                     capture_failures.append(point.name)
@@ -658,6 +788,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                     capture_success=True,
                     capture_retry_count=retries_used,
                     capture_message=capture_message,
+                    settle=settle_evidence,
                 )
                 completed = index
                 self._publish_status(

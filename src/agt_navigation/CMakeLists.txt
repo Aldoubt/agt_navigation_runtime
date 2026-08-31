@@ -85,6 +85,9 @@ if(BUILD_TESTING)
   )
   ament_add_pytest_test(test_field_capture test/test_field_capture.py)
   ament_add_pytest_test(
+    test_odometry_settle_monitor test/test_odometry_settle_monitor.py
+  )
+  ament_add_pytest_test(
     test_field_capture_capability_server
     test/test_field_capture_capability_server.py
   )

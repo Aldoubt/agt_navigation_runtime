@@ -64,6 +64,13 @@ def generate_launch_description():
             DeclareLaunchArgument("field_capture_retry_count", default_value="1"),
             DeclareLaunchArgument("field_capture_continue_on_failure", default_value="false"),
             DeclareLaunchArgument("field_capture_settle_sec", default_value="0.0"),
+            DeclareLaunchArgument("field_capture_settle_enabled", default_value="true"),
+            DeclareLaunchArgument("field_capture_settle_odom_topic", default_value="/agt/odometry/odometry"),
+            DeclareLaunchArgument("field_capture_settle_linear_velocity_threshold", default_value="0.05"),
+            DeclareLaunchArgument("field_capture_settle_angular_velocity_threshold", default_value="0.05"),
+            DeclareLaunchArgument("field_capture_settle_stable_duration", default_value="1.0"),
+            DeclareLaunchArgument("field_capture_settle_timeout", default_value="10.0"),
+            DeclareLaunchArgument("field_capture_settle_odom_stale_timeout", default_value="0.5"),
             DeclareLaunchArgument("field_capture_service_timeout", default_value="2.0"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("autostart", default_value="false"),
@@ -179,6 +186,27 @@ def generate_launch_description():
                         ),
                         "field_capture_settle_sec": ParameterValue(
                             LaunchConfiguration("field_capture_settle_sec"), value_type=float
+                        ),
+                        "field_capture_settle_enabled": ParameterValue(
+                            LaunchConfiguration("field_capture_settle_enabled"), value_type=bool
+                        ),
+                        "field_capture_settle_odom_topic": LaunchConfiguration(
+                            "field_capture_settle_odom_topic"
+                        ),
+                        "field_capture_settle_linear_velocity_threshold": ParameterValue(
+                            LaunchConfiguration("field_capture_settle_linear_velocity_threshold"), value_type=float
+                        ),
+                        "field_capture_settle_angular_velocity_threshold": ParameterValue(
+                            LaunchConfiguration("field_capture_settle_angular_velocity_threshold"), value_type=float
+                        ),
+                        "field_capture_settle_stable_duration": ParameterValue(
+                            LaunchConfiguration("field_capture_settle_stable_duration"), value_type=float
+                        ),
+                        "field_capture_settle_timeout": ParameterValue(
+                            LaunchConfiguration("field_capture_settle_timeout"), value_type=float
+                        ),
+                        "field_capture_settle_odom_stale_timeout": ParameterValue(
+                            LaunchConfiguration("field_capture_settle_odom_stale_timeout"), value_type=float
                         ),
                         "field_capture_service_timeout": ParameterValue(
                             LaunchConfiguration("field_capture_service_timeout"), value_type=float
