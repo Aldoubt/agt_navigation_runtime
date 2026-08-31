@@ -62,7 +62,7 @@ def generate_launch_description():
                 "field_capture_camera_id", default_value="inspection_camera"
             ),
             DeclareLaunchArgument("field_capture_retry_count", default_value="1"),
-            DeclareLaunchArgument("field_capture_continue_on_failure", default_value="true"),
+            DeclareLaunchArgument("field_capture_continue_on_failure", default_value="false"),
             DeclareLaunchArgument("field_capture_settle_sec", default_value="0.0"),
             DeclareLaunchArgument("field_capture_service_timeout", default_value="2.0"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
