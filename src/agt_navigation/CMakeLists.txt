@@ -20,6 +20,7 @@ file(MAKE_DIRECTORY "${AGT_NAVIGATION_GENERATED_SCRIPT_DIR}")
 set(AGT_NAVIGATION_ENTRYPOINTS
   differential_drive_simulator.py
   execute_waypoint_task.py
+  field_capture_capability_server.py
   goal_pose_bridge.py
   localization_navigation_gate.py
   p1_09a_collision_monitor_gate.py
@@ -82,6 +83,10 @@ if(BUILD_TESTING)
     test_waypoint_preview_launch test/test_waypoint_preview_launch.py
   )
   ament_add_pytest_test(test_field_capture test/test_field_capture.py)
+  ament_add_pytest_test(
+    test_field_capture_capability_server
+    test/test_field_capture_capability_server.py
+  )
   ament_add_pytest_test(test_route_runtime test/test_route_runtime.py)
   ament_add_pytest_test(
     test_nav2_follow_path_adapter test/test_nav2_follow_path_adapter.py
