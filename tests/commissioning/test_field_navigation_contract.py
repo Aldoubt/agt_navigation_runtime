@@ -97,17 +97,26 @@ def test_phase_c_starts_local_obstacle_perception_by_default():
     assert 'condition=IfCondition(LaunchConfiguration("start_local_perception"))' in text
 
 
-def test_phase_c_starts_delivery_gateway_with_run_control_not_map_commissioning():
+def test_phase_c_keeps_operator_gateway_optional_and_off_by_default():
     text = NAV_LAUNCH.read_text(encoding="utf-8")
 
     assert 'package="agt_operator_gateway"' in text
     assert 'executable="operator_delivery_gateway_node.py"' in text
     assert '"commissioning_enabled": False' in text
     assert '"run_control_enabled": True' in text
-    assert '"run_lidar_component_id": LaunchConfiguration("run_lidar_component_id").perform(context)' in text
-    assert '"run_camera_gimbal_component_id": LaunchConfiguration("run_camera_gimbal_component_id").perform(context)' in text
-    assert 'DeclareLaunchArgument("start_operator_gateway", default_value="true")' in text
-    assert 'DeclareLaunchArgument("gateway_write_api_enabled", default_value="true")' in text
+    assert 'DeclareLaunchArgument("start_operator_gateway", default_value="false")' in text
+    assert 'DeclareLaunchArgument("gateway_write_api_enabled", default_value="false")' in text
+
+
+def test_phase_c_uses_sequential_field_capture_backend_by_default():
+    text = NAV_LAUNCH.read_text(encoding="utf-8")
+
+    assert '"capability_executable": "field_capture_capability_server.py"' in text
+    assert '"field_capture_enabled": "true"' in text
+    assert '"field_capture_backend": LaunchConfiguration("field_capture_backend").perform(context)' in text
+    assert 'DeclareLaunchArgument("field_capture_backend", default_value="placeholder")' in text
+    assert 'DeclareLaunchArgument("field_capture_retry_count", default_value="1")' in text
+    assert 'DeclareLaunchArgument("field_capture_service", default_value="/agt/camera/capture")' in text
 
 
 def test_phase_c_passes_site_derived_hashes_not_operator_map_paths():
