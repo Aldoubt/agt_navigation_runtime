@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 
-"""Field inspection execution backend for the public ExecuteWaypointTask Action.
+"""Sequential field inspection capability for formal waypoint tasks.
 
-This keeps Task Registry/map/safety/localization validation from the existing
-NavigationCapabilityServer, but executes formal waypoint tasks one point at a
-time with Nav2 NavigateToPose. After each successful arrival it captures one
-image, records the accepted map-frame localization pose, then continues. Once
-all points succeed it navigates back to the HOME pose recorded immediately
-before the first motion command.
+The server deliberately keeps navigation, capture and evidence as separate
+outcomes:
+- Nav2 / localization / safety failures stop the task immediately.
+- Capture failures are recorded per waypoint and, by default, do not prevent
+  later navigation goals or the final return-home motion.
+- The overall inspection action still fails when one or more captures fail.
 
-No gimbal contract is required here. Capture is either a hardware-free
-placeholder or the existing agt_interfaces/CaptureImage service. A future
-camera/gimbal driver only has to implement that capture service.
+Task Registry, Site binding and runtime readiness validation stay owned by the
+existing NavigationCapabilityServer.
 """
 
 from __future__ import annotations
@@ -47,7 +46,7 @@ ERROR_RETURN_HOME_FAILED = 47
 
 
 class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
-    """Sequential waypoint -> capture -> next waypoint -> HOME execution."""
+    """Execute waypoint -> capture sequentially, then return to HOME."""
 
     def __init__(self, field_pose_provider=None, **kwargs):
         self._field_pose_provider_override = field_pose_provider
@@ -57,9 +56,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         self.field_capture_enabled = bool(
             self.declare_parameter("field_capture_enabled", True).value
         )
-        root_value = str(
-            self.declare_parameter("field_capture_root", "").value
-        ).strip()
+        root_value = str(self.declare_parameter("field_capture_root", "").value).strip()
         self.field_capture_root = (
             Path(root_value).expanduser()
             if root_value
@@ -74,10 +71,17 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
             ).value
         ).strip()
         self.field_capture_camera_id = str(
-            self.declare_parameter("field_capture_camera_id", "inspection_camera").value
+            self.declare_parameter(
+                "field_capture_camera_id", "inspection_camera"
+            ).value
         ).strip()
         self.field_capture_retry_count = int(
             self.declare_parameter("field_capture_retry_count", 1).value
+        )
+        self.field_capture_continue_on_failure = bool(
+            self.declare_parameter(
+                "field_capture_continue_on_failure", True
+            ).value
         )
         self.field_capture_settle_sec = float(
             self.declare_parameter("field_capture_settle_sec", 0.0).value
@@ -118,7 +122,9 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         if self._field_pose_provider_override is not None:
             value = self._field_pose_provider_override()
             if not isinstance(value, PoseStamped):
-                raise RuntimeError("field_pose_provider must return geometry_msgs/PoseStamped")
+                raise RuntimeError(
+                    "field_pose_provider must return geometry_msgs/PoseStamped"
+                )
             pose = copy.deepcopy(value)
         else:
             with self._lock:
@@ -163,7 +169,9 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
             timeout_sec=self.field_capture_service_timeout
         )
 
-    async def _capture(self, run: FieldCaptureRun, index: int, waypoint_id: str):
+    async def _capture(
+        self, run: FieldCaptureRun, index: int, waypoint_id: str
+    ):
         point_dir = run.point_dir(index, waypoint_id)
         if self.field_capture_backend == "placeholder":
             return (
@@ -177,7 +185,8 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         response = await self._field_capture_client.call_async(request)
         if not response.success:
             raise RuntimeError(
-                response.message or f"CaptureImage failed with error_code={response.error_code}"
+                response.message
+                or f"CaptureImage failed with error_code={response.error_code}"
             )
         if response.image_uri:
             path = run.copy_local_image_uri(point_dir, response.image_uri)
@@ -245,6 +254,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         completed_waypoints,
         total_waypoints,
         return_home_success=False,
+        message=None,
     ):
         if self.session.status.state not in (
             _BASE.NavigationSessionStatus.STATE_FAILED,
@@ -265,7 +275,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
             return_home_success=return_home_success,
             completed_waypoints=completed_waypoints,
             total_waypoints=total_waypoints,
-            message=problem.technical_message,
+            message=message or problem.technical_message,
         )
         goal_handle.abort()
         self._publish_status(
@@ -279,11 +289,39 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
             result,
             False,
             problem,
-            message=f"{problem.technical_message}; images saved to: {run.run_dir}",
+            message=(
+                message
+                or f"{problem.technical_message}; images saved to: {run.run_dir}"
+            ),
         )
 
+    def _record_navigation_failure(self, run, index, point, message):
+        run.record_waypoint(
+            index=index,
+            waypoint_id=point.name,
+            target=self._point_pose2d(point),
+            capture=None,
+            image_path=None,
+            navigation_success=False,
+            navigation_message=message,
+            capture_success=False,
+            capture_retry_count=0,
+            capture_message="not attempted because navigation failed",
+        )
+
+    def _capture_pose_after_failure(self):
+        try:
+            return self._pose2d(self._current_pose_stamped())
+        except RuntimeError as exc:
+            self.get_logger().warning(
+                f"cannot attach capture pose to failed capture evidence: {exc}"
+            )
+            return None
+
     async def _execute(self, goal_handle):
-        if not self.field_capture_enabled or not self._is_formal_goal(goal_handle.request):
+        if not self.field_capture_enabled or not self._is_formal_goal(
+            goal_handle.request
+        ):
             return await super()._execute(goal_handle)
         return await self._execute_field_capture(goal_handle)
 
@@ -293,6 +331,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         run = None
         completed = 0
         total = 0
+        capture_failures: list[str] = []
         try:
             try:
                 self._claim_request(goal_handle.request)
@@ -330,6 +369,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
             except _BASE.Blocked as exc:
                 return self._reject_field_goal(goal_handle, result, exc.problem)
             total = len(points)
+
             current_map = self._map
             if self.require_map and current_map is None:
                 return self._reject_field_goal(
@@ -355,13 +395,18 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                             error_code=_BASE.ERROR_POINT_OUTSIDE_MAP,
                         ),
                     )
+
             binding_problem = self._validate_task_binding(task_binding, current_map)
             if binding_problem is not None:
-                return self._reject_field_goal(goal_handle, result, binding_problem)
+                return self._reject_field_goal(
+                    goal_handle, result, binding_problem
+                )
             gate_problem = self._runtime_gate_problem()
             if gate_problem is not None:
                 return self._reject_field_goal(goal_handle, result, gate_problem)
-            if not self._field_nav2.wait_for_server(timeout_sec=self.nav2_wait_timeout):
+            if not self._field_nav2.wait_for_server(
+                timeout_sec=self.nav2_wait_timeout
+            ):
                 return self._reject_field_goal(
                     goal_handle,
                     result,
@@ -466,6 +511,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                 )
                 target_pose = self._pose(point, self.get_clock().now().to_msg())
                 nav_success, nav_message = await self._navigate(target_pose)
+
                 if goal_handle.is_cancel_requested:
                     self.session.transition(
                         _BASE.NavigationSessionStatus.STATE_CANCELED, success=False
@@ -485,17 +531,24 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                         _BASE.blocker("CANCELED", "task canceled"),
                         message=f"task canceled; images saved to: {run.run_dir}",
                     )
+
                 if not nav_success:
+                    self._record_navigation_failure(
+                        run, index, point, nav_message
+                    )
                     return self._fail_field_goal(
                         goal_handle,
                         result,
                         _BASE.blocker(
-                            "NAV2_FAILED", nav_message, error_code=_BASE.ERROR_NAV2_FAILED
+                            "NAV2_FAILED",
+                            nav_message,
+                            error_code=_BASE.ERROR_NAV2_FAILED,
                         ),
                         run=run,
                         completed_waypoints=completed,
                         total_waypoints=total,
                     )
+
                 gate_problem = self._runtime_gate_problem()
                 if gate_problem is not None:
                     return self._fail_field_goal(
@@ -525,7 +578,9 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                 image_path = None
                 capture_message = ""
                 capture_error = ""
+                retries_used = 0
                 for attempt in range(self.field_capture_retry_count + 1):
+                    retries_used = attempt
                     try:
                         image_path, capture_message = await self._capture(
                             run, index, point.name
@@ -537,7 +592,32 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                         self.get_logger().warning(
                             f"capture {point.name} attempt {attempt + 1} failed: {exc}"
                         )
+
                 if image_path is None:
+                    capture_pose = self._capture_pose_after_failure()
+                    run.record_waypoint(
+                        index=index,
+                        waypoint_id=point.name,
+                        target=self._point_pose2d(point),
+                        capture=capture_pose,
+                        image_path=None,
+                        navigation_success=True,
+                        navigation_message="arrived",
+                        capture_success=False,
+                        capture_retry_count=retries_used,
+                        capture_message=capture_error,
+                    )
+                    completed = index
+                    capture_failures.append(point.name)
+                    self._publish_status(
+                        "WAYPOINT_CAPTURE_FAILED",
+                        backend="FIELD_CAPTURE",
+                        waypoint_id=point.name,
+                        waypoint_index=index,
+                        capture_error=capture_error,
+                    )
+                    if self.field_capture_continue_on_failure:
+                        continue
                     return self._fail_field_goal(
                         goal_handle,
                         result,
@@ -572,7 +652,10 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                     target=self._point_pose2d(point),
                     capture=self._pose2d(capture_pose),
                     image_path=image_path,
-                    status="SUCCESS",
+                    navigation_success=True,
+                    navigation_message="arrived",
+                    capture_success=True,
+                    capture_retry_count=retries_used,
                     capture_message=capture_message,
                 )
                 completed = index
@@ -594,6 +677,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                     completed_waypoints=completed,
                     total_waypoints=total,
                 )
+
             self._publish_status(
                 "RETURNING_HOME",
                 backend="FIELD_CAPTURE",
@@ -614,6 +698,28 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                     completed_waypoints=completed,
                     total_waypoints=total,
                     return_home_success=False,
+                )
+
+            if capture_failures:
+                capture_summary = (
+                    f"field capture route completed; capture_failures={len(capture_failures)}; "
+                    f"failed_waypoints={','.join(capture_failures)}; return_home=SUCCESS; "
+                    f"images saved to: {run.run_dir}"
+                )
+                problem = _BASE.blocker(
+                    "CAPTURE_FAILED",
+                    f"{len(capture_failures)} waypoint capture(s) failed",
+                    error_code=ERROR_CAPTURE_FAILED,
+                )
+                return self._fail_field_goal(
+                    goal_handle,
+                    result,
+                    problem,
+                    run=run,
+                    completed_waypoints=completed,
+                    total_waypoints=total,
+                    return_home_success=True,
+                    message=capture_summary,
                 )
 
             run.finish(
@@ -648,7 +754,9 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                 ),
             )
         except Exception as exc:
-            self.get_logger().error(f"FIELD_CAPTURE task failed unexpectedly: {exc}")
+            self.get_logger().error(
+                f"FIELD_CAPTURE task failed unexpectedly: {exc}"
+            )
             problem = _BASE.blocker(
                 "NAV2_FAILED", str(exc), error_code=_BASE.ERROR_NAV2_FAILED
             )
@@ -661,7 +769,10 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                         total_waypoints=total,
                         message=str(exc),
                     )
-                if self.session.status.state == _BASE.NavigationSessionStatus.STATE_VALIDATING:
+                if (
+                    self.session.status.state
+                    == _BASE.NavigationSessionStatus.STATE_VALIDATING
+                ):
                     self.session.transition(
                         _BASE.NavigationSessionStatus.STATE_REJECTED,
                         problem=_BASE.Blocker(
