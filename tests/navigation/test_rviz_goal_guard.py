@@ -20,11 +20,18 @@ def test_production_navigation_declares_direct_goal_bridge_disabled_by_default()
 def test_formal_waypoint_capability_remains_fail_closed_for_direct_pose_goals():
     text = NAVIGATION_LAUNCH.read_text(encoding="utf-8")
 
-    assert 'executable="navigation_capability_server.py"' in text
+    assert (
+        'DeclareLaunchArgument(\n'
+        '                "capability_executable", default_value="navigation_capability_server.py"\n'
+        '            )'
+    ) in text
+    assert 'executable=LaunchConfiguration("capability_executable")' in text
     assert '"allow_direct_pose_goals": False' in text
-    assert 'condition=IfCondition(LaunchConfiguration("enable_rviz_goal_bridge"))' not in text.split(
-        'executable="navigation_capability_server.py"', 1
+
+    capability_node = text.split(
+        'executable=LaunchConfiguration("capability_executable")', 1
     )[1].split('executable="task_registry_node.py"', 1)[0]
+    assert 'condition=IfCondition(LaunchConfiguration("enable_rviz_goal_bridge"))' not in capability_node
 
 
 def test_offline_simulation_explicitly_keeps_direct_goal_bridge_enabled():
@@ -38,6 +45,12 @@ def test_field_commissioning_can_explicitly_opt_in_but_defaults_off():
 
     assert 'DeclareLaunchArgument("enable_rviz_goal_bridge", default_value="false")' in text
     assert '"enable_rviz_goal_bridge": LaunchConfiguration("enable_rviz_goal_bridge").perform(context)' in text
+
+
+def test_field_commissioning_selects_capture_capability_without_changing_navigation_default():
+    text = COMMISSIONING_LAUNCH.read_text(encoding="utf-8")
+
+    assert '"capability_executable": "field_capture_capability_server.py"' in text
 
 
 def test_commissioning_opt_in_does_not_create_a_second_direct_goal_bridge():
