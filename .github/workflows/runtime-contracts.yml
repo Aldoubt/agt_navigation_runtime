@@ -91,6 +91,11 @@ jobs:
           else
             echo "P1 task-storage tests not present yet"
           fi
+      - name: Run P1 RViz task-draft and capture-evidence contracts
+        run: |
+          PYTHONPATH=src/agt_navigation python -m pytest -q \
+            src/agt_navigation/test/test_rviz_task_draft.py \
+            src/agt_navigation/test/test_field_capture.py
       - name: Run P1 site-navigation contracts
         run: |
           if [ -f src/agt_site_navigation/test/test_resolver.py ]; then
