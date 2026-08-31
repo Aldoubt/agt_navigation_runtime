@@ -5,9 +5,9 @@
 The server deliberately keeps navigation, capture and evidence as separate
 outcomes:
 - Nav2 / localization / safety failures stop the task immediately.
-- Capture failures are recorded per waypoint and, by default, do not prevent
-  later navigation goals or the final return-home motion.
-- The overall inspection action still fails when one or more captures fail.
+- Capture failures are recorded per waypoint and stop the inspection by default
+  after the configured retries are exhausted.
+- Continuing after capture failure remains an explicit opt-in field/debug mode.
 
 Task Registry, Site binding and runtime readiness validation stay owned by the
 existing NavigationCapabilityServer.
@@ -80,7 +80,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         )
         self.field_capture_continue_on_failure = bool(
             self.declare_parameter(
-                "field_capture_continue_on_failure", True
+                "field_capture_continue_on_failure", False
             ).value
         )
         self.field_capture_settle_sec = float(
