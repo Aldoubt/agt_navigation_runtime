@@ -67,7 +67,8 @@ jobs:
           source /opt/ros/humble/setup.bash
           colcon build \
             --event-handlers console_direct+ \
-            --packages-up-to agt_operator_gateway
+            --packages-up-to agt_operator_gateway \
+            --packages-skip-regex 'livox.*'
 
       - name: Test convergence core on Humble
         shell: bash
