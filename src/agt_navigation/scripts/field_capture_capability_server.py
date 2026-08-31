@@ -153,13 +153,14 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
     def _settle_odom_callback(self, message: Odometry) -> None:
         stamp = message.header.stamp.sec + message.header.stamp.nanosec * 1e-9
         now = self.get_clock().now().nanoseconds * 1e-9
-        self._settle_monitor.update(
-            vx=message.twist.twist.linear.x,
-            vy=message.twist.twist.linear.y,
-            wz=message.twist.twist.angular.z,
-            odom_stamp=stamp,
-            now=now,
-        )
+        with self._lock:
+            self._settle_monitor.update(
+                vx=message.twist.twist.linear.x,
+                vy=message.twist.twist.linear.y,
+                wz=message.twist.twist.angular.z,
+                odom_stamp=stamp,
+                now=now,
+            )
 
     async def _sleep_ros(self, duration: float) -> None:
         """Yield through an rclpy timer (ROS action callbacks have no asyncio loop)."""
@@ -171,11 +172,16 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
             future.set_result(None)
 
         timer = self.create_timer(float(duration), finish_sleep)
-        await future
+        try:
+            await future
+        finally:
+            timer.cancel()
+            self.destroy_timer(timer)
 
     async def _wait_for_settle(self, goal_handle, run, index, point):
         now = self.get_clock().now().nanoseconds * 1e-9
-        self._settle_monitor.start(now)
+        with self._lock:
+            self._settle_monitor.start(now)
         self._publish_status(
             "WAITING_FOR_SETTLE", backend="FIELD_CAPTURE", waypoint_id=point.name,
             waypoint_index=index, odom_topic=self.field_capture_settle_odom_topic,
@@ -190,9 +196,10 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                     "reason": gate_problem.technical_message,
                     "runtime_gate_problem": gate_problem,
                 }
-            status = self._settle_monitor.status(
-                self.get_clock().now().nanoseconds * 1e-9
-            )
+            with self._lock:
+                status = self._settle_monitor.status(
+                    self.get_clock().now().nanoseconds * 1e-9
+                )
             if status.settled:
                 self._publish_status(
                     "SETTLED", backend="FIELD_CAPTURE", waypoint_id=point.name,

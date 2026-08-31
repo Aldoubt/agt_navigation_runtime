@@ -65,6 +65,19 @@ def test_invalid_timestamp_is_fail_closed():
     assert not m.status(2.2).settled
 
 
+def test_stable_since_zero_is_counted_as_a_real_timestamp():
+    m = OdometrySettleMonitor(
+        linear_velocity_threshold=0.05,
+        angular_velocity_threshold=0.05,
+        stable_duration=2.0,
+        timeout=5.0,
+        odom_stale_timeout=5.0,
+    )
+    m.start(0.0)
+    sample(m, 0.0, stamp=1.0)
+    assert m.status(2.0).settled
+
+
 def test_timestamp_rollback_resets_stable_window():
     m = monitor(); m.start(100.0)
     sample(m, 100.1, stamp=100.1); sample(m, 100.2, stamp=100.2)

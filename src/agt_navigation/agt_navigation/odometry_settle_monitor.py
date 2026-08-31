@@ -110,7 +110,8 @@ class OdometrySettleMonitor:
             return SettleStatus(STALE, reason="odometry is stale")
         if self._state == INVALID:
             return SettleStatus(INVALID, reason=self._reason)
-        duration = max(0.0, now - (self._stable_since or now))
+        stable_since = self._stable_since
+        duration = max(0.0, now - stable_since) if stable_since is not None else 0.0
         if self._stable_since is not None and duration >= self.stable_duration:
             return SettleStatus(SETTLED, duration, "odometry stable window satisfied")
         if now - self._started_at >= self.timeout:
