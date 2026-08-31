@@ -81,6 +81,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(
     test_waypoint_preview_launch test/test_waypoint_preview_launch.py
   )
+  ament_add_pytest_test(test_field_capture test/test_field_capture.py)
   ament_add_pytest_test(test_route_runtime test/test_route_runtime.py)
   ament_add_pytest_test(
     test_nav2_follow_path_adapter test/test_nav2_follow_path_adapter.py
