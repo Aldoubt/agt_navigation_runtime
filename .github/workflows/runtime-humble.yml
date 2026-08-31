@@ -53,6 +53,10 @@ jobs:
             python3-pytest \
             python3-yaml \
             python3-jsonschema
+          if [ -f /opt/ros/humble/lib/x86_64-linux-gnu/libbehaviortree_cpp.so ] && [ ! -e /opt/ros/humble/lib/libbehaviortree_cpp.so ]; then
+            ln -s /opt/ros/humble/lib/x86_64-linux-gnu/libbehaviortree_cpp.so \
+              /opt/ros/humble/lib/libbehaviortree_cpp.so
+          fi
 
       - name: Resolve selected-core ROS dependencies
         shell: bash
