@@ -13,6 +13,7 @@ on:
       - 'src/agt_navigation/**'
       - 'src/agt_safety/**'
       - 'src/agt_operator_gateway/**'
+      - 'third_party/**'
       - 'tests/humble/**'
       - '.github/workflows/runtime-humble.yml'
       - 'docs/superpowers/plans/2026-08-29-p1-08-humble-convergence-regression.md'
@@ -26,6 +27,7 @@ on:
       - 'src/agt_navigation/**'
       - 'src/agt_safety/**'
       - 'src/agt_operator_gateway/**'
+      - 'third_party/**'
       - 'tests/humble/**'
       - '.github/workflows/runtime-humble.yml'
 
