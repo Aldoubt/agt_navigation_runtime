@@ -11,6 +11,7 @@ from agt_field_commissioning.raycast_free_space import (
     RaycastEvidenceGrid,
     save_evidence,
 )
+from agt_field_commissioning.reviewed_site import ReviewedSitePublisher
 from agt_field_commissioning.service import CommissioningService
 from agt_runtime_contracts.validator import validate_runtime_contracts
 
@@ -79,9 +80,9 @@ def _prepare_observation(run_root: Path) -> tuple[Path, Path]:
     return artifact.binary, artifact.record
 
 
-def _service(tmp_path: Path) -> CommissioningService:
+def _service(tmp_path: Path, cls=CommissioningService) -> CommissioningService:
     repo = Path(__file__).resolve().parents[2]
-    return CommissioningService(
+    return cls(
         runtime_dir=tmp_path / "runtime",
         sites_root=tmp_path / "sites",
         state_root=tmp_path / "state",
@@ -197,9 +198,7 @@ def test_save_review_preserves_external_review_bitmap_after_process_restart(tmp_
     pixels[0] = 254
     PgmMap(edited.width, edited.height, edited.max_value, bytes(pixels)).write(reviewed_pgm)
 
-    # A later CLI invocation creates a fresh service object. The reviewed bitmap,
-    # not the raw projection, must remain authoritative for the published Site.
-    second_process = _service(tmp_path)
+    second_process = _service(tmp_path, ReviewedSitePublisher)
     saved = second_process.save_review("slope", "run01", "r02")
     deployed = PgmMap.load(Path(saved["site_root"]) / "map" / "navigation.pgm")
 
