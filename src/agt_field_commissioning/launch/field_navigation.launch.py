@@ -126,6 +126,22 @@ def _compose(context):
             )
         )
 
+    if _enabled(context, "start_inspection") and LaunchConfiguration("field_capture_backend").perform(context).strip().lower() in ("camera_capability", "mock"):
+        actions.append(
+            Node(
+                package="agt_camera_capability",
+                executable="camera_capability_server.py",
+                name="agt_camera_capability_server",
+                output="screen",
+                parameters=[
+                    {
+                        "backend": LaunchConfiguration("camera_capability_backend").perform(context),
+                        "service_name": LaunchConfiguration("field_capture_service").perform(context),
+                    }
+                ],
+            )
+        )
+
     actions.extend(
         [
             _include(
@@ -313,8 +329,8 @@ def generate_launch_description():
             DeclareLaunchArgument("auto_permit_status_timeout", default_value="0.5"),
             DeclareLaunchArgument("run_auto_permit_freshness_s", default_value="0.75"),
             DeclareLaunchArgument("field_capture_root", default_value=""),
-            DeclareLaunchArgument("field_capture_backend", default_value="placeholder"),
-            DeclareLaunchArgument("field_capture_service", default_value="/agt/camera/capture"),
+            DeclareLaunchArgument("field_capture_backend", default_value="camera_capability"),
+            DeclareLaunchArgument("field_capture_service", default_value="/agt/camera/capability/capture"),
             DeclareLaunchArgument("field_capture_camera_id", default_value="inspection_camera"),
             DeclareLaunchArgument("field_capture_retry_count", default_value="1"),
             DeclareLaunchArgument("field_capture_continue_on_failure", default_value="false"),
@@ -327,6 +343,7 @@ def generate_launch_description():
             DeclareLaunchArgument("field_capture_settle_timeout", default_value="10.0"),
             DeclareLaunchArgument("field_capture_settle_odom_stale_timeout", default_value="0.5"),
             DeclareLaunchArgument("field_capture_service_timeout", default_value="2.0"),
+            DeclareLaunchArgument("camera_capability_backend", default_value="mock"),
             DeclareLaunchArgument("start_inspection", default_value="false"),
             DeclareLaunchArgument("inspection_camera_device_path", default_value="/dev/video0"),
             DeclareLaunchArgument("inspection_camera_gimbal_port", default_value="/dev/ttyUSB0"),

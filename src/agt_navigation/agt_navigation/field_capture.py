@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+from decimal import Decimal
 from typing import Any
 from urllib.parse import unquote, urlparse
 
@@ -59,6 +60,8 @@ class FieldCaptureRun:
         self.task_group_id = str(task_group_id)
         self.run_dir = self.root / self.session_id
         self.run_dir.mkdir(parents=True, exist_ok=False)
+        (self.run_dir / "images").mkdir()
+        (self.run_dir / "metadata").mkdir()
 
     def start(self, home_pose: Pose2D) -> Path:
         path = self.run_dir / "mission.json"
@@ -72,6 +75,14 @@ class FieldCaptureRun:
                 "task_group_id": self.task_group_id,
                 "home_pose": home_pose.to_dict(),
             },
+        )
+        (self.run_dir / "task.yaml").write_text(
+            "schema_version: 1\n"
+            f"mission_id: {self.session_id}\n"
+            f"map_id: {self.map_id}\n"
+            f"map_version_id: {self.map_version_id}\n"
+            f"task_group_id: {self.task_group_id}\n",
+            encoding="utf-8",
         )
         return path
 
@@ -170,6 +181,10 @@ class FieldCaptureRun:
         capture_message: str = "",
         status: str | None = None,
         settle: dict[str, Any] | None = None,
+        image_timestamp: float | None = None,
+        robot_pose: dict[str, Any] | None = None,
+        gimbal: dict[str, Any] | None = None,
+        capture_view: dict[str, Any] | None = None,
     ) -> Path:
         """Persist one waypoint result with navigation and capture kept independent.
 
@@ -202,6 +217,33 @@ class FieldCaptureRun:
                 image_value = str(image.resolve().relative_to(self.run_dir.resolve()))
             except ValueError:
                 image_value = str(image)
+
+        # The canonical protocol is additive to the historical point evidence.
+        # Keep the latter for commissioning/debugging, while making the stable
+        # image and metadata paths available to offline consumers.
+        if image_path is not None and image_timestamp is not None:
+            timestamp = float(image_timestamp)
+            canonical_name = f"image_{_format_timestamp(timestamp)}.jpg"
+            canonical_path = self.run_dir / "images" / canonical_name
+            source = Path(image_path)
+            if source.suffix.lower() == ".jpg" or source.suffix.lower() == ".jpeg":
+                shutil.copy2(source, canonical_path)
+            else:
+                try:
+                    from PIL import Image
+                    with Image.open(source) as rendered:
+                        rendered.convert("RGB").save(canonical_path, format="JPEG")
+                except (ImportError, OSError) as exc:
+                    raise ValueError(f"cannot convert captured image to JPEG: {exc}") from exc
+            metadata = {
+                "waypoint_id": str(waypoint_id),
+                "image": {"path": f"images/{canonical_name}", "timestamp": timestamp},
+                "robot_pose": robot_pose or {},
+                "gimbal": gimbal or {},
+            }
+            if capture_view is not None:
+                metadata["capture_view"] = dict(capture_view)
+            _atomic_json(self.run_dir / "metadata" / f"P{int(index):02d}.json", metadata)
 
         waypoint_path = point_dir / "waypoint.json"
         _atomic_json(
@@ -259,4 +301,17 @@ class FieldCaptureRun:
                 "message": str(message),
             },
         )
+        _atomic_json(self.run_dir / "report.json", {
+            "mission_id": self.session_id,
+            "success": bool(success),
+            "completed_waypoints": int(completed_waypoints),
+            "total_waypoints": int(total_waypoints),
+            "message": str(message),
+        })
         return summary_path
+
+
+def _format_timestamp(timestamp: float) -> str:
+    """Render Unix seconds without scientific notation for portable filenames."""
+    rendered = format(Decimal(str(float(timestamp))), "f")
+    return rendered.rstrip("0").rstrip(".") if "." in rendered else rendered

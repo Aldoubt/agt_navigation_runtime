@@ -23,7 +23,8 @@ import math
 from pathlib import Path
 
 from action_msgs.msg import GoalStatus
-from agt_interfaces.srv import CaptureImage
+from agt_camera_capability import CameraCapability, CaptureRequest
+from agt_camera_capability.strategy import FixedOverviewCaptureStrategy
 from agt_navigation.field_capture import FieldCaptureRun, Pose2D
 from agt_navigation.odometry_settle_monitor import OdometrySettleMonitor
 from geometry_msgs.msg import PoseStamped
@@ -67,7 +68,7 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
             else self.runtime_dir / "inspection_runs"
         )
         self.field_capture_backend = str(
-            self.declare_parameter("field_capture_backend", "placeholder").value
+            self.declare_parameter("field_capture_backend", "camera_capability").value
         ).strip().lower()
         self.field_capture_service = str(
             self.declare_parameter(
@@ -116,10 +117,14 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         self.field_capture_service_timeout = float(
             self.declare_parameter("field_capture_service_timeout", 2.0).value
         )
+        self.capture_strategy = FixedOverviewCaptureStrategy(
+            pitch=float(self.declare_parameter("capture_strategy_pitch", math.radians(45.0)).value),
+            roll=float(self.declare_parameter("capture_strategy_roll", 0.0).value),
+        )
 
-        if self.field_capture_backend not in ("placeholder", "service"):
+        if self.field_capture_backend not in ("placeholder", "mock", "service", "camera_capability"):
             raise ValueError(
-                "field_capture_backend must be 'placeholder' or 'service'"
+                "field_capture_backend must be 'camera_capability', 'service', 'mock' or 'placeholder'"
             )
         if self.field_capture_retry_count < 0:
             raise ValueError("field_capture_retry_count must be >= 0")
@@ -141,11 +146,12 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         self._field_nav2 = ActionClient(
             self, NavigateToPose, "navigate_to_pose", callback_group=field_group
         )
-        self._field_capture_client = self.create_client(
-            CaptureImage,
-            self.field_capture_service,
-            callback_group=field_group,
-        )
+        if self.field_capture_backend in ("placeholder", "mock"):
+            self._camera_capability = CameraCapability.local_mock(self)
+        elif self.field_capture_backend == "service" and self.field_capture_service == "/agt/camera/capture":
+            self._camera_capability = CameraCapability.legacy_service(self, self.field_capture_service)
+        else:
+            self._camera_capability = CameraCapability(self, service_name=self.field_capture_service)
         self._settle_subscription = self.create_subscription(
             Odometry, self.field_capture_settle_odom_topic, self._settle_odom_callback, 20
         )
@@ -265,44 +271,49 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
         return Pose2D(float(point.x), float(point.y), float(point.theta))
 
     def _capture_service_ready(self) -> bool:
-        if self.field_capture_backend == "placeholder":
-            return True
-        return self._field_capture_client.wait_for_service(
-            timeout_sec=self.field_capture_service_timeout
-        )
+        return self._camera_capability.ready(self.field_capture_service_timeout)[0]
 
     async def _capture(
-        self, run: FieldCaptureRun, index: int, waypoint_id: str
+        self, run: FieldCaptureRun, index: int, waypoint_id: str, view
     ):
         point_dir = run.point_dir(index, waypoint_id)
-        if self.field_capture_backend == "placeholder":
-            return (
-                run.write_placeholder_image(point_dir),
-                "placeholder capture; replace field_capture_backend with service when camera is connected",
-            )
-
-        request = CaptureImage.Request()
-        request.request_id = f"{run.session_id}-P{index:02d}"
-        request.camera_id = self.field_capture_camera_id
-        response = await self._field_capture_client.call_async(request)
+        request = CaptureRequest(
+            request_id=f"{run.session_id}-P{index:02d}",
+            camera_id=self.field_capture_camera_id,
+            waypoint_id=waypoint_id,
+            target_heading=float(view.yaw),
+            target_pitch=float(view.pitch),
+            view_name=str(view.name),
+            target_yaw=float(view.yaw),
+            target_roll=float(view.roll),
+            capture_tag=waypoint_id,
+            save_image=True,
+        )
+        response = await self._camera_capability.capture(request)
         if not response.success:
             raise RuntimeError(
-                response.message
-                or f"CaptureImage failed with error_code={response.error_code}"
+                response.message or f"camera capability failed with error_code={response.error_code}"
             )
         if response.image_uri:
             path = run.copy_local_image_uri(point_dir, response.image_uri)
         else:
-            image = response.image
-            path = run.write_sensor_image(
-                point_dir,
-                width=image.width,
-                height=image.height,
-                step=image.step,
-                encoding=image.encoding,
-                data=image.data,
-            )
-        return path, str(response.message)
+            suffix = response.image_suffix.lower() or ".img"
+            path = point_dir / ("image" + suffix)
+            path.write_bytes(response.image_bytes)
+        return path, str(response.message), response, view
+
+    def _inspection_pose_metadata(self, pose: PoseStamped) -> dict:
+        stamp = float(pose.header.stamp.sec) + float(pose.header.stamp.nanosec) * 1e-9
+        if stamp <= 0.0:
+            stamp = self.get_clock().now().nanoseconds * 1e-9
+        q = pose.pose.orientation
+        return {
+            "timestamp": stamp,
+            "frame": str(pose.header.frame_id),
+            "x": float(pose.pose.position.x), "y": float(pose.pose.position.y),
+            "z": float(pose.pose.position.z), "qx": float(q.x), "qy": float(q.y),
+            "qz": float(q.z), "qw": float(q.w),
+        }
 
     async def _navigate(self, pose: PoseStamped):
         goal = NavigateToPose.Goal()
@@ -716,12 +727,20 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                 capture_message = ""
                 capture_error = ""
                 retries_used = 0
+                views = self.capture_strategy.generate_views(point)
+                if not views:
+                    raise RuntimeError(f"capture strategy returned no views for {point.name}")
+                # The first strategy produces one view. The loop is deliberately
+                # kept inside the capture helper so future multi-view strategies
+                # do not change navigation, settle, or Camera Capability code.
                 for attempt in range(self.field_capture_retry_count + 1):
                     retries_used = attempt
                     try:
-                        image_path, capture_message = await self._capture(
-                            run, index, point.name
-                        )
+                        captures = [
+                            await self._capture(run, index, point.name, view)
+                            for view in views
+                        ]
+                        image_path, capture_message, capture_response, capture_view = captures[-1]
                         capture_error = ""
                         break
                     except Exception as exc:
@@ -784,6 +803,11 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                         completed_waypoints=completed,
                         total_waypoints=total,
                     )
+                capture_timestamp = (
+                    float(capture_response.capture_stamp)
+                    if getattr(capture_response, "capture_stamp", None) is not None
+                    else self.get_clock().now().nanoseconds * 1e-9
+                )
                 run.record_waypoint(
                     index=index,
                     waypoint_id=point.name,
@@ -796,6 +820,20 @@ class FieldCaptureCapabilityServer(_CAP.NavigationCapabilityServer):
                     capture_retry_count=retries_used,
                     capture_message=capture_message,
                     settle=settle_evidence,
+                    image_timestamp=capture_timestamp,
+                    robot_pose=self._inspection_pose_metadata(capture_pose),
+                    gimbal={
+                        "timestamp": capture_timestamp,
+                        "yaw": math.degrees(float(capture_response.actual_heading or point.theta)),
+                        "pitch": math.degrees(float(capture_response.actual_pitch or 0.0)),
+                        "roll": 0.0,
+                    },
+                    capture_view={
+                        "name": str(capture_view.name),
+                        "yaw": float(capture_view.yaw),
+                        "pitch": float(capture_view.pitch),
+                        "roll": float(capture_view.roll),
+                    },
                 )
                 completed = index
                 self._publish_status(
