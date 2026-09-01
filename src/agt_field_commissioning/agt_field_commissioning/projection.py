@@ -382,8 +382,17 @@ class LightweightPcdGridBackend:
             raise RuntimeError("PCD contains no finite x/y/z points")
 
         resolution = float(request.resolution_m)
-        width = int(np.floor((max_x - min_x) / resolution)) + 1
-        height = int(np.floor((max_y - min_y) / resolution)) + 1
+        # Origins must be exact cell boundaries. Besides making the emitted
+        # Nav2 YAML geometrically correct, this is required to align the PCD
+        # raster with independently recorded raycast evidence.
+        origin_ix = int(np.floor(min_x / resolution))
+        origin_iy = int(np.floor(min_y / resolution))
+        max_ix = int(np.floor(max_x / resolution))
+        max_iy = int(np.floor(max_y / resolution))
+        min_x = origin_ix * resolution
+        min_y = origin_iy * resolution
+        width = max_ix - origin_ix + 1
+        height = max_iy - origin_iy + 1
         cell_count = width * height
         if cell_count <= 0 or cell_count > self.max_cells:
             raise RuntimeError(

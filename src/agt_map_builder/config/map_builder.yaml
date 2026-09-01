@@ -1,0 +1,7 @@
+# The PCD is expected to already be registered in the existing map frame.
+resolution: 0.10
+voxel_size: 0.05
+frame_id: map
+max_slope_deg: 15.0
+unknown_slope_deg: 25.0
+obstacle_height_m: 0.25
