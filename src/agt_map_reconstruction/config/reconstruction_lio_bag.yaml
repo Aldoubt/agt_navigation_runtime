@@ -1,0 +1,18 @@
+agt_map_reconstruction:
+  ros__parameters:
+    cloud_topic: /agt/odometry/registered_points
+    odometry_topic: /agt/odometry/odometry
+    output_directory: results/bunker_mid360_mapping_20260901_211105_lio_only
+    output_frame: odom
+    map_resolution: 0.10
+    max_points_per_cloud: 1500
+    frame_stride: 5
+    raytrace_enabled: true
+    max_ray_points_per_cloud: 300
+    assume_registered_cloud: true
+    obstacle_height_threshold: 0.18
+    height_difference_limit: 0.12
+    slope_limit_deg: 25.0
+    roughness_limit_m: 0.08
+    publish_period: 1.0
+    finalize_after_idle_sec: 5.0
