@@ -2,6 +2,22 @@
 
 ROS 2 runtime for agricultural robot autonomous navigation
 
+## Active Integration Work
+
+The active RTAB-Map inspection MVP is isolated on:
+
+```text
+feat/rtabmap-inspection-mvp
+```
+
+Start here before modifying SLAM/navigation integration:
+
+- [`RTABMAP_INSPECTION_MVP.md`](RTABMAP_INSPECTION_MVP.md) — architecture, repository boundaries, phase gates and current status.
+- [`AGENTS.md`](AGENTS.md) — hard rules for Codex/agentic SLAM development.
+- [`docs/rtabmap-inspection-mvp/CODEX_PHASE_PROMPTS.md`](docs/rtabmap-inspection-mvp/CODEX_PHASE_PROMPTS.md) — P0-P7 prompts to execute one gate at a time.
+
+The parallel RTK/GNSS driver corrections live in `Aldoubt/agt_ins_driver` and are intentionally not implemented inside this repository.
+
 ## Project Positioning
 
 This repository owns the runtime execution side of the AGT navigation system
@@ -31,7 +47,7 @@ Site Package + Vehicle Profile + Task
               Chassis
 ```
 
-Offline mapping, map processing, semantic-map generation, route-asset generation, and Site Package production remain outside this repository
+Offline map processing, semantic-map generation, route-asset generation, and Site Package production remain outside this repository. The RTAB-Map MVP may perform **online robot mapping/localization** as a runtime backend, but operator map editing remains an external HMI/site-asset responsibility.
 
 ## V2.5 Boundary
 
