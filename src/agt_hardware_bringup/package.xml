@@ -14,6 +14,7 @@
   <exec_depend>agt_inspection</exec_depend>
   <exec_depend>agt_sensor_adapters</exec_depend>
   <exec_depend>agt_sensor_monitor</exec_depend>
+  <exec_depend>agt_asensing_driver</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>ros2cli</exec_depend>

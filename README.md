@@ -183,12 +183,16 @@ The runtime keeps only dependencies required by the current execution baseline
 
 ```text
 third_party/
+├── agt_asensing_driver        # ASENSING INS 真值/验收输入
+├── agt_robot_hmi              # Qt5 导航/巡检上位机
+├── autolabor_c1_camera_gimbal # C1 相机与云台能力
 ├── bunker_ros2
 ├── fast_livo2_ros2
 ├── livox_ros_driver2
 ├── ndt_omp_ros2
 ├── relocalization_core
 ├── rpg_vikit_ros2_fisheye
+├── pcd2pgm                    # PCD -> Nav2 PGM/YAML
 └── ugv_sdk
 ```
 

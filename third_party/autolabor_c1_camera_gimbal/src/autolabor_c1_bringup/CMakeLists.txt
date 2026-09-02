@@ -13,8 +13,6 @@ install(PROGRAMS
   scripts/test_expected_error.py
   scripts/test_capability_cancel.py
   scripts/fake_gimbal_camera.py
-  scripts/save_with_angle.py
-  scripts/auto_save_with_angle.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

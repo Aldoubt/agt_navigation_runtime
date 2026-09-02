@@ -30,6 +30,20 @@ ros2 run agt_field_commissioning finalize_mapping_run.py \
 
 `SIGKILL` or a crash is not an accepted successful save path. The finalizer requires a non-empty `localization_map.pcd`, `localization_map.processing.yaml`, no leftover `*.tmp`, and writes SHA256 evidence under the run's `evidence/` directory.
 
+The requested `pcd2pgm` tool is an independent offline conversion step. It runs only
+after FAST-LIO has finalized the PCD:
+
+```bash
+ros2 launch agt_field_commissioning pcd_to_nav_map.launch.py \
+  pcd_path:=runtime/commissioning/greenhouse_01/20260829T150000/mapping/localization_map.pcd \
+  output_dir:=runtime/commissioning/greenhouse_01/20260829T150000/navigation_map \
+  save_map_name:=navigation
+```
+
+Review `navigation.pgm` and `navigation.yaml` before registering the map version.
+The project-owned map review/activation gate remains the final authority for the map
+consumed by Nav2.
+
 Use `agt_experiment_manager` with the explicit `field_mapping_commissioning` bag profile for Phase A evidence. `agt_field_commissioning` never starts a second recorder owner.
 
 ## Phase C frozen-Site navigation

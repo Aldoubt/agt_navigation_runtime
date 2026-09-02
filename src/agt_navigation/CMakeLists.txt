@@ -22,6 +22,7 @@ set(AGT_NAVIGATION_ENTRYPOINTS
   execute_waypoint_task.py
   field_capture_capability_server.py
   goal_pose_bridge.py
+  hmi_task_adapter.py
   localization_navigation_gate.py
   p1_09a_collision_monitor_gate.py
   migrate_legacy_task_store.py

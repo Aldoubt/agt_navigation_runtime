@@ -2,6 +2,7 @@
 float64 heading
 float64 roll
 float64 pitch
+string capture_name
 float64 tolerance
 float64 timeout
 uint32 stable_samples
@@ -22,6 +23,12 @@ uint16 ERROR_IMAGE_SAVE_FAILED=302
 uint16 ERROR_CANCELED=400
 uint16 ERROR_INTERNAL=900
 bool success
+string image_path
+builtin_interfaces/Time capture_stamp
+float64 encoder_heading
+float64 encoder_pitch
+float64 heading
+float64 pitch
 uint16 error_code
 string message
 builtin_interfaces/Time reached_stamp
@@ -29,7 +36,6 @@ builtin_interfaces/Time image_stamp
 float64 actual_heading
 float64 actual_roll
 float64 actual_pitch
-string image_path
 string tag
 ---
 uint8 STATE_WAITING_GIMBAL=0
@@ -44,3 +50,4 @@ float64 current_roll
 float64 current_pitch
 float64 max_error
 uint32 stable_count
+float32 progress

@@ -1,0 +1,7 @@
+camera_gimbal_manager:
+  ros__parameters:
+    filter_window_size: 5
+    stable_window_size: 10
+    stable_threshold_deg: 1.5
+    stable_duration: 0.5
+    feedback_timeout: 1.0

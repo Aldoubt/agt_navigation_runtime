@@ -167,6 +167,21 @@ The preflight does not issue a gimbal move. The inspection task backend remains 
 
 `start_inspection:=true` must **not** be combined with legacy `start_camera:=true` or `start_gimbal:=true` hooks; the launch rejects that combination to avoid double ownership.
 
+## ASENSING INS truth input
+
+The vendored `agt_asensing_driver` can be enabled independently:
+
+```bash
+ros2 launch agt_hardware_bringup bunker_mid360.launch.py \
+  start_ins:=true \
+  ins_params_file:=third_party/agt_ins_driver/agt_asensing_driver/config/asensing.yaml
+```
+
+It publishes `/ins/pose`, `/ins/odom`, `/ins/navsatfix`, `/ins/velocity`, and
+`/ins/status`. The INS node does not publish TF, so it cannot compete with FAST-LIO
+or the localization owner. These topics are reserved for comparison and acceptance
+metrics until an explicit fusion configuration is added.
+
 For first field deployment, use schema-v2 inspection tasks with `vision.execution_mode: "DEFERRED"`. Online flower inference remains outside the frozen front-half Runtime MVP.
 
 ## 7. Repeatable evidence session

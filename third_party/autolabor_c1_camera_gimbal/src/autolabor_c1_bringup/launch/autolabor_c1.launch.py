@@ -6,6 +6,8 @@ from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
+
 
 def generate_launch_description():
     rviz_config = str(
@@ -14,10 +16,12 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument('device_path', default_value='/dev/video0'),
-        DeclareLaunchArgument('image_width', default_value='1920'),
-        DeclareLaunchArgument('image_height', default_value='1080'),
+        DeclareLaunchArgument('device_path', default_value='/dev/video4'),
+        DeclareLaunchArgument('image_width', default_value='3840'),
+        DeclareLaunchArgument('image_height', default_value='2160'),
         DeclareLaunchArgument('fps', default_value='30.0'),
+        DeclareLaunchArgument('pixel_format', default_value='mjpeg2rgb'),
+        DeclareLaunchArgument('camera_info_url', default_value=''),
         DeclareLaunchArgument('port_name', default_value='/dev/ttyUSB0'),
         DeclareLaunchArgument('baud_rate', default_value='115200'),
         DeclareLaunchArgument('query_rate', default_value='10.0'),
@@ -25,18 +29,21 @@ def generate_launch_description():
         DeclareLaunchArgument('capture_output_root', default_value='~/autolabor_c1_capture'),
 
         Node(
-            package='opencv_camera_node',
-            executable='opencv_camera_node',
+            package='usb_cam',
+            executable='usb_cam_node_exe',
             namespace='cv_camera0',
             name='camera',
             output='screen',
             parameters=[{
-                'device_path': LaunchConfiguration('device_path'),
-                'image_width': LaunchConfiguration('image_width'),
-                'image_height': LaunchConfiguration('image_height'),
-                'rate': LaunchConfiguration('fps'),
+                'video_device': LaunchConfiguration('device_path'),
+                'image_width': ParameterValue(LaunchConfiguration('image_width'), value_type=int),
+                'image_height': ParameterValue(LaunchConfiguration('image_height'), value_type=int),
+                'framerate': ParameterValue(LaunchConfiguration('fps'), value_type=float),
+                'pixel_format': LaunchConfiguration('pixel_format'),
+                'io_method': 'mmap',
                 'frame_id': 'camera_link',
                 'camera_name': 'autolabor_c1_camera',
+                'camera_info_url': LaunchConfiguration('camera_info_url'),
             }],
         ),
 
@@ -48,8 +55,8 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'port_name': LaunchConfiguration('port_name'),
-                'baud_rate': LaunchConfiguration('baud_rate'),
-                'query_rate': LaunchConfiguration('query_rate'),
+                'baud_rate': ParameterValue(LaunchConfiguration('baud_rate'), value_type=int),
+                'query_rate': ParameterValue(LaunchConfiguration('query_rate'), value_type=float),
                 'feedback_timeout': 1.0,
                 'write_timeout': 0.5,
                 'default_tolerance': 1.5,

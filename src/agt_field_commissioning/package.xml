@@ -34,6 +34,7 @@
   <exec_depend>agt_system_manager</exec_depend>
   <exec_depend>fast_lio</exec_depend>
   <exec_depend>fast_livo</exec_depend>
+  <exec_depend>pcd2pgm</exec_depend>
   <exec_depend>rviz2</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>

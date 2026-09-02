@@ -79,6 +79,13 @@ def _compose(context):
 
     actions.extend(
         [
+            Node(
+                package="agt_navigation",
+                executable="hmi_task_adapter.py",
+                name="agt_hmi_task_adapter",
+                output="screen",
+                condition=IfCondition(LaunchConfiguration("start_hmi_adapter")),
+            ),
             _include(
                 site_navigation_share / "launch" / "site_navigation_binding.launch.py",
                 {
@@ -345,6 +352,7 @@ def generate_launch_description():
             DeclareLaunchArgument("field_capture_service_timeout", default_value="2.0"),
             DeclareLaunchArgument("camera_capability_backend", default_value="mock"),
             DeclareLaunchArgument("start_inspection", default_value="false"),
+            DeclareLaunchArgument("start_hmi_adapter", default_value="true"),
             DeclareLaunchArgument("inspection_camera_device_path", default_value="/dev/video0"),
             DeclareLaunchArgument("inspection_camera_gimbal_port", default_value="/dev/ttyUSB0"),
             DeclareLaunchArgument("inspection_camera_width", default_value="1920"),

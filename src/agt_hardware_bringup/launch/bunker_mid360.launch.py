@@ -86,6 +86,16 @@ def _compose(context):
     )
 
     start_inspection = _as_bool(LaunchConfiguration("start_inspection").perform(context))
+    if _as_bool(LaunchConfiguration("start_ins").perform(context)):
+        actions.append(
+            Node(
+                package="agt_asensing_driver",
+                executable="asensing_node",
+                name="agt_asensing_driver",
+                output="screen",
+                parameters=[LaunchConfiguration("ins_params_file")],
+            )
+        )
     start_camera = _as_bool(LaunchConfiguration("start_camera").perform(context))
     start_gimbal = _as_bool(LaunchConfiguration("start_gimbal").perform(context))
     if start_inspection and (start_camera or start_gimbal):
@@ -151,6 +161,7 @@ def _compose(context):
 
 def generate_launch_description():
     sensor_adapter_share = Path(get_package_share_directory("agt_sensor_adapters"))
+    ins_share = Path(get_package_share_directory("agt_asensing_driver"))
     default_mid360_config = sensor_adapter_share / "config" / "mid360_network.json"
 
     return LaunchDescription(
@@ -181,6 +192,11 @@ def generate_launch_description():
             DeclareLaunchArgument("start_gimbal", default_value="false"),
             DeclareLaunchArgument("gimbal_launch_file", default_value=""),
             DeclareLaunchArgument("start_inspection", default_value="false"),
+            DeclareLaunchArgument("start_ins", default_value="false"),
+            DeclareLaunchArgument(
+                "ins_params_file",
+                default_value=str(ins_share / "config" / "asensing.yaml"),
+            ),
             DeclareLaunchArgument(
                 "inspection_camera_device_path", default_value="/dev/video0"
             ),
