@@ -1,0 +1,23 @@
+# MID360 configuration baseline for FAST-LIO-SAM migration
+# Parameters are placeholders until verified against the local FAST-LIO-SAM fork.
+
+lidar:
+  topic: /livox/lidar
+  frame_id: mid360
+
+imu:
+  topic: /livox/imu
+  frame_id: mid360
+
+frames:
+  base_frame: base_link
+  odom_frame: odom
+  map_frame: map
+
+backend:
+  enable_loop_closure: true
+  enable_gps_factor: false
+
+rtk:
+  enabled: false
+  topic: /fix
