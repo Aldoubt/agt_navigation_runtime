@@ -1,0 +1,22 @@
+# agt_slam_runtime interface definition
+# This file intentionally keeps FAST-LIO-SAM implementation isolated.
+
+frames:
+  map: map
+  odom: odom
+  base_link: base_link
+
+topics:
+  pose: /agt/slam/current_pose
+  status: /agt/slam/state
+  lidar_input: /livox/lidar
+  imu_input: /livox/imu
+
+map_export:
+  optimized_cloud: optimized_map.pcd
+  navigation_map: map.yaml
+
+rtk:
+  enabled: false
+  input: /fix
+  future_factor_graph: gps_factor
