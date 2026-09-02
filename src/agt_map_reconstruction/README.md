@@ -1,6 +1,7 @@
 # agt_map_reconstruction
 
-2.5D BUNKER terrain mapper. The default realtime inputs are `/cloud_registered`
+2.5D BUNKER terrain mapper. The mapping frontend is the vendored FAST-LIO ROS 2 node;
+the normal runtime odometry backend remains FAST-LIVO2. The default realtime inputs are `/cloud_registered`
 and `/Odometry`; bag-specific names are configured in `reconstruction_realbag.yaml`.
 
 Each grid cell stores `height_mean`, `height_variance`, `min_z`, `max_z`,

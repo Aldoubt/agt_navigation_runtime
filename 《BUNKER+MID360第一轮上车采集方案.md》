@@ -1,0 +1,272 @@
+# BUNKER+MID360 第一轮上车采集方案
+
+审计日期：2026-09-01  
+审计对象：`agt_navigation_runtime` 当前源码，以及同级 `agt_navigation_v2`、`agt_sensor_calibration`、`agt_coverage_ws` 中与 BUNKER/MID360/采集接口相关的源码。  
+方法：直接检查 launch、C++/Python 节点、配置、URDF/xacro、package.xml；不以 README 作为启动链路依据。
+
+## 结论先行
+
+推荐在当前工作区使用统一入口：
+
+```bash
+ros2 launch agt_hardware_bringup bunker_mid360.launch.py \
+  operation_mode:=monitor \
+  can_interface:=can0 \
+  run_can_preflight:=true \
+  start_description:=true \
+  publish_driver_odom_tf:=true \
+  start_camera:=false start_gimbal:=false start_inspection:=false \
+  sensor_profile:=hardware_check
+```
+
+这条命令启动：SocketCAN BUNKER 驱动、MID360 驱动、robot_state_publisher、传感器健康监视器；不会启动 Nav2、AMCL、相机、云台或巡检任务。
+
+有两个必须现场确认的事实：
+
+1. 当前 BUNKER launch 把轮速里程计命名为 `/agt/chassis/odometry`，消息内 frame 是 `bunker_odom -> base_footprint`，不是 `/odom`、`odom -> base_link`。
+2. `publish_driver_odom_tf` 默认是 `false`。上面的推荐命令显式打开它，才会有底盘 odom TF；但 TF 根仍叫 `bunker_odom`。当前源码没有发布 `map`，也没有名为 `odom` 的 TF/topic。
+
+## 1. 真实启动入口与启动链路
+
+| 功能 | launch 文件 | 路径 | 启动命令 |
+|---|---|---|---|
+| 统一上车采集 | `bunker_mid360.launch.py` | `src/agt_hardware_bringup/launch/bunker_mid360.launch.py` | `ros2 launch agt_hardware_bringup bunker_mid360.launch.py ...` |
+| MID360 | `mid360.launch.py` | `src/agt_sensor_adapters/launch/mid360.launch.py` | `ros2 launch agt_sensor_adapters mid360.launch.py user_config_path:=...` |
+| BUNKER 适配 | `bunker.launch.py` | `src/agt_chassis_bunker/launch/bunker.launch.py` | `ros2 launch agt_chassis_bunker bunker.launch.py operation_mode:=monitor can_interface:=can0` |
+| 底盘原始驱动 | `bunker_base.launch.py` | `third_party/bunker_ros2/bunker_base/launch/bunker_base.launch.py` | 可单独启动，但不建议作为本轮入口 |
+| TF/robot description | `bunker_description.launch.py` -> `description.launch.py` | `src/agt_description/launch/` | `ros2 launch agt_description bunker_description.launch.py` |
+| 传感器诊断 | `sensor_monitor.launch.py` | `src/agt_sensor_monitor/launch/sensor_monitor.launch.py` | 由统一入口自动 include |
+
+统一入口的实际 include 顺序为：
+
+```text
+agt_description/bunker_description.launch.py
+  -> robot_state_publisher
+agt_chassis_bunker/bunker.launch.py
+  -> bunker_base/bunker_base_node
+  -> agt_bunker_status_bridge
+agt_sensor_adapters/mid360.launch.py
+  -> livox_ros_driver2/livox_ros_driver2_node
+agt_sensor_monitor/sensor_monitor.launch.py
+  -> agt_sensor_monitor_node
+```
+
+源码依赖由 `agt_hardware_bringup/package.xml` 声明为 `agt_chassis_bunker`、`agt_description`、`agt_sensor_adapters`、`agt_sensor_monitor`；BUNKER 包再依赖 `bunker_base`、`bunker_msgs`、`agt_chassis` 和 `agt_safety`。
+
+不应使用第三方 Livox 的 `msg_MID360_launch.py` 作为本轮入口：它直接保留原生 `/livox/lidar`、`/livox/imu`，绕过当前工程的 remap 和健康检查。
+
+## 2. MID360 实际 topic、类型和频率
+
+`agt_sensor_adapters/launch/mid360.launch.py` 设置：`xfer_format=1`、`multi_topic=0`、`data_src=0`、`output_data_type=0`、`publish_freq=10.0`、`frame_id=livox_frame`，并执行：
+
+```text
+/livox/lidar -> /agt/sensors/lidar/custom
+/livox/imu   -> /agt/sensors/imu/data
+```
+
+Livox C++ 源码在 `multi_topic=0` 时实际创建的源 topic 就是 `/livox/lidar` 和 `/livox/imu`；ROS2 publisher 类型分别是 `livox_ros_driver2/msg/CustomMsg` 和 `sensor_msgs/msg/Imu`。点云发布频率由 `publish_freq` 控制，当前为 10 Hz。IMU 发布线程逐条转发设备收到的数据，源码没有设置固定发布频率；现场应以 `ros2 topic hz` 实测，健康阈值是至少 150 Hz。
+
+| 数据 | 实际 topic | message 类型 | 发布节点 | 频率依据 |
+|---|---|---|---|---|
+| 点云 | `/agt/sensors/lidar/custom` | `livox_ros_driver2/msg/CustomMsg` | `agt_sensor_mid360_driver` / `livox_ros_driver2_node` | 配置 10 Hz；现场实测 |
+| IMU | `/agt/sensors/imu/data` | `sensor_msgs/msg/Imu` | 同上 | 驱动不定频，现场实测；监视器要求 >=150 Hz |
+| 传感器 diagnostics | `/diagnostics` | `diagnostic_msgs/msg/DiagnosticArray` | `agt_sensor_monitor` | 配置 2 Hz |
+| 底盘 diagnostics | `/agt/chassis/status` | `diagnostic_msgs/msg/DiagnosticArray` | `agt_bunker_status_bridge` | timer 0.2 s，约 5 Hz |
+
+检查结果：
+
+- `/livox/lidar`、`/livox/imu` 是驱动内部的原始名字，但在本工程统一 launch 下会被 remap，不应作为 bag 采集名字。
+- `/livox/lidar`、`/livox/imu` 不应在统一 launch 的图上出现为发布端；实际记录名字是 `/agt/sensors/lidar/custom`、`/agt/sensors/imu/data`。
+- MID360 IMU 源码硬编码 `header.frame_id = livox_frame`；launch 的 `frame_id` 参数只影响点云 frame，不能改变 IMU frame。
+- `mid360_network.json` 使用主机 `192.168.1.5`、MID360 `192.168.1.157`，设备 UDP 端口为 56300/56400，主机接收端口为 56301/56401。
+
+## 3. BUNKER CAN 与 ROS 数据链路
+
+结论是 B：**CAN -> `ugv_sdk`/`bunker_base` 驱动转换 -> ROS topic**。没有单独的 ROS SocketCAN 原始帧 topic。
+
+`bunker_base_ros.cpp` 通过 `ProtocolDetector` 和 `BunkerRobot` 连接 `can0`，`BunkerMessenger` 从 SDK 状态生成 ROS 消息。SDK 的 CAN 实现位于 `third_party/ugv_sdk/src/async_port/async_can.cpp`，不是一个发布 `can_msgs/Frame` 的 ROS 节点。
+
+| 数据 | topic | 类型 | 来源 |
+|---|---|---|---|
+| 轮速/运动状态 | `/agt/chassis/status/raw` | `bunker_msgs/msg/BunkerStatus` | `bunker_base_node` 的 `/bunker_status` remap；含 linear/angular velocity 和 `actuator_states` |
+| 底盘 odom | `/agt/chassis/odometry` | `nav_msgs/msg/Odometry` | `bunker_base_node`；50 Hz 主循环，轮速数值积分 |
+| cmd_vel 输入 | `/agt/chassis/cmd_vel` | `geometry_msgs/msg/Twist` | `bunker_base_node` 的 `/cmd_vel` remap；monitor 模式不启动 guard |
+| 电机状态 | `/agt/chassis/status/raw` | `bunker_msgs/msg/BunkerStatus` | `actuator_states[2]`，含 rpm/current/pulse_count/driver 与 motor 温度/状态 |
+| 底盘诊断 | `/agt/chassis/status` | `diagnostic_msgs/msg/DiagnosticArray` | `bunker_status_bridge`，订阅 raw status |
+| 遥控状态 | `/agt/chassis/rc_state` | `bunker_msgs/msg/BunkerRCState` | `bunker_base_node` 的 `/bunker_rc_state` remap |
+| 电池 | `/battery` | `sensor_msgs/msg/BatteryState` | `bunker_status_bridge` |
+| 连接状态 | `/agt/chassis/connected` | `std_msgs/msg/Bool` | `bunker_status_bridge` |
+
+检查结果：
+
+- `/odom`：**不存在**，除非另有未审计节点自行发布。
+- odom topic 的 `header.frame_id`：`bunker_odom`。
+- odom topic 的 `child_frame_id`：`base_footprint`。
+- 统一 launch 默认关闭 `publish_driver_odom_tf`；推荐命令显式设置为 `true`。
+- BUNKER 源码无独立轮速 ROS topic，轮速信息只在 `BunkerStatus.actuator_states` 和速度字段中。
+- 当前统一入口默认 `operation_mode=monitor`，因此不会启动 `chassis_command_guard.py` 或 safety launch；但第三方驱动 `Run()` 仍调用 `EnableCommandedMode()`，这是现场安全风险，见风险清单。
+
+## 4. TF 审计
+
+URDF/xacro 是 `src/agt_description/urdf/agt_base.urdf.xacro`，由 `robot_state_publisher` 发布固定 TF。当前 BUNKER 配置对应的外参来自 `src/agt_description/config/bunker_mid360.yaml`，其中 `calibration_verified: false`，lidar 的位置/姿态仍是候选值，不能视为已标定真值。
+
+固定 TF 链为：
+
+```text
+base_footprint
+  -> base_link
+    -> lidar_link
+      -> livox_frame
+      -> imu_link
+```
+
+若使用推荐命令打开底盘驱动 TF，动态链为：
+
+```text
+bunker_odom -> base_footprint -> base_link -> lidar_link -> livox_frame
+                                      \
+                                       -> imu_link
+```
+
+与用户期望的 `map -> odom -> base_link -> livox` 对比：
+
+- `map`：缺少。本轮不启动 AMCL/Nav2/定位，因此这是预期缺失。
+- `odom`：缺少同名 frame；实际是 `bunker_odom`。
+- `base_link`：存在，但其父级是 `base_footprint`。
+- `livox`：源码实际 frame 是 `livox_frame`，不是 `livox`；中间还有 `lidar_link`。
+- `odom -> base_link`：当前没有；实际可获得的是 `bunker_odom -> base_footprint`，再由 URDF 固定变换到 `base_link`。
+
+因此第一轮 bag 可以完整记录传感器、底盘 odom 和 `/tf`、`/tf_static`，但不能宣称具备标准 `map->odom` 导航 TF。若后续 FAST-LIO/融合节点发布自己的 `odom -> base_footprint`，必须保持底盘驱动 TF 关闭，避免同一 TF 边双重发布。
+
+## 5. 第一轮 rosbag 方案
+
+建议记录原始 MID360 CustomMsg，而不是 PointCloud2；这样保留逐点 `offset_time/line/tag`，满足后续 FAST-LIO、点云地图和地面滤除调试。
+
+```bash
+ros2 bag record -o bags/bunker_mid360_raw_$(date +%Y%m%d_%H%M%S) \
+  /agt/sensors/lidar/custom \
+  /agt/sensors/imu/data \
+  /agt/chassis/status/raw \
+  /agt/chassis/odometry \
+  /agt/chassis/rc_state \
+  /agt/chassis/status \
+  /agt/chassis/connected \
+  /battery \
+  /tf \
+  /tf_static
+```
+
+这份白名单不包含 camera/image、Nav2、costmap、AMCL、HMI、云台或巡检任务。`/agt/chassis/status/raw` 是电机状态所需的底盘证据；`/agt/chassis/odometry` 是轮速积分 odom；`/tf` 和 `/tf_static` 用于回放时重建传感器外参与底盘姿态关系。
+
+## 6. 现场启动 SOP
+
+### Step 1：source 环境
+
+在当前仓库根目录执行：
+
+```bash
+cd /home/yangxuan/agt_navigation_runtime
+source /opt/ros/${ROS_DISTRO:-humble}/setup.bash
+source install/setup.bash
+```
+
+如果 `install/setup.bash` 不存在，先按现场既定构建流程构建工作区；本报告不替现场构建或修改源码。
+
+### Step 2：检查 MID360 网络和 CAN
+
+```bash
+ip route get 192.168.1.157
+ping -I <MID360有线网卡名> -c 4 192.168.1.157
+ip -details -statistics link show can0
+```
+
+确认 MID360 路由源地址为 `192.168.1.5`，CAN 为 UP/ERROR-ACTIVE。通过后启动：
+
+```bash
+ros2 launch agt_hardware_bringup bunker_mid360.launch.py \
+  operation_mode:=monitor can_interface:=can0 \
+  run_can_preflight:=true expected_can_bitrate:=0 \
+  start_description:=true publish_driver_odom_tf:=true \
+  start_camera:=false start_gimbal:=false start_inspection:=false \
+  sensor_profile:=hardware_check
+```
+
+### Step 3：检查 topic、类型、频率和 frame
+
+```bash
+ros2 topic list | sort
+ros2 topic type /agt/sensors/lidar/custom
+ros2 topic type /agt/sensors/imu/data
+ros2 topic type /agt/chassis/odometry
+ros2 topic type /agt/chassis/status/raw
+ros2 topic hz /agt/sensors/lidar/custom
+ros2 topic hz /agt/sensors/imu/data
+ros2 topic hz /agt/chassis/odometry
+ros2 topic echo --once /agt/sensors/lidar/custom
+ros2 topic echo --once /agt/sensors/imu/data
+ros2 topic echo --once /agt/chassis/odometry
+ros2 topic echo --once /diagnostics
+ros2 run tf2_ros tf2_echo bunker_odom livox_frame
+ros2 run tf2_ros tf2_echo base_link imu_link
+```
+
+应看到点云约 10 Hz、IMU >=150 Hz、底盘 odom 约 50 Hz；odom 消息应为 `bunker_odom -> base_footprint`，点云/IMU frame 应为 `livox_frame`。若必须验证用户写的名字：
+
+```bash
+ros2 topic echo --once /odom
+ros2 run tf2_ros tf2_echo odom base_link
+```
+
+这两项在当前入口下预期失败，不能把失败误判为传感器故障。
+
+### Step 4：启动 bag
+
+确认 Step 3 通过后执行第 5 节的 `ros2 bag record` 命令，并另开终端持续观察：
+
+```bash
+ros2 topic hz /agt/sensors/imu/data
+ros2 topic echo /diagnostics
+```
+
+### Step 5：遥控采集
+
+先静止 30 秒，再低速直行、转弯、经过目标地面区域；保持遥控器与 CAN 链路稳定。记录时间点和动作，用于后续地面滤除、可通行区域和 FAST-LIO 对齐。
+
+### Step 6：停止并保存
+
+先停止车辆并保持传感器运行，按 `Ctrl-C` 停止 rosbag；确认终端显示 bag 正常关闭后再停止统一 launch：
+
+```bash
+# bag 终端按 Ctrl-C，随后在 launch 终端按 Ctrl-C
+ros2 bag info bags/bunker_mid360_raw_<实际目录名>
+```
+
+重点确认 bag 中包含上述 10 个 topic，并检查 message count、起止时间和是否有明显空洞。
+
+## 7. 风险清单与上车前判定
+
+| 风险 | 源码证据/现状 | 判定与措施 |
+|---|---|---|
+| 时间戳 | Livox 使用设备时间戳；IMU与点云直接写入驱动消息；监视器检查回退、年龄和新鲜度 | 现场检查 monotonic、message age、IMU >=150 Hz；必要时记录 `/diagnostics` |
+| TF 缺失 | `map` 没有发布者；odom TF 默认关闭 | 本轮显式 `publish_driver_odom_tf:=true`；接受无 map；回放前确认 `bunker_odom` 命名 |
+| frame 不一致 | 底盘是 `bunker_odom/base_footprint`，传感器是 `livox_frame`；期望的 `odom/base_link/livox` 不存在 | 所有后处理按真实 frame 配置；不要在 bag 外臆造静态变换 |
+| CAN 无 ROS 原始接口 | `ugv_sdk` 直接经 SocketCAN 与 `bunker_base` 通讯 | bag 只能保存转换后的 BunkerStatus/Odometry；如需原始 CAN 帧须另行授权和设计节点 |
+| MID360 topic 变化 | 第三方驱动源名为 `/livox/*`，工程 launch remap 到 `/agt/sensors/*` | 只使用统一入口；Step 3 检查实际 topic，禁止按第三方 launch 名字直接录制 |
+| 网络配置 | JSON 固定主机 `192.168.1.5`、设备 `192.168.1.157` | 上车前验证有线网卡、路由和 ping；不要给传感器网卡配置默认网关 |
+| 启动依赖顺序 | 统一入口先描述、再底盘、再 MID360、再 monitor；CAN preflight 在 include 前执行 | 先通过 preflight；传感器 monitor 启动后等待约 3 秒 grace，再判定健康 |
+| odom TF 双发布 | BUNKER 可发布 `bunker_odom->base_footprint`；未来 FAST-LIO adapter 可能发布 `odom->base_footprint` | 本轮只开底盘 TF；启动 FAST-LIO/融合时关闭 `publish_driver_odom_tf` 并明确唯一 owner |
+| 运动安全 | BUNKER 驱动源码在连接后调用 `EnableCommandedMode()`；monitor 仅不启动上层 safety/guard | 上车前确认急停、遥控器、驱动器状态；本轮不注入 `/agt/chassis/cmd_vel` |
+| 外参未验证 | `bunker_mid360.yaml` 标注 `calibration_verified: false`，外参为候选值 | 采集可用于调试，但不要把该 bag 当作最终标定真值；物理测量后更新标定流程 |
+
+## 8. 最终验收标准
+
+满足以下条件才开始正式移动采集：
+
+- `/agt/sensors/lidar/custom` 类型为 `livox_ros_driver2/msg/CustomMsg`，稳定约 10 Hz。
+- `/agt/sensors/imu/data` 类型为 `sensor_msgs/msg/Imu`，稳定达到监视器要求的 >=150 Hz。
+- `/agt/chassis/status/raw`、`/agt/chassis/odometry`、`/tf`、`/tf_static` 均有数据。
+- `bunker_odom -> base_footprint -> base_link -> lidar_link -> livox_frame` 可查询。
+- `/diagnostics` 不再报告 required lidar/imu stale、timestamp rollback 或低频。
+- bag 中没有 camera/image、Nav2/costmap、HMI、云台或巡检任务话题。
+- 已明确接受：当前没有 `/odom` 和 `map->odom`；后续算法需使用真实命名或由专门融合/适配节点提供标准 frame。
+

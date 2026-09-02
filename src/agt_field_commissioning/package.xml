@@ -32,6 +32,7 @@
   <exec_depend>agt_mission_manager</exec_depend>
   <exec_depend>agt_safety</exec_depend>
   <exec_depend>agt_system_manager</exec_depend>
+  <exec_depend>fast_lio</exec_depend>
   <exec_depend>fast_livo</exec_depend>
   <exec_depend>rviz2</exec_depend>
 

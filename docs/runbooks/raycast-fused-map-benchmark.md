@@ -4,7 +4,7 @@ This runbook validates the commissioning free-space reconstruction path against 
 
 ## Authority and safety boundaries
 
-- FAST-LIVO2 remains the 3D mapping and localization-map authority.
+- FAST-LIO is the commissioning 3D mapping frontend and localization-map authority.
 - `raycast_free_space_node.py` is observation-only. It subscribes to registered global point clouds and mapped odometry and publishes no TF, velocity, AUTO permit, or chassis command.
 - RTAB-Map remains the finalized-PDC ground/obstacle classifier.
 - Raycast evidence may promote observed unknown cells to free. It never overrides an RTAB occupied cell.
@@ -79,7 +79,7 @@ ros2 launch agt_field_commissioning field_mapping.launch.py \
 Expected startup includes both:
 
 ```text
-fast_livo2_commissioning_mapper
+fast_lio_commissioning_mapper
 agt_commissioning_raycast_free_space
 ```
 
@@ -132,7 +132,8 @@ IMU              ~200 Hz
 registered cloud ~10 Hz
 ```
 
-`/aft_mapped_to_init` must exist and use `nav_msgs/msg/Odometry`. If it does not, stop this acceptance run and identify the actual FAST-LIVO2 mapped-odometry topic; do not guess a replacement.
+`/agt/commissioning/mapping/odometry` must exist and use `nav_msgs/msg/Odometry`. It is the
+FAST-LIO `/Odometry` output remapped by `field_mapping.launch.py`.
 
 ## 5. Normal shutdown saves both authorities
 

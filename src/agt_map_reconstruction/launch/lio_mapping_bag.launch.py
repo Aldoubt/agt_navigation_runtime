@@ -2,9 +2,8 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.conditions import IfCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -20,13 +19,25 @@ def generate_launch_description():
         DeclareLaunchArgument('config', default_value=str(map_share / 'config' / 'reconstruction_lio_bag.yaml')),
         DeclareLaunchArgument('bag_rate', default_value='5.0'),
         DeclareLaunchArgument('start_rviz', default_value='true'),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(str(odom_share / 'launch' / 'fast_livo2_odometry.launch.py')),
-            launch_arguments={
-                'use_sim_time': 'true',
-                'start_lidar_self_filter': 'false',
-                'fast_livo_input_topic': '/agt/sensors/lidar/custom',
-            }.items(),
+        Node(
+            package='fast_lio', executable='fastlio_mapping',
+            name='fast_lio_bag_mapper', output='screen',
+            parameters=[
+                str(odom_share / 'config' / 'fast_lio_mid360_mapping.yaml'),
+                {'use_sim_time': True},
+            ],
+            remappings=[
+                ('/cloud_registered', '/agt/odometry/backend/registered_points'),
+                ('/Odometry', '/aft_mapped_to_init'),
+            ],
+        ),
+        Node(
+            package='agt_odometry', executable='fast_livo2_adapter.py',
+            name='agt_odometry_fast_lio_adapter', output='screen',
+            parameters=[
+                str(odom_share / 'config' / 'fast_livo2_adapter.yaml'),
+                {'use_sim_time': True},
+            ],
         ),
         Node(
             package='agt_map_reconstruction', executable='reconstruction_node',

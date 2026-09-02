@@ -15,11 +15,11 @@ def test_phase_a_mapping_launch_is_dedicated_and_persistent():
 
     assert 'get_package_share_directory("agt_hardware_bringup")' in text
     assert '"bunker_mid360.launch.py"' in text
-    assert 'package="fast_livo"' in text
-    assert 'executable="fastlivo_mapping"' in text
+    assert 'package="fast_lio"' in text
+    assert 'executable="fastlio_mapping"' in text
     assert '"pcd_save.pcd_save_en": True' in text
     assert '"pcd_save.interval": -1' in text
-    assert '"pcd_save.output_directory": mapping_output_dir' in text
+    assert '"map_file_path": str(paths.localization_map)' in text
     assert 'sigterm_timeout="30"' in text
     assert '"/agt/commissioning/mapping/registered_points"' in text
 
@@ -69,7 +69,7 @@ def test_phase_a_mapping_has_optional_run_scoped_raycast_observer():
     launch = MAPPING_LAUNCH.read_text(encoding="utf-8")
 
     assert 'DeclareLaunchArgument("start_raycast_observer", default_value="false")' in launch
-    assert 'DeclareLaunchArgument("raycast_pose_topic", default_value="/aft_mapped_to_init")' in launch
+    assert 'DeclareLaunchArgument("raycast_pose_topic", default_value="/agt/commissioning/mapping/odometry")' in launch
     assert 'DeclareLaunchArgument(' in launch and '"raycast_config_file"' in launch
     assert 'executable="raycast_free_space_node.py"' in launch
     assert '"output_dir": str(paths.observation_dir)' in launch
@@ -106,7 +106,7 @@ def test_commissioning_package_installs_launch_python_finalizer_and_raycast_obse
     assert "ament_cmake_python" in package_xml
     assert "agt_hardware_bringup" in package_xml
     assert "agt_odometry" in package_xml
-    assert "fast_livo" in package_xml
+    assert "fast_lio" in package_xml
     assert "rclpy" in package_xml
     assert "sensor_msgs" in package_xml
     assert "sensor_msgs_py" in package_xml

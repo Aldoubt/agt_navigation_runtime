@@ -2,7 +2,7 @@
 
 Commissioning-only entry points for producing field map source assets and validating them before they become immutable Site Package data.
 
-This package is intentionally separate from normal Runtime odometry. `agt_odometry/launch/fast_livo2_odometry.launch.py` keeps PCD persistence disabled; only `field_mapping.launch.py` enables FAST-LIVO2 map persistence.
+This package is intentionally separate from normal Runtime odometry. `agt_odometry/launch/fast_livo2_odometry.launch.py` keeps runtime PCD persistence disabled; `field_mapping.launch.py` uses the vendored FAST-LIO frontend and enables commissioning map persistence.
 
 ## Phase A mapping
 

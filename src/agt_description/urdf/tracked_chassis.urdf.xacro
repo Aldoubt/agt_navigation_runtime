@@ -1,0 +1,139 @@
+<?xml version="1.0"?>
+<robot name="tracked_chassis" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg
+    name="calibration_file"
+    default="$(find agt_description)/config/cad_alignment.initial_guess.yaml"/>
+
+  <!-- xacro arguments are substitutions; expose the selected YAML path to the
+       Python expression explicitly before loading it. -->
+  <xacro:property name="calib" value="${xacro.load_yaml('$(arg calibration_file)')}"/>
+  <xacro:property name="base_link_z" value="${calib['base_link_z']}"/>
+  <xacro:property name="base_to_cad" value="${calib['base_link_to_cad']}"/>
+  <xacro:property name="cad_to_lidar" value="${calib['cad_to_lidar_mount']}"/>
+  <xacro:property name="lidar_correction" value="${calib['lidar_mount_to_lidar']}"/>
+  <xacro:property name="collision" value="${calib['collision_proxy']}"/>
+  <xacro:property name="gnss" value="${calib['gnss']}"/>
+
+  <!--
+    TF contract:
+      base_footprint -> base_link -> chassis_cad_link -> lidar_mount_link -> lidar_link
+                                                    \-> gnss_mount_link -> gnss_link (optional)
+
+    base_footprint is the 2D kinematic reference projected onto the ground.
+    base_link is the vehicle-fixed ROS body reference.
+    chassis_cad_link preserves the legacy SolidWorks coordinate system.
+    lidar_mount_link preserves the nominal CAD mounting relation.
+    lidar_link is the calibrated sensing frame used by runtime estimators.
+  -->
+
+  <material name="cad_gray">
+    <color rgba="0.72 0.72 0.72 1.0"/>
+  </material>
+  <material name="sensor_dark">
+    <color rgba="0.12 0.12 0.12 1.0"/>
+  </material>
+
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <!-- Lightweight navigation/self-filter collision proxy. -->
+    <collision>
+      <origin
+        xyz="${' '.join(str(v) for v in collision['origin_xyz'])}"
+        rpy="${' '.join(str(v) for v in collision['origin_rpy'])}"/>
+      <geometry>
+        <box size="${' '.join(str(v) for v in collision['size'])}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="base_footprint_to_base_link" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${base_link_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Legacy SolidWorks datum, wrapped instead of being redefined as base_link. -->
+  <link name="chassis_cad_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://agt_description/meshes/chassis_cad.stl"/>
+      </geometry>
+      <material name="cad_gray"/>
+    </visual>
+  </link>
+
+  <joint name="base_link_to_chassis_cad_link" type="fixed">
+    <parent link="base_link"/>
+    <child link="chassis_cad_link"/>
+    <origin
+      xyz="${' '.join(str(v) for v in base_to_cad['xyz'])}"
+      rpy="${' '.join(str(v) for v in base_to_cad['rpy'])}"/>
+  </joint>
+
+  <!-- CAD nominal MID360 mount. The mesh stays on the CAD mount frame. -->
+  <link name="lidar_mount_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://agt_description/meshes/mid360_cad.stl"/>
+      </geometry>
+      <material name="sensor_dark"/>
+    </visual>
+  </link>
+
+  <joint name="chassis_cad_to_lidar_mount" type="fixed">
+    <parent link="chassis_cad_link"/>
+    <child link="lidar_mount_link"/>
+    <origin
+      xyz="${' '.join(str(v) for v in cad_to_lidar['xyz'])}"
+      rpy="${' '.join(str(v) for v in cad_to_lidar['rpy'])}"/>
+  </joint>
+
+  <!-- Calibration residual. Runtime algorithms should consume lidar_link. -->
+  <link name="lidar_link"/>
+  <joint name="lidar_mount_to_lidar_link" type="fixed">
+    <parent link="lidar_mount_link"/>
+    <child link="lidar_link"/>
+    <origin
+      xyz="${' '.join(str(v) for v in lidar_correction['xyz'])}"
+      rpy="${' '.join(str(v) for v in lidar_correction['rpy'])}"/>
+  </joint>
+
+  <!-- Runtime compatibility frames. Refine if the device's internal frame convention requires it. -->
+  <link name="livox_frame"/>
+  <joint name="lidar_link_to_livox_frame" type="fixed">
+    <parent link="lidar_link"/>
+    <child link="livox_frame"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="imu_link"/>
+  <joint name="lidar_link_to_imu_link" type="fixed">
+    <parent link="lidar_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- GNSS frame is omitted until a real APC lever arm is available. -->
+  <xacro:if value="${gnss['enabled']}">
+    <link name="gnss_mount_link"/>
+    <joint name="chassis_cad_to_gnss_mount" type="fixed">
+      <parent link="chassis_cad_link"/>
+      <child link="gnss_mount_link"/>
+      <origin
+        xyz="${' '.join(str(v) for v in gnss['cad_to_mount']['xyz'])}"
+        rpy="${' '.join(str(v) for v in gnss['cad_to_mount']['rpy'])}"/>
+    </joint>
+
+    <link name="gnss_link"/>
+    <joint name="gnss_mount_to_gnss_link" type="fixed">
+      <parent link="gnss_mount_link"/>
+      <child link="gnss_link"/>
+      <origin
+        xyz="${' '.join(str(v) for v in gnss['mount_to_apc']['xyz'])}"
+        rpy="${' '.join(str(v) for v in gnss['mount_to_apc']['rpy'])}"/>
+    </joint>
+  </xacro:if>
+</robot>

@@ -48,7 +48,7 @@ def test_raycast_observer_uses_same_lio_params_for_calibrated_sensor_origin():
     assert 'declare_parameter("lio_params_file"' in script
     assert "load_lidar_to_imu_translation" in script
     assert "lidar_origin_world" in script
-    assert '"lio_params_file": LaunchConfiguration("params_file").perform(context)' in launch
+    assert '"lio_params_file": mapping_params_file' in launch
     assert 'record["observer"]["lidar_to_imu_translation_m"]' in script
 
 

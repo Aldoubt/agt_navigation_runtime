@@ -541,7 +541,11 @@ def _default_calibration_text() -> tuple[str, str]:
     try:
         from ament_index_python.packages import get_package_share_directory
 
-        path = Path(get_package_share_directory("agt_description")) / "config" / "bunker_mid360.yaml"
+        path = (
+            Path(get_package_share_directory("agt_description"))
+            / "config"
+            / "bunker_mid360.yaml"
+        )
         return path.read_text(encoding="utf-8"), str(path)
     except (ImportError, LookupError, OSError) as exc:
         return "", f"unavailable:{exc.__class__.__name__}"
@@ -754,7 +758,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--require-calibration-verified",
         action="store_true",
-        help="block unless agt_description marks the physical MID360 extrinsic verified",
+        help="block unless agt_description marks the physical extrinsic verified",
     )
     parser.add_argument("--topic-timeout", type=float, default=3.0)
     parser.add_argument(

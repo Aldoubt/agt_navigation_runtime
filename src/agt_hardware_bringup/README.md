@@ -14,7 +14,7 @@ ros2 launch agt_hardware_bringup bunker_mid360.launch.py \
   expected_can_bitrate:=0
 ```
 
-The launch now also starts the canonical `agt_description` BUNKER description owner by default. It publishes only the fixed chain:
+The launch now also starts the canonical `agt_description` BUNKER description owner by default. It publishes the migrated CAD-backed fixed chain:
 
 ```text
 base_footprint -> base_link -> lidar_link -> livox_frame / imu_link
@@ -101,7 +101,7 @@ BLOCKED
 
 ## 5. MID360 physical-extrinsic gate
 
-`agt_description/config/bunker_mid360.yaml` currently remains the authoritative persisted BUNKER/MID360 geometry source. The fixed TF topology and the physical calibration verdict are deliberately separate checks:
+`agt_description/config/cad_alignment.initial_guess.yaml` is the authoritative persisted BUNKER/MID360 geometry source. The fixed TF topology and the physical calibration verdict are deliberately separate checks:
 
 - fixed TF topology present: software wiring is complete;
 - `calibration_verified: true`: physical installation has been measured/accepted.

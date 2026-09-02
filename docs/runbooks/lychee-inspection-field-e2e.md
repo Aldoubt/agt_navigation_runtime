@@ -14,7 +14,7 @@ The first field loop is intentionally narrow:
 
 ```text
 physical RC/manual drive
-  -> FAST-LIVO2 commissioning mapping
+  -> FAST-LIO commissioning mapping
   -> finalized localization_map.pcd
   -> Runtime RTAB-Map LocalGridMaker projection
   -> HMI light erase/paint review
@@ -267,7 +267,8 @@ localization_map.pcd
   -> HMI review draft
 ```
 
-RTAB-Map is the grid projector/classifier here; FAST-LIVO2 remains the 3D mapping/odometry source.
+RTAB-Map is the grid projector/classifier here; FAST-LIO is the commissioning 3D mapping source
+and FAST-LIVO2 remains the normal navigation odometry source.
 
 ## 8. G5 — save and activate the immutable Site
 
@@ -533,7 +534,7 @@ Stop the field run rather than bypassing authority if any of these occur:
 ```text
 RTAB projector executable absent
 MID360/IMU/chassis stream stale
-FAST-LIVO2 map save/finalize failure
+FAST-LIO map save/finalize failure
 Site validation/activation failure
 wrong Site/revision/hash
 localization not accepted TRACKING
@@ -558,7 +559,7 @@ Do not work around these by sending direct Nav2 goals, editing immutable Site fi
 [ ] rtabmap_grid_projector executable exists on target
 [ ] BUNKER + MID360 monitor gate passes
 [ ] RC AUTO switch/value physically discovered and recorded
-[ ] FAST-LIVO2 mapping run ends through normal shutdown
+[ ] FAST-LIO mapping run ends through normal shutdown
 [ ] finalize_mapping_run.py accepts localization artifacts
 [ ] review-only Gateway reopens the same SITE_ID/RUN_ID
 [ ] HMI Generate 2D map reaches MAP_READY
