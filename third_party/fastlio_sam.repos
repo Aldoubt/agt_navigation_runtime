@@ -1,0 +1,5 @@
+repositories:
+  fast_lio_sam_ros2:
+    type: git
+    url: https://github.com/felix529/FAST-LIO-SAM-ROS2.git
+    version: main
