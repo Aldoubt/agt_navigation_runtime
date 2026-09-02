@@ -4,7 +4,14 @@ import shutil
 
 import yaml
 
+from agt_field_commissioning.map_review import PgmMap
 from agt_field_commissioning.projection import ProjectionResult
+from agt_field_commissioning.raycast_free_space import (
+    RaycastConfig,
+    RaycastEvidenceGrid,
+    save_evidence,
+)
+from agt_field_commissioning.reviewed_site import ReviewedSitePublisher
 from agt_field_commissioning.service import CommissioningService
 from agt_runtime_contracts.validator import validate_runtime_contracts
 
@@ -12,7 +19,11 @@ from agt_runtime_contracts.validator import validate_runtime_contracts
 class FakeProjectionBackend:
     backend_name = "fake_grid"
 
+    def __init__(self):
+        self.last_request = None
+
     def project(self, request):
+        self.last_request = request
         output = Path(request.output_dir)
         output.mkdir(parents=True, exist_ok=True)
         pgm = output / "raw_map.pgm"
@@ -48,9 +59,30 @@ def _prepare_run(runtime: Path, site_id: str, run_id: str) -> Path:
     return mapping.parent
 
 
-def _service(tmp_path: Path) -> CommissioningService:
+def _prepare_observation(run_root: Path) -> tuple[Path, Path]:
+    observation = run_root / "observation"
+    grid = RaycastEvidenceGrid(
+        RaycastConfig(
+            resolution_m=0.05,
+            free_threshold=-0.5,
+            occupied_threshold=0.5,
+            min_observation_count=1,
+            min_ray_range_m=0.0,
+            max_ray_range_m=10.0,
+        )
+    )
+    grid.observe_ray((0.0, 0.0), (0.1, 0.0))
+    artifact = save_evidence(
+        grid,
+        observation / "free_space_evidence.bin",
+        observation / "raycast_record.json",
+    )
+    return artifact.binary, artifact.record
+
+
+def _service(tmp_path: Path, cls=CommissioningService) -> CommissioningService:
     repo = Path(__file__).resolve().parents[2]
-    return CommissioningService(
+    return cls(
         runtime_dir=tmp_path / "runtime",
         sites_root=tmp_path / "sites",
         state_root=tmp_path / "state",
@@ -108,6 +140,31 @@ def test_project_edit_save_and_activate_site_revision(tmp_path: Path) -> None:
     assert active_doc["revision"] == "r01"
 
 
+def test_project_discovers_run_scoped_raycast_evidence_without_api_change(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    run_root = _prepare_run(tmp_path / "runtime", "slope", "run01")
+    binary, record = _prepare_observation(run_root)
+
+    service.project("slope", "run01")
+
+    request = service.projection_backend.last_request
+    assert request is not None
+    assert request.raycast_evidence == binary.resolve()
+    assert request.raycast_record == record.resolve()
+
+
+def test_project_keeps_pcd_only_runs_as_explicit_backend_fallback_input(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    _prepare_run(tmp_path / "runtime", "legacy", "run01")
+
+    service.project("legacy", "run01")
+
+    request = service.projection_backend.last_request
+    assert request is not None
+    assert request.raycast_evidence is None
+    assert request.raycast_record is None
+
+
 def test_save_review_is_fail_closed_and_never_overwrites_revision(tmp_path: Path) -> None:
     service = _service(tmp_path)
     _prepare_run(tmp_path / "runtime", "slope", "run01")
@@ -120,6 +177,33 @@ def test_save_review_is_fail_closed_and_never_overwrites_revision(tmp_path: Path
         assert "already exists" in str(exc)
     else:
         raise AssertionError("existing immutable Site revision must not be overwritten")
+
+
+def test_save_review_preserves_external_review_bitmap_after_process_restart(tmp_path: Path) -> None:
+    first_process = _service(tmp_path)
+    _prepare_run(tmp_path / "runtime", "slope", "run01")
+    first_process.project("slope", "run01")
+
+    reviewed_pgm = (
+        tmp_path
+        / "runtime"
+        / "commissioning"
+        / "slope"
+        / "run01"
+        / "map_review"
+        / "reviewed_map.pgm"
+    )
+    edited = PgmMap.load(reviewed_pgm)
+    pixels = bytearray(edited.pixels)
+    pixels[0] = 254
+    PgmMap(edited.width, edited.height, edited.max_value, bytes(pixels)).write(reviewed_pgm)
+
+    second_process = _service(tmp_path, ReviewedSitePublisher)
+    saved = second_process.save_review("slope", "run01", "r02")
+    deployed = PgmMap.load(Path(saved["site_root"]) / "map" / "navigation.pgm")
+
+    assert deployed.pixels[0] == 254
+    assert PgmMap.load(reviewed_pgm).pixels[0] == 254
 
 
 def test_service_rejects_unsafe_identity(tmp_path: Path) -> None:

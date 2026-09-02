@@ -4,15 +4,22 @@ on:
   push:
     branches:
       - feat/field-commissioning-hmi-map-flow
+      - feat/field-real-vehicle-integration
     paths:
       - 'src/agt_field_commissioning/**'
+      - 'src/agt_navigation/**'
       - 'src/agt_operator_gateway/**'
+      - 'src/agt_inspection/**'
+      - 'src/agt_mission_manager/**'
       - 'tests/commissioning/**'
       - '.github/workflows/field-commissioning-map.yml'
   pull_request:
     paths:
       - 'src/agt_field_commissioning/**'
+      - 'src/agt_navigation/**'
       - 'src/agt_operator_gateway/**'
+      - 'src/agt_inspection/**'
+      - 'src/agt_mission_manager/**'
       - 'tests/commissioning/**'
       - '.github/workflows/field-commissioning-map.yml'
 
@@ -30,11 +37,52 @@ jobs:
           python -m pip install aiohttp
       - name: Commissioning tests
         env:
-          PYTHONPATH: src/agt_field_commissioning:src/agt_operator_gateway:src/agt_navigation:src/agt_site_runtime:src/agt_runtime_contracts
+          PYTHONPATH: src/agt_field_commissioning:src/agt_operator_gateway:src/agt_inspection:src/agt_mission_manager:src/agt_navigation:src/agt_site_runtime:src/agt_runtime_contracts
         run: python -m pytest -q tests/commissioning
       - name: Gateway pure-Python tests
         env:
-          PYTHONPATH: src/agt_operator_gateway:src/agt_field_commissioning:src/agt_navigation:src/agt_site_runtime:src/agt_runtime_contracts
+          PYTHONPATH: src/agt_operator_gateway:src/agt_field_commissioning:src/agt_inspection:src/agt_mission_manager:src/agt_navigation:src/agt_site_runtime:src/agt_runtime_contracts
         run: python -m pytest -q src/agt_operator_gateway/test
       - name: Compile changed Python packages
-        run: python -m compileall -q src/agt_field_commissioning src/agt_operator_gateway src/agt_navigation/agt_navigation
+        run: python -m compileall -q src/agt_field_commissioning src/agt_operator_gateway src/agt_inspection/agt_inspection src/agt_mission_manager/agt_mission_manager src/agt_navigation/agt_navigation
+
+  humble-field-tools:
+    runs-on: ubuntu-22.04
+    container:
+      image: ros:humble-ros-base-jammy
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      ROS_DISTRO: humble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install field tool dependencies
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-colcon-common-extensions \
+            python3-opencv \
+            python3-yaml
+      - name: Build commissioning tools on Humble
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          rm -rf /tmp/field_tools_ws
+          mkdir -p /tmp/field_tools_ws/src
+          cp -a src/agt_field_commissioning /tmp/field_tools_ws/src/
+          cd /tmp/field_tools_ws
+          colcon build \
+            --event-handlers console_direct+ \
+            --packages-select agt_field_commissioning \
+            --cmake-args -DBUILD_TESTING=OFF
+      - name: Verify lightweight map editor and archived projector default
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          source /tmp/field_tools_ws/install/setup.bash
+          PREFIX="$(ros2 pkg prefix agt_field_commissioning)"
+          EDITOR="$PREFIX/lib/agt_field_commissioning/edit_navigation_map.py"
+          test -x "$EDITOR"
+          "$EDITOR" --help | grep -F 'Nav2 map YAML'
+          python3 -c 'import cv2, yaml'
+          test ! -e "$PREFIX/lib/agt_field_commissioning/rtabmap_grid_projector"

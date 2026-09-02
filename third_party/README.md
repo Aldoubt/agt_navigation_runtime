@@ -121,3 +121,21 @@ Vikit 已随主仓库构建，不再由 `nav_dependencies.repos` 导入，也不
 
 完整导入、rosdep、构建及版本核验流程见
 [`docs/development/coverage_dependencies.md`](../docs/development/coverage_dependencies.md)。
+
+## agt_robot_hmi
+
+- 来源：`https://github.com/Aldoubt/agt_robot_hmi.git`
+- 导入目录：`third_party/agt_robot_hmi`
+- ROS 2 package：`agt_robot_hmi`
+- 当前角色：Qt5 地图显示、导航点/巡检任务编辑和状态展示
+- 注意：上游当前仍保留 `/agt/task/*`、`/agt/navigation/go_point` 等字符串/Trigger
+  占位边界；正式任务 Action 对接前，HMI 不应直接控制 Nav2、底盘、云台或相机。
+
+## agt_asensing_driver / pcd2pgm
+
+- `agt_asensing_driver` 来源：`https://github.com/Aldoubt/agt_ins_driver.git`，目录
+  `third_party/agt_ins_driver`，ROS 2 package 为 `agt_asensing_driver`。
+- `pcd2pgm` 来源：`https://github.com/kzm784/pcd2pgm.git`，目录
+  `third_party/pcd2pgm`，ROS 2 package 为 `pcd2pgm`。
+- 两者均为独立包；INS 仅输出 `/ins/*` 做真值验收，不发布 TF；pcd2pgm 仅在
+  FAST-LIO 正常保存 PCD 后离线执行。

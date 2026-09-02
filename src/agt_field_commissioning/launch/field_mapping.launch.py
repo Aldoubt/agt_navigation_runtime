@@ -25,6 +25,7 @@ def _include(path: Path, arguments: dict[str, str] | None = None):
 
 
 def _compose(context):
+    commissioning_share = Path(get_package_share_directory("agt_field_commissioning"))
     hardware_share = Path(get_package_share_directory("agt_hardware_bringup"))
     odometry_share = Path(get_package_share_directory("agt_odometry"))
     sensor_share = Path(get_package_share_directory("agt_sensor_adapters"))
@@ -32,8 +33,11 @@ def _compose(context):
     runtime_dir = LaunchConfiguration("runtime_dir").perform(context)
     site_id = LaunchConfiguration("site_id").perform(context)
     run_id = LaunchConfiguration("run_id").perform(context)
+    # Keep the mapper parameter path in a uniquely named launch argument.
+    # The nested hardware bringup includes sensor_monitor.launch.py, whose
+    # historical `params_file` argument otherwise overwrites this value.
+    mapping_params_file = LaunchConfiguration("mapping_params_file").perform(context)
     paths = prepare_mapping_run(runtime_dir, site_id, run_id)
-    mapping_output_dir = str(paths.mapping_dir)
     use_sim_time = LaunchConfiguration("use_sim_time").perform(context)
 
     actions = []
@@ -55,9 +59,9 @@ def _compose(context):
             )
         )
 
-    fast_livo_input_topic = "/agt/sensors/lidar/custom"
+    fast_lio_input_topic = "/agt/sensors/lidar/custom"
     if _enabled(context, "start_lidar_self_filter"):
-        fast_livo_input_topic = "/agt/sensors/lidar/custom_filtered"
+        fast_lio_input_topic = "/agt/sensors/lidar/custom_filtered"
         actions.append(
             _include(
                 sensor_share / "launch" / "lidar_self_filter.launch.py",
@@ -72,23 +76,24 @@ def _compose(context):
 
     actions.append(
         Node(
-            package="fast_livo",
-            executable="fastlivo_mapping",
-            name="fast_livo2_commissioning_mapper",
+            package="fast_lio",
+            executable="fastlio_mapping",
+            name="fast_lio_commissioning_mapper",
             output="screen",
             sigterm_timeout="30",
             sigkill_timeout="10",
             parameters=[
-                LaunchConfiguration("params_file"),
+                mapping_params_file,
                 LaunchConfiguration("camera_params_file"),
                 {
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
                     "common.publish_tf": False,
-                    "common.lid_topic": fast_livo_input_topic,
+                    "common.lid_topic": fast_lio_input_topic,
+                    "map_file_path": str(paths.localization_map),
                     "pcd_save.pcd_save_en": True,
                     "pcd_save.interval": -1,
                     "pcd_save.incremental_voxel_en": True,
-                    "pcd_save.output_directory": mapping_output_dir,
+                    # FAST-LIO writes the complete map to map_file_path on shutdown.
                 },
             ],
             remappings=[
@@ -96,9 +101,45 @@ def _compose(context):
                     "/cloud_registered",
                     "/agt/commissioning/mapping/registered_points",
                 ),
+                ("/Odometry", "/agt/commissioning/mapping/odometry"),
             ],
         )
     )
+
+    if _enabled(context, "start_raycast_observer"):
+        actions.append(
+            Node(
+                package="agt_field_commissioning",
+                executable="raycast_free_space_node.py",
+                name="agt_commissioning_raycast_free_space",
+                output="screen",
+                parameters=[
+                    {
+                        "use_sim_time": _enabled(context, "use_sim_time"),
+                        "output_dir": str(paths.observation_dir),
+                        "config_file": LaunchConfiguration("raycast_config_file").perform(context),
+                        "lio_params_file": mapping_params_file,
+                        "cloud_topic": "/agt/commissioning/mapping/registered_points",
+                        "pose_topic": LaunchConfiguration("raycast_pose_topic").perform(context),
+                    }
+                ],
+            )
+        )
+
+    if _enabled(context, "start_rviz"):
+        actions.append(
+            Node(
+                package="rviz2",
+                executable="rviz2",
+                name="agt_field_mapping_rviz",
+                output="screen",
+                arguments=[
+                    "-d",
+                    str(commissioning_share / "rviz" / "field_mapping.rviz"),
+                ],
+                parameters=[{"use_sim_time": _enabled(context, "use_sim_time")}],
+            )
+        )
 
     if _enabled(context, "start_operator_gateway"):
         actions.append(
@@ -126,9 +167,11 @@ def _compose(context):
 
 
 def generate_launch_description():
+    commissioning_share = Path(get_package_share_directory("agt_field_commissioning"))
     odometry_share = Path(get_package_share_directory("agt_odometry"))
     sensor_share = Path(get_package_share_directory("agt_sensor_adapters"))
     default_mid360_config = sensor_share / "config" / "mid360_network.json"
+    default_raycast_config = commissioning_share / "config" / "raycast_free_space.yaml"
 
     return LaunchDescription(
         [
@@ -144,15 +187,23 @@ def generate_launch_description():
             DeclareLaunchArgument("sensor_profile", default_value="hardware_check"),
             DeclareLaunchArgument("start_operator_gateway", default_value="true"),
             DeclareLaunchArgument("gateway_write_api_enabled", default_value="true"),
-            DeclareLaunchArgument("gateway_host", default_value="0.0.0.0"),
+            DeclareLaunchArgument("gateway_host", default_value="127.0.0.1"),
             DeclareLaunchArgument("gateway_port", default_value="8765"),
+            DeclareLaunchArgument("start_rviz", default_value="false"),
+            DeclareLaunchArgument("start_raycast_observer", default_value="false"),
+            DeclareLaunchArgument("raycast_pose_topic", default_value="/agt/commissioning/mapping/odometry"),
+            DeclareLaunchArgument(
+                "raycast_config_file",
+                default_value=str(default_raycast_config),
+            ),
             DeclareLaunchArgument(
                 "mid360_user_config_path",
                 default_value=str(default_mid360_config),
             ),
             DeclareLaunchArgument(
-                "params_file",
-                default_value=str(odometry_share / "config" / "mid360_lio_only.yaml"),
+                "mapping_params_file",
+                default_value=str(odometry_share / "config" / "fast_lio_mid360_mapping.yaml"),
+                description="FAST-LIO mapping parameters; isolated from nested sensor monitor params",
             ),
             DeclareLaunchArgument(
                 "camera_params_file",

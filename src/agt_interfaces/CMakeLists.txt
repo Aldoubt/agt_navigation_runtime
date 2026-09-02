@@ -47,6 +47,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ManageBagSession.srv"
   "srv/SetLocalizationMode.srv"
   "srv/CaptureImage.srv"
+  "srv/CaptureCamera.srv"
   "action/Relocalize.action"
   "action/ChangeSystemMode.action"
   "action/ManageMappingSession.action"

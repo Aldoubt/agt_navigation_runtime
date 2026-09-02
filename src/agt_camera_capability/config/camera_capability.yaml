@@ -1,0 +1,5 @@
+/**:
+  ros__parameters:
+    backend: mock
+    service_name: /agt/camera/capability/capture
+    camera_id: inspection_camera

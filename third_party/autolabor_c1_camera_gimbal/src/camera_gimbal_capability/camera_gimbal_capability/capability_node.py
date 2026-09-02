@@ -244,7 +244,7 @@ class CameraGimbalCapability(Node):
                 time.sleep(0.02)
             return bool(move_result_future.done())
         except Exception as exc:
-            self.get_logger().warning('low-level cancel wait failed: %s', exc)
+            self.get_logger().warning(f'low-level cancel wait failed: {exc}')
             return False
 
     def _wait_settle(self, goal_handle, seconds):
@@ -504,7 +504,7 @@ class CameraGimbalCapability(Node):
             goal_handle.succeed()
             return result
         except Exception as exc:
-            self.get_logger().exception('AcquireView internal error: %s', exc)
+            self.get_logger().exception(f'AcquireView internal error: {exc}')
             return self._abort(
                 goal_handle,
                 self._result(AcquireView.Result.ERROR_INTERNAL, f'internal error: {exc}', tag),

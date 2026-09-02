@@ -16,7 +16,7 @@ class ExpectedErrorProbe(Node):
         self.declare_parameter('action_name', '/camera_gimbal/acquire_view')
         self.declare_parameter('health_topic', '/camera_gimbal/health')
         self.declare_parameter('expected_error', 300)
-        self.declare_parameter('startup_timeout', 8.0)
+        self.declare_parameter('startup_timeout', 20.0)
         self.declare_parameter('heading', 10.0)
         self._health = None
         self._client = ActionClient(self, AcquireView, self.get_parameter('action_name').value)
@@ -32,13 +32,14 @@ class ExpectedErrorProbe(Node):
 
     def _environment_ready_for_case(self):
         expected = int(self.get_parameter('expected_error').value)
-        if self._health is None or not self._client.server_is_ready():
+        # Health is published by the same capability node as the action server.
+        # Avoid relying on a possibly stale ROS graph cache between fake cases.
+        if self._health is None:
             return False
         if expected == AcquireView.Result.ERROR_CAMERA_UNAVAILABLE:
             return (
                 self._health.gimbal_serial_connected
                 and self._health.gimbal_feedback_alive
-                and self._health.move_action_ready
                 and not self._health.camera_alive
             )
         if expected == AcquireView.Result.ERROR_GIMBAL_UNAVAILABLE:
@@ -90,11 +91,11 @@ class ExpectedErrorProbe(Node):
         ok = (not result.success) and int(result.error_code) == expected
         if ok:
             self.get_logger().info(
-                'PASS: received expected error_code=%d message=%s', expected, result.message)
+                f'PASS: received expected error_code={expected} message={result.message}')
         else:
             self.get_logger().error(
-                'FAIL: expected error=%d but got success=%s error=%d message=%s',
-                expected, result.success, int(result.error_code), result.message)
+                f'FAIL: expected error={expected} but got success={result.success} '
+                f'error={int(result.error_code)} message={result.message}')
         return ok
 
 

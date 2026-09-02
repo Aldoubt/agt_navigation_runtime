@@ -22,6 +22,10 @@ firmware, datasets and model weights being delivered.
 | ndt_omp ROS 2 | `third_party/ndt_omp_ros2` | BSD-2-Clause plus preserved PCL contributor notices | [koide3/ndt_omp](https://github.com/koide3/ndt_omp) |
 | ROS Qt5 GUI App maintained fork | `third_party/ros_qt5_gui_app` | GPL-2.0; bundled/fetched libraries retain their own licenses | [chengyangkj](https://github.com/chengyangkj/Ros_Qt5_Gui_App) |
 | relocalization_core imported module | `third_party/relocalization_core` | Apache-2.0 | Local license file |
+| ASENSING INS ROS 2 driver | `third_party/agt_ins_driver` | MIT | [Aldoubt/agt_ins_driver](https://github.com/Aldoubt/agt_ins_driver) |
+| Autolabor C1 camera-gimbal ROS 2 driver | `third_party/autolabor_c1_camera_gimbal` | See preserved upstream notices | [Aldoubt/Autolabor-C1-ROS2](https://github.com/Aldoubt/Autolabor-C1-ROS2) |
+| pcd2pgm | `third_party/pcd2pgm` | MIT | [kzm784/pcd2pgm](https://github.com/kzm784/pcd2pgm) |
+| AGT Robot HMI | `third_party/agt_robot_hmi` | Apache-2.0 (upstream manifest) | [Aldoubt/agt_robot_hmi](https://github.com/Aldoubt/agt_robot_hmi) |
 
 Do not remove the license files, copyright headers or modification history within
 these directories. A modified GPL binary delivered to another party must be matched

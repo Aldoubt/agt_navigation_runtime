@@ -22,7 +22,7 @@ PantiltSerialControl::PantiltSerialControl(const rclcpp::NodeOptions & options)
   default_tolerance_deg_ = declare_parameter<double>("default_tolerance", 1.5);
   max_tolerance_deg_ = declare_parameter<double>("max_tolerance", 10.0);
   default_stable_samples_ = static_cast<std::uint32_t>(
-    std::max<int>(1, declare_parameter<int>("default_stable_samples", 3)));
+    std::max(1, static_cast<int>(declare_parameter<int>("default_stable_samples", 3))));
   frame_id_ = declare_parameter<std::string>("frame_id", "gimbal_link");
 
   if (!std::isfinite(query_rate_) || query_rate_ <= 0.0) {

@@ -28,7 +28,9 @@ ros2 launch agt_description description.launch.py \
 BUNKER 外廓尺寸来自已提供的产品图。对 `mapping_20260719_172810` 的静止段做原始点云
 地面平面拟合并与 IMU 重力方向交叉检查后，MID360 候选中心高度约为 `0.607 m`，相对暂定
 `base_link_z=0.200 m` 的 `base_link -> lidar_link` 平移为
-`[0.2615, 0.0, 0.4070] m`；候选姿态为 `rpy=[0.0064, 0.4045, 0.0] rad`
+`[0.2615, 0.0, 0.4070] m`；当前初步候选姿态为 `rpy=[0.0064, 0.2580, 0.0] rad`。
+完整 CAD 外形和分层标定源位于 `urdf/tracked_chassis.urdf.xacro` 与
+`config/cad_alignment.initial_guess.yaml`。
 （约 `+0.37 deg` roll、`+23.2 deg` pitch）。这是 bag-derived candidate，不是机械最终标定；
 `base_link` 基准高度、x/y 偏移和 yaw 尚未独立实测，因此 `calibration_verified: false` 必须保留。
 

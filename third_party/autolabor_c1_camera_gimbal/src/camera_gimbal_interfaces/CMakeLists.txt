@@ -10,6 +10,7 @@ find_package(std_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/AcquireView.action"
   "msg/CapabilityHealth.msg"
+  "msg/GimbalState.msg"
   DEPENDENCIES action_msgs builtin_interfaces std_msgs
 )
 

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'feat/runtime-navigation-convergence-*'
+      - 'feat/field-real-vehicle-integration'
     paths:
       - 'src/agt_interfaces/**'
       - 'src/agt_runtime_contracts/**'
@@ -11,8 +12,10 @@ on:
       - 'src/agt_site_navigation/**'
       - 'src/agt_system_manager/**'
       - 'src/agt_navigation/**'
+      - 'src/agt_field_commissioning/**'
       - 'src/agt_safety/**'
       - 'src/agt_operator_gateway/**'
+      - 'third_party/**'
       - 'tests/humble/**'
       - '.github/workflows/runtime-humble.yml'
       - 'docs/superpowers/plans/2026-08-29-p1-08-humble-convergence-regression.md'
@@ -24,8 +27,10 @@ on:
       - 'src/agt_site_navigation/**'
       - 'src/agt_system_manager/**'
       - 'src/agt_navigation/**'
+      - 'src/agt_field_commissioning/**'
       - 'src/agt_safety/**'
       - 'src/agt_operator_gateway/**'
+      - 'third_party/**'
       - 'tests/humble/**'
       - '.github/workflows/runtime-humble.yml'
 
@@ -51,6 +56,7 @@ jobs:
             python3-pytest \
             python3-yaml \
             python3-jsonschema
+          python3 -m pip install -r requirements-contracts.txt
 
       - name: Resolve selected-core ROS dependencies
         shell: bash
@@ -58,16 +64,16 @@ jobs:
           source /opt/ros/humble/setup.bash
           rosdep init 2>/dev/null || true
           rosdep update
-          rosdep install --from-paths \
-            src/agt_interfaces \
-            src/agt_runtime_contracts \
-            src/agt_site_runtime \
-            src/agt_site_navigation \
-            src/agt_system_manager \
-            src/agt_navigation \
-            src/agt_safety \
-            src/agt_operator_gateway \
+          rosdep install --from-paths . \
             --ignore-src --rosdistro humble -r -y
+
+      - name: Normalize Humble multiarch library paths
+        shell: bash
+        run: |
+          if [ -f /opt/ros/humble/lib/x86_64-linux-gnu/libbehaviortree_cpp.so ] && [ ! -e /opt/ros/humble/lib/libbehaviortree_cpp.so ]; then
+            ln -s /opt/ros/humble/lib/x86_64-linux-gnu/libbehaviortree_cpp.so \
+              /opt/ros/humble/lib/libbehaviortree_cpp.so
+          fi
 
       - name: Build convergence core on Humble
         shell: bash
@@ -75,15 +81,8 @@ jobs:
           source /opt/ros/humble/setup.bash
           colcon build \
             --event-handlers console_direct+ \
-            --packages-select \
-              agt_interfaces \
-              agt_runtime_contracts \
-              agt_site_runtime \
-              agt_site_navigation \
-              agt_system_manager \
-              agt_navigation \
-              agt_safety \
-              agt_operator_gateway
+            --packages-up-to agt_operator_gateway \
+            --packages-skip-regex 'livox.*'
 
       - name: Test convergence core on Humble
         shell: bash

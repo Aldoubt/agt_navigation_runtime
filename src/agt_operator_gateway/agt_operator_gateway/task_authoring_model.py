@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import sha256
+import json
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -34,6 +36,40 @@ def _loop(payload: Mapping[str, Any]) -> tuple[bool, int]:
     if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
         raise ValueError("loopCount must be a positive integer")
     return enabled, count
+
+
+def task_put_client_request_id(
+    *,
+    site_id: str,
+    site_revision: str,
+    task_group_id: str,
+    expected_revision: int,
+    payload: Mapping[str, Any],
+) -> str:
+    """Return a restart-stable idempotency key for one logical HMI task PUT.
+
+    The TaskGroup document contains authoring timestamps, so its final content
+    hash changes when the same logical HMI request is rebuilt after a lost HTTP
+    response. Bind the request id to the canonical logical request instead. A
+    changed pose, loop setting, Site identity or expected revision therefore
+    produces a different id while an exact retry produces the same id.
+    """
+
+    identity = {
+        "siteId": str(site_id).strip(),
+        "siteRevision": str(site_revision).strip(),
+        "taskGroupId": str(task_group_id).strip(),
+        "expectedRevision": int(expected_revision),
+        "payload": dict(payload),
+    }
+    encoded = json.dumps(
+        identity,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return "hmi-put-" + sha256(encoded).hexdigest()
 
 
 @dataclass(frozen=True)

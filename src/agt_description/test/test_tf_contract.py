@@ -74,5 +74,5 @@ def test_bunker_bag_derived_mid360_candidate_matches_static_ground_estimate():
     assert parameters["lidar_y"] == pytest.approx(0.0)
     assert parameters["base_link_z"] + parameters["lidar_z"] == pytest.approx(0.607, abs=0.005)
     assert parameters["lidar_roll"] == pytest.approx(0.0064, abs=0.002)
-    assert parameters["lidar_pitch"] == pytest.approx(0.4045, abs=0.01)
+    assert parameters["lidar_pitch"] == pytest.approx(0.2580, abs=0.01)
     assert parameters["lidar_yaw"] == pytest.approx(0.0)

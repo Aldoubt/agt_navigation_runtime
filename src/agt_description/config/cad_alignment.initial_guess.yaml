@@ -1,0 +1,70 @@
+schema_version: 1
+calibration_verified: false
+candidate_only: true
+notes: >-
+  Initial visualization candidate only. base_link->chassis_cad_link is inferred
+  from the chassis STL bounding-box center and lowest Z point; it is NOT a
+  vehicle kinematic calibration. CAD nominal lidar mounting is preserved from
+  the original SolidWorks URDF export. Replace the alignment/correction values
+  after mechanical + visual + real-vehicle calibration before navigation use.
+
+# ROS vehicle reference. base_footprint is on the nominal ground plane and
+# base_link shares its X/Y with a provisional fixed height.
+base_link_z: 0.200000
+
+# Transform: base_link -> chassis_cad_link.
+# Candidate derivation:
+#   STL bbox X center = -0.247951164 m in the legacy CAD frame
+#   STL bbox Y center ~= 0 m
+#   STL bbox min Z    = -0.823785841 m
+# Therefore base_footprint->CAD ~= [0.247951164, 0, 0.823785841].
+# With base_link_z=0.2 m, base_link->CAD Z ~= 0.623785841 m.
+base_link_to_cad:
+  xyz: [0.247951164, 0.0, 0.623785841]
+  rpy: [0.0, 0.0, 0.0]
+  verified: false
+  source: cad_mesh_bbox_initial_candidate
+
+# Nominal rigid mounting exported by SolidWorks.
+# Keep this as the CAD nominal transform; put calibration residuals into
+# lidar_mount_to_lidar instead of overwriting the CAD source value.
+cad_to_lidar_mount:
+  xyz: [0.158123575840648, 0.0, 0.103682276997015]
+  rpy: [0.0, 0.226892802759063, 0.0]
+  verified: false
+  source: solidworks_urdf_export
+
+# Calibration residual layer. The small pitch residual below incorporates the
+# approximately 14.8 degree gravity direction measured from the initial IMU
+# segment of bunker_mid360_mapping_20260901_211105. It is still a bootstrap
+# candidate, not a verified mechanical calibration.
+# After joint calibration, update this transform if the CAD vehicle datum is
+# already trusted. If calibration estimates base_link->lidar directly, see
+# docs/CALIBRATION_WORKFLOW.md for how to solve the appropriate layer.
+lidar_mount_to_lidar:
+  xyz: [0.0, 0.0, 0.0]
+  rpy: [0.0, 0.0311, 0.0]
+  verified: false
+  source: bag_imu_initial_gravity_pitch_candidate
+
+# GNSS is deliberately disabled until an antenna phase-center (APC) coordinate
+# is measured or defined in CAD. Do not publish an identity lever arm by accident.
+gnss:
+  enabled: false
+  cad_to_mount:
+    xyz: [0.0, 0.0, 0.0]
+    rpy: [0.0, 0.0, 0.0]
+    verified: false
+    source: unset
+  mount_to_apc:
+    xyz: [0.0, 0.0, 0.0]
+    rpy: [0.0, 0.0, 0.0]
+    verified: false
+    source: unset
+
+# Lightweight collision proxy in base_link coordinates. This intentionally
+# does not reuse the high-triangle-count CAD STL as collision geometry.
+collision_proxy:
+  size: [1.023, 0.778, 0.400]
+  origin_xyz: [0.0, 0.0, 0.0]
+  origin_rpy: [0.0, 0.0, 0.0]

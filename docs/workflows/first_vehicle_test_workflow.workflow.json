@@ -1,0 +1,56 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "第一次整体上车测试流程",
+    "locale": "zh-CN",
+    "output": "docs/workflows/first_vehicle_test_workflow.html",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "mapping", "label": "建图与地图资产" },
+    { "id": "site", "label": "地图发布与固定" },
+    { "id": "runtime", "label": "上车运行时" },
+    { "id": "mission", "label": "Qt5 任务与巡检" },
+    { "id": "exceptions", "label": "停止条件", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "make_map", "label": "生成地图", "fromCol": 0, "toCol": 1 },
+    { "id": "publish_map", "label": "编辑并固定", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "run_test", "label": "上车巡检", "fromCol": 4, "toCol": 5, "variant": "emphasis" }
+  ],
+  "mainPath": ["fastlio", "pcd2pgm", "qt_edit", "site_freeze", "runtime_ready", "task_chain", "navigate", "settle", "capture", "next_or_finish"],
+  "nodes": [
+    { "id": "fastlio", "lane": "mapping", "col": 0, "width": 150, "type": "backend", "label": "fastlio-sam-ros2", "sublabel": "输出原始 localization_map.pcd" },
+    { "id": "pcd2pgm", "lane": "mapping", "col": 1, "width": 150, "type": "external", "label": "pcd2pgm", "sublabel": "PCD → navigation.pgm/yaml" },
+    { "id": "qt_edit", "lane": "site", "col": 2, "width": 150, "type": "frontend", "label": "Qt5 地图编辑", "sublabel": "只编辑导航栅格副本" },
+    { "id": "site_freeze", "lane": "site", "col": 3, "width": 150, "type": "security", "label": "固定 Active Site", "sublabel": "bunker_mid360_first/r01", "tag": "PCD 与 PGM 分工" },
+    { "id": "runtime_ready", "lane": "runtime", "col": 4, "width": 150, "type": "backend", "label": "启动并校验", "sublabel": "INS/LIO、Nav2、安全、相机能力" },
+    { "id": "task_chain", "lane": "mission", "col": 4, "width": 150, "type": "frontend", "label": "Qt5 布置任务", "sublabel": "task_chain · loop_count=1" },
+    { "id": "navigate", "lane": "mission", "col": 5, "width": 150, "type": "backend", "label": "定点导航", "sublabel": "ExecuteWaypointTask → Nav2" },
+    { "id": "settle", "lane": "mission", "col": 5, "yOffset": 70, "width": 150, "type": "backend", "label": "停车稳定", "sublabel": "速度阈值持续 1 s" },
+    { "id": "capture", "lane": "mission", "col": 5, "yOffset": 140, "width": 150, "type": "backend", "label": "拍照保存", "sublabel": "/agt/camera/capture" },
+    { "id": "next_or_finish", "lane": "mission", "col": 5, "yOffset": 210, "width": 150, "type": "messagebus", "label": "继续 / 完成", "sublabel": "下一点或结束" },
+    { "id": "stop", "lane": "exceptions", "col": 4, "width": 150, "type": "security", "label": "安全停止", "sublabel": "定位/安全/Nav2/拍照失败" }
+  ],
+  "edges": [
+    { "from": "fastlio", "to": "pcd2pgm", "label": "原始 PCD", "role": "main" },
+    { "from": "pcd2pgm", "to": "qt_edit", "label": "导航地图副本", "role": "main" },
+    { "from": "qt_edit", "to": "site_freeze", "label": "发布新 revision", "role": "main" },
+    { "from": "site_freeze", "to": "runtime_ready", "label": "Active Site + SHA256", "role": "main" },
+    { "from": "runtime_ready", "to": "task_chain", "label": "允许布置任务", "role": "main" },
+    { "from": "task_chain", "to": "navigate", "label": "正式 Action", "role": "main" },
+    { "from": "navigate", "to": "settle", "label": "ARRIVED", "role": "main" },
+    { "from": "settle", "to": "capture", "label": "SETTLED", "role": "main" },
+    { "from": "capture", "to": "next_or_finish", "label": "WAYPOINT_SUCCESS", "role": "main" },
+    { "from": "next_or_finish", "to": "navigate", "label": "下一点", "role": "return" },
+    { "from": "runtime_ready", "to": "stop", "label": "校验失败", "role": "error" },
+    { "from": "navigate", "to": "stop", "label": "导航失败/取消", "role": "error" },
+    { "from": "capture", "to": "stop", "label": "重试后仍失败", "role": "error", "route": "outside-right", "fromSide": "right", "toSide": "right" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "地图版本边界", "items": ["原始 localization_map.pcd 只供 INS/LIO 重定位", "编辑后的 navigation.pgm 只供 Nav2", "重新编辑必须生成新的 Site revision"] },
+    { "dot": "emerald", "title": "第一次上车默认", "items": ["任务 loop_count=1", "每个点到达并稳定后拍照一次", "拍照失败默认停止并保留证据"] },
+    { "dot": "rose", "title": "不可绕过的安全条件", "items": ["定位和安全状态必须新鲜有效", "Qt5 不直接发布 cmd_vel", "INS/定位、目标误差、照片和 SHA256 纳入验收记录"] }
+  ]
+}

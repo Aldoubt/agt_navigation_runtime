@@ -10,6 +10,7 @@ on:
       - 'feat/runtime-convergence-*'
       - 'feat/runtime-site-*'
       - 'feat/runtime-navigation-convergence-*'
+      - 'feat/field-real-vehicle-integration'
   pull_request:
     paths:
       - 'profiles/platforms/**'
@@ -91,6 +92,11 @@ jobs:
           else
             echo "P1 task-storage tests not present yet"
           fi
+      - name: Run P1 RViz task-draft and capture-evidence contracts
+        run: |
+          PYTHONPATH=src/agt_navigation python -m pytest -q \
+            src/agt_navigation/test/test_rviz_task_draft.py \
+            src/agt_navigation/test/test_field_capture.py
       - name: Run P1 site-navigation contracts
         run: |
           if [ -f src/agt_site_navigation/test/test_resolver.py ]; then
@@ -110,7 +116,12 @@ jobs:
           else
             echo "P1 field commissioning tests not present yet"
           fi
-      - name: Run P1 RViz direct-goal guard contract
-        run: python -m pytest -q tests/navigation/test_rviz_goal_guard.py
+      - name: Run P1 RViz acceptance frontend contracts
+        run: |
+          python -m pytest -q \
+            tests/navigation/test_rviz_goal_guard.py \
+            tests/navigation/test_rviz_task_editor_contract.py \
+            tests/navigation/test_field_capture_acceptance_defaults.py \
+            tests/navigation/test_field_capture_settle_contract.py
       - name: Run P1 Humble workflow contract
         run: python -m pytest -q tests/humble/test_p1_08_workflow_contract.py

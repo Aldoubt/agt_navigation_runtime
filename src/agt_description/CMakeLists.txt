@@ -3,7 +3,7 @@ project(agt_description)
 
 find_package(ament_cmake REQUIRED)
 
-install(DIRECTORY urdf launch config
+install(DIRECTORY urdf launch config meshes docs
   DESTINATION share/${PROJECT_NAME}
   PATTERN "__pycache__" EXCLUDE
   PATTERN "*.pyc" EXCLUDE

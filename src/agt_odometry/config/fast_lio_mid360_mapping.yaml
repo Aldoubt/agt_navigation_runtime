@@ -1,0 +1,38 @@
+/**:
+  ros__parameters:
+    map_file_path: ""
+    common:
+      lid_topic: /agt/sensors/lidar/custom_filtered
+      imu_topic: /agt/sensors/imu/data
+      time_sync_en: false
+      time_offset_lidar_to_imu: 0.0
+    preprocess:
+      lidar_type: 1
+      scan_line: 4
+      blind: 0.5
+      timestamp_unit: 2
+      scan_rate: 10
+    mapping:
+      acc_cov: 0.8
+      gyr_cov: 0.5
+      b_acc_cov: 0.001
+      b_gyr_cov: 0.001
+      fov_degree: 180.0
+      det_range: 260.0
+      extrinsic_est_en: false
+      extrinsic_T: [0.011, 0.02329, -0.04412]
+      extrinsic_R: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    # Compatibility mirror for agt_field_commissioning/raycast_free_space_node.py.
+    # FAST-LIO itself consumes mapping.extrinsic_T/extrinsic_R above.
+    extrin_calib:
+      extrinsic_T: [0.011, 0.02329, -0.04412]
+    publish:
+      path_en: true
+      effect_map_en: false
+      map_en: false
+      scan_publish_en: true
+      dense_publish_en: false
+      scan_bodyframe_pub_en: true
+    pcd_save:
+      pcd_save_en: false
+      interval: -1

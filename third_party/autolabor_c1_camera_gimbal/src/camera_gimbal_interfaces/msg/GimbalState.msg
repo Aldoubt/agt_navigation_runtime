@@ -1,0 +1,12 @@
+std_msgs/Header header
+float64 raw_encoder_heading
+float64 raw_encoder_roll
+float64 raw_encoder_pitch
+float64 filtered_encoder_heading
+float64 filtered_encoder_roll
+float64 filtered_encoder_pitch
+float64 heading
+float64 roll
+float64 pitch
+bool feedback_alive
+bool stable

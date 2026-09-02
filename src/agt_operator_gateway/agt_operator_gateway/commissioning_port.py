@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from agt_field_commissioning.service import CommissioningService
+if TYPE_CHECKING:
+    from agt_field_commissioning.service import CommissioningService
 
 
 class CommissioningPort(Protocol):

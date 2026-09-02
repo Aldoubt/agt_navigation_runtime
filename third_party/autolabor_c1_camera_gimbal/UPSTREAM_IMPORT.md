@@ -1,5 +1,12 @@
 # Autolabor C1 camera-gimbal source import
 
+## Current source refresh
+
+- Upstream repository: https://github.com/Aldoubt/Autolabor-C1-ROS2
+- Upstream commit: `10d82179dc34ae035b382e9b465e4b8f5d55c0a8`
+- Refresh scope: `src/`, `tools/`, and the upstream Phase-1 acceptance documents.
+- The previous archive provenance below is retained for the original import.
+
 - Upstream repository: https://github.com/LJM-224/autolabor_c1_ros2_ws
 - Upstream branch: `main`
 - Upstream archive: `autolabor_c1_ros2_ws_modified(1).tar.gz`

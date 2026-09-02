@@ -31,9 +31,11 @@ def _compose(context):
     contract_share = Path(get_package_share_directory("agt_runtime_contracts"))
     hardware_share = Path(get_package_share_directory("agt_hardware_bringup"))
     odometry_share = Path(get_package_share_directory("agt_odometry"))
+    perception_share = Path(get_package_share_directory("agt_perception"))
     localization_share = Path(get_package_share_directory("agt_localization"))
     site_navigation_share = Path(get_package_share_directory("agt_site_navigation"))
     navigation_share = Path(get_package_share_directory("agt_navigation"))
+    mission_manager_share = Path(get_package_share_directory("agt_mission_manager"))
     safety_share = Path(get_package_share_directory("agt_safety"))
     system_manager_share = Path(get_package_share_directory("agt_system_manager"))
 
@@ -42,6 +44,8 @@ def _compose(context):
     site_vehicle_profile = LaunchConfiguration("site_vehicle_profile").perform(context)
     site_id = LaunchConfiguration("site_id").perform(context)
     site_revision = LaunchConfiguration("site_revision").perform(context)
+    runtime_dir = LaunchConfiguration("runtime_dir").perform(context)
+    mission_root = str(Path(runtime_dir).expanduser() / "missions")
     use_sim_time = LaunchConfiguration("use_sim_time").perform(context)
 
     assets = resolve_active_frozen_site(
@@ -75,6 +79,13 @@ def _compose(context):
 
     actions.extend(
         [
+            Node(
+                package="agt_navigation",
+                executable="hmi_task_adapter.py",
+                name="agt_hmi_task_adapter",
+                output="screen",
+                condition=IfCondition(LaunchConfiguration("start_hmi_adapter")),
+            ),
             _include(
                 site_navigation_share / "launch" / "site_navigation_binding.launch.py",
                 {
@@ -100,9 +111,41 @@ def _compose(context):
                     "run_can_preflight": LaunchConfiguration("run_can_preflight").perform(context),
                     "mid360_user_config_path": LaunchConfiguration("mid360_user_config_path").perform(context),
                     "sensor_profile": "navigation",
+                    "start_safety": "false",
+                    "start_auto_permit": LaunchConfiguration("start_auto_permit").perform(context),
+                    "auto_permit_switch": LaunchConfiguration("auto_permit_switch").perform(context),
+                    "auto_permit_enabled_value": LaunchConfiguration("auto_permit_enabled_value").perform(context),
+                    "auto_permit_status_timeout": LaunchConfiguration("auto_permit_status_timeout").perform(context),
                     "start_camera": "false",
                     "start_gimbal": "false",
+                    "start_inspection": LaunchConfiguration("start_inspection").perform(context),
+                    "inspection_camera_device_path": LaunchConfiguration("inspection_camera_device_path").perform(context),
+                    "inspection_camera_gimbal_port": LaunchConfiguration("inspection_camera_gimbal_port").perform(context),
+                    "inspection_camera_width": LaunchConfiguration("inspection_camera_width").perform(context),
+                    "inspection_camera_height": LaunchConfiguration("inspection_camera_height").perform(context),
+                    "inspection_camera_fps": LaunchConfiguration("inspection_camera_fps").perform(context),
+                    "inspection_capture_output_root": LaunchConfiguration("inspection_capture_output_root").perform(context),
+                    "inspection_runtime_maps_root": LaunchConfiguration("inspection_runtime_maps_root").perform(context),
+                    "inspection_evidence_root": LaunchConfiguration("inspection_evidence_root").perform(context),
+                    "inspection_camera_calibration_id": LaunchConfiguration("inspection_camera_calibration_id").perform(context),
+                    "inspection_camera_calibration_sha256": LaunchConfiguration("inspection_camera_calibration_sha256").perform(context),
                 },
+            )
+        )
+
+    if _enabled(context, "start_inspection") and LaunchConfiguration("field_capture_backend").perform(context).strip().lower() in ("camera_capability", "mock"):
+        actions.append(
+            Node(
+                package="agt_camera_capability",
+                executable="camera_capability_server.py",
+                name="agt_camera_capability_server",
+                output="screen",
+                parameters=[
+                    {
+                        "backend": LaunchConfiguration("camera_capability_backend").perform(context),
+                        "service_name": LaunchConfiguration("field_capture_service").perform(context),
+                    }
+                ],
             )
         )
 
@@ -113,6 +156,11 @@ def _compose(context):
                 {"use_sim_time": use_sim_time},
             ),
             _include(
+                perception_share / "launch" / "local_obstacles.launch.py",
+                {"use_sim_time": use_sim_time},
+                condition=IfCondition(LaunchConfiguration("start_local_perception")),
+            ),
+            _include(
                 localization_share / "launch" / "relocalization.launch.py",
                 {
                     "use_sim_time": use_sim_time,
@@ -120,6 +168,7 @@ def _compose(context):
                     "global_map_processing_record": (
                         str(assets.processing_record) if assets.processing_record else ""
                     ),
+                    "configured_candidates_yaml": LaunchConfiguration("configured_candidates_yaml").perform(context),
                     "map_id": assets.site_id,
                     "map_hash": assets.localization_pcd_sha256,
                     "backend": LaunchConfiguration("localization_backend").perform(context),
@@ -127,14 +176,18 @@ def _compose(context):
             ),
             _include(
                 safety_share / "launch" / "safety.launch.py",
-                {"use_sim_time": use_sim_time},
+                {
+                    "use_sim_time": use_sim_time,
+                    "require_auto_permit": "true",
+                    "auto_permit_timeout": LaunchConfiguration("auto_permit_status_timeout").perform(context),
+                },
             ),
             _include(
                 navigation_share / "launch" / "navigation.launch.py",
                 {
                     "params_file": LaunchConfiguration("nav2_params_file").perform(context),
                     "map": str(assets.navigation_yaml),
-                    "runtime_dir": LaunchConfiguration("runtime_dir").perform(context),
+                    "runtime_dir": runtime_dir,
                     "tasks_root": LaunchConfiguration("tasks_root").perform(context),
                     "sites_root": sites_root,
                     "site_vehicle_profile": site_vehicle_profile,
@@ -144,10 +197,47 @@ def _compose(context):
                     "current_map_image_sha256": assets.navigation_image_sha256,
                     "current_localization_pcd_sha256": assets.localization_pcd_sha256,
                     "execution_vehicle_profile": site_vehicle_profile,
+                    "capability_executable": "field_capture_capability_server.py",
+                    "field_capture_enabled": "true",
+                    "field_capture_root": LaunchConfiguration("field_capture_root").perform(context),
+                    "field_capture_backend": LaunchConfiguration("field_capture_backend").perform(context),
+                    "field_capture_service": LaunchConfiguration("field_capture_service").perform(context),
+                    "field_capture_camera_id": LaunchConfiguration("field_capture_camera_id").perform(context),
+                    "field_capture_retry_count": LaunchConfiguration("field_capture_retry_count").perform(context),
+                    "field_capture_continue_on_failure": LaunchConfiguration("field_capture_continue_on_failure").perform(context),
+                    "field_capture_settle_sec": LaunchConfiguration("field_capture_settle_sec").perform(context),
+                    "field_capture_settle_enabled": LaunchConfiguration("field_capture_settle_enabled").perform(context),
+                    "field_capture_settle_odom_topic": LaunchConfiguration("field_capture_settle_odom_topic").perform(context),
+                    "field_capture_settle_linear_velocity_threshold": LaunchConfiguration("field_capture_settle_linear_velocity_threshold").perform(context),
+                    "field_capture_settle_angular_velocity_threshold": LaunchConfiguration("field_capture_settle_angular_velocity_threshold").perform(context),
+                    "field_capture_settle_stable_duration": LaunchConfiguration("field_capture_settle_stable_duration").perform(context),
+                    "field_capture_settle_timeout": LaunchConfiguration("field_capture_settle_timeout").perform(context),
+                    "field_capture_settle_odom_stale_timeout": LaunchConfiguration("field_capture_settle_odom_stale_timeout").perform(context),
+                    "field_capture_service_timeout": LaunchConfiguration("field_capture_service_timeout").perform(context),
                     "use_sim_time": use_sim_time,
                     "autostart": "true",
                     "enable_rviz_goal_bridge": LaunchConfiguration("enable_rviz_goal_bridge").perform(context),
                 },
+            ),
+            Node(
+                package="agt_navigation",
+                executable="rviz_task_editor.py",
+                name="agt_rviz_task_editor",
+                output="screen",
+                parameters=[
+                    {
+                        "use_sim_time": _enabled(context, "use_sim_time"),
+                        "map_id": assets.site_id,
+                        "map_version_id": assets.site_revision,
+                        "map_yaml_sha256": assets.navigation_yaml_sha256,
+                        "map_image_sha256": assets.navigation_image_sha256,
+                        "localization_pcd_sha256": assets.localization_pcd_sha256,
+                        "task_group_id": LaunchConfiguration("rviz_task_group_id").perform(context),
+                        "task_name": LaunchConfiguration("rviz_task_name").perform(context),
+                        "auto_load_saved_task": _enabled(context, "rviz_auto_load_task"),
+                    }
+                ],
+                condition=IfCondition(LaunchConfiguration("start_rviz_task_editor")),
             ),
             _include(
                 system_manager_share / "launch" / "system_manager.launch.py",
@@ -155,6 +245,14 @@ def _compose(context):
             ),
         ]
     )
+
+    if _enabled(context, "start_mission_manager"):
+        actions.append(
+            _include(
+                mission_manager_share / "launch" / "mission_manager.launch.py",
+                {"runtime_dir": runtime_dir},
+            )
+        )
 
     if _enabled(context, "start_operator_gateway"):
         actions.append(
@@ -173,11 +271,17 @@ def _compose(context):
                         "task_authoring_enabled": True,
                         "task_authoring_site_id": assets.site_id,
                         "task_authoring_site_revision": assets.site_revision,
+                        "task_authoring_site_hash": assets.site_hash,
                         "task_authoring_navigation_yaml": str(assets.navigation_yaml),
                         "task_authoring_localization_pcd": str(assets.localization_pcd),
+                        "inspection_authoring_enabled": True,
+                        "inspection_authoring_runtime_maps_root": LaunchConfiguration("inspection_runtime_maps_root").perform(context),
+                        "inspection_authoring_missions_root": mission_root,
                         "run_control_enabled": True,
                         "run_lidar_component_id": LaunchConfiguration("run_lidar_component_id").perform(context),
                         "run_camera_gimbal_component_id": LaunchConfiguration("run_camera_gimbal_component_id").perform(context),
+                        "run_auto_permit_topic": "/agt/chassis/auto_permit",
+                        "run_auto_permit_freshness_s": float(LaunchConfiguration("run_auto_permit_freshness_s").perform(context)),
                     }
                 ],
             )
@@ -187,11 +291,11 @@ def _compose(context):
         Node(
             package="rviz2",
             executable="rviz2",
-            name="agt_field_commissioning_rviz",
+            name="agt_field_navigation_rviz",
             output="screen",
             arguments=[
                 "-d",
-                str(commissioning_share / "rviz" / "field_commissioning.rviz"),
+                str(commissioning_share / "rviz" / "field_navigation.rviz"),
             ],
             condition=IfCondition(LaunchConfiguration("start_rviz")),
         )
@@ -221,13 +325,48 @@ def generate_launch_description():
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("start_site_runtime", default_value="true"),
             DeclareLaunchArgument("start_hardware", default_value="true"),
+            DeclareLaunchArgument("start_local_perception", default_value="true"),
             DeclareLaunchArgument("operation_mode", default_value="control", choices=["monitor", "control"]),
             DeclareLaunchArgument("can_interface", default_value="can0"),
             DeclareLaunchArgument("expected_can_bitrate", default_value="0"),
             DeclareLaunchArgument("run_can_preflight", default_value="true"),
-            DeclareLaunchArgument("start_operator_gateway", default_value="true"),
-            DeclareLaunchArgument("gateway_write_api_enabled", default_value="true"),
-            DeclareLaunchArgument("gateway_host", default_value="0.0.0.0"),
+            DeclareLaunchArgument("start_auto_permit", default_value="false"),
+            DeclareLaunchArgument("auto_permit_switch", default_value=""),
+            DeclareLaunchArgument("auto_permit_enabled_value", default_value="-1"),
+            DeclareLaunchArgument("auto_permit_status_timeout", default_value="0.5"),
+            DeclareLaunchArgument("run_auto_permit_freshness_s", default_value="0.75"),
+            DeclareLaunchArgument("field_capture_root", default_value=""),
+            DeclareLaunchArgument("field_capture_backend", default_value="camera_capability"),
+            DeclareLaunchArgument("field_capture_service", default_value="/agt/camera/capability/capture"),
+            DeclareLaunchArgument("field_capture_camera_id", default_value="inspection_camera"),
+            DeclareLaunchArgument("field_capture_retry_count", default_value="1"),
+            DeclareLaunchArgument("field_capture_continue_on_failure", default_value="false"),
+            DeclareLaunchArgument("field_capture_settle_sec", default_value="0.0"),
+            DeclareLaunchArgument("field_capture_settle_enabled", default_value="true"),
+            DeclareLaunchArgument("field_capture_settle_odom_topic", default_value="/agt/odometry/odometry"),
+            DeclareLaunchArgument("field_capture_settle_linear_velocity_threshold", default_value="0.05"),
+            DeclareLaunchArgument("field_capture_settle_angular_velocity_threshold", default_value="0.05"),
+            DeclareLaunchArgument("field_capture_settle_stable_duration", default_value="1.0"),
+            DeclareLaunchArgument("field_capture_settle_timeout", default_value="10.0"),
+            DeclareLaunchArgument("field_capture_settle_odom_stale_timeout", default_value="0.5"),
+            DeclareLaunchArgument("field_capture_service_timeout", default_value="2.0"),
+            DeclareLaunchArgument("camera_capability_backend", default_value="mock"),
+            DeclareLaunchArgument("start_inspection", default_value="false"),
+            DeclareLaunchArgument("start_hmi_adapter", default_value="true"),
+            DeclareLaunchArgument("inspection_camera_device_path", default_value="/dev/video0"),
+            DeclareLaunchArgument("inspection_camera_gimbal_port", default_value="/dev/ttyUSB0"),
+            DeclareLaunchArgument("inspection_camera_width", default_value="1920"),
+            DeclareLaunchArgument("inspection_camera_height", default_value="1080"),
+            DeclareLaunchArgument("inspection_camera_fps", default_value="30.0"),
+            DeclareLaunchArgument("inspection_capture_output_root", default_value="runtime/camera_gimbal_capture"),
+            DeclareLaunchArgument("inspection_runtime_maps_root", default_value="runtime/maps"),
+            DeclareLaunchArgument("inspection_evidence_root", default_value="runtime/inspections"),
+            DeclareLaunchArgument("inspection_camera_calibration_id", default_value=""),
+            DeclareLaunchArgument("inspection_camera_calibration_sha256", default_value=""),
+            DeclareLaunchArgument("start_mission_manager", default_value="true"),
+            DeclareLaunchArgument("start_operator_gateway", default_value="false"),
+            DeclareLaunchArgument("gateway_write_api_enabled", default_value="false"),
+            DeclareLaunchArgument("gateway_host", default_value="127.0.0.1"),
             DeclareLaunchArgument("gateway_port", default_value="8765"),
             DeclareLaunchArgument("run_lidar_component_id", default_value="lidar"),
             DeclareLaunchArgument("run_camera_gimbal_component_id", default_value="camera_gimbal"),
@@ -235,10 +374,15 @@ def generate_launch_description():
                 "mid360_user_config_path", default_value=str(default_mid360_config)
             ),
             DeclareLaunchArgument("localization_backend", default_value="ndt"),
+            DeclareLaunchArgument("configured_candidates_yaml", default_value=""),
             DeclareLaunchArgument(
                 "nav2_params_file", default_value=str(default_nav2_params)
             ),
             DeclareLaunchArgument("enable_rviz_goal_bridge", default_value="false"),
+            DeclareLaunchArgument("start_rviz_task_editor", default_value="true"),
+            DeclareLaunchArgument("rviz_task_group_id", default_value="field_inspection"),
+            DeclareLaunchArgument("rviz_task_name", default_value="RViz Field Inspection"),
+            DeclareLaunchArgument("rviz_auto_load_task", default_value="false"),
             DeclareLaunchArgument("start_rviz", default_value="true"),
             OpaqueFunction(function=_compose),
         ]
