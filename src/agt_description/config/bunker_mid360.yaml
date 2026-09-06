@@ -7,7 +7,12 @@
     base_height: 0.400
     # Provisional until the physical base_link datum is measured.
     base_link_z: 0.200
-    # Bag-derived candidate (2026-07-25): the MID360 center is on the
+    # Initial calibration candidate sourced from
+    # agt_description/config/cad_alignment.initial_guess.yaml
+    # and adjusted using the stationary-start IMU gravity direction in
+    # runtime/rosbag/bunker_mid360_mapping_20260901_211105 (about 14.8 deg).
+    # Keep this candidate-only value until physical/RViz validation is complete.
+    # The MID360 center is on the
     # longitudinal centerline, 0.250 m behind the 1.023 m chassis front edge,
     # and approximately 0.607 m above the ground. With base_link at the
     # provisional chassis geometric center and base_link_z=0.200 m, this gives
@@ -16,7 +21,7 @@
     lidar_y: 0.0
     lidar_z: 0.4070
     # Static-bag ground-plane and IMU estimates: roll ~= +0.37 deg and
-    # positive ROS pitch ~= +23.2 deg toward the chassis front (+X).
+    # positive ROS pitch ~= +14.8 deg toward the chassis front (+X).
     lidar_roll: 0.0064
-    lidar_pitch: 0.4045
+    lidar_pitch: 0.2580
     lidar_yaw: 0.0

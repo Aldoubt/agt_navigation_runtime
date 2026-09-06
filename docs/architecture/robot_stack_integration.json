@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "AGT 建图、导航与巡检接入链路",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {"id":"sensors","label":"传感器"},
+    {"id":"pipeline","label":"建图与导航"},
+    {"id":"operator","label":"操作与巡检"}
+  ],
+  "mainPath": ["mapping","pcd","review","nav","inspection"],
+  "nodes": [
+    {"id":"ins","lane":"sensors","col":0,"type":"external","width":220,"label":"ASENSING INS\n/ins/* 真值输入"},
+    {"id":"mapping","lane":"pipeline","col":0,"type":"backend","width":220,"label":"FAST-LIO\nfast_lio/fastlio_mapping"},
+    {"id":"pcd","lane":"pipeline","col":1,"type":"backend","width":220,"label":"pcd2pgm\n离线 PCD → PGM/YAML"},
+    {"id":"review","lane":"pipeline","col":2,"type":"backend","width":220,"label":"地图审核/激活\nSite Package"},
+    {"id":"nav","lane":"pipeline","col":3,"type":"backend","width":220,"label":"Nav2\n版本化导航地图"},
+    {"id":"hmi","lane":"operator","col":3,"type":"frontend","width":220,"label":"agt_robot_hmi\nQt5 上位机"},
+    {"id":"capability","lane":"operator","col":4,"type":"backend","width":220,"label":"AcquireView\n到位后获取新图"},
+    {"id":"inspection","lane":"operator","col":5,"type":"backend","width":220,"label":"agt_inspection\n到点拍照/证据"}
+  ],
+  "edges": [
+    {"from":"mapping","to":"pcd","label":"finalized localization_map.pcd"},
+    {"from":"pcd","to":"review","label":"navigation.pgm + navigation.yaml"},
+    {"from":"review","to":"nav","label":"activate"},
+    {"from":"hmi","to":"nav","label":"导航点/任务交互"},
+    {"from":"nav","to":"inspection","label":"到点 + 停车稳定"},
+    {"from":"capability","to":"inspection","label":"success / error_code / image_path"},
+    {"from":"ins","to":"inspection","label":"验收对齐，不发布 TF"}
+  ]
+}

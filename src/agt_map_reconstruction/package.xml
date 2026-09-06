@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>agt_map_reconstruction</name>
+  <version>0.1.0</version>
+  <description>Offline and realtime-compatible terrain-aware 2D map reconstruction from registered clouds.</description>
+  <maintainer email="maintainer@example.com">AGT Runtime</maintainer>
+  <license>Apache-2.0</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>sensor_msgs_py</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>agt_odometry</exec_depend>
+  <exec_depend>fast_lio</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

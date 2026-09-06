@@ -84,15 +84,13 @@ class CancelProbe(Node):
         wrapped = result_future.result()
         result = wrapped.result
         if wrapped.status != GoalStatus.STATUS_CANCELED:
-            self.get_logger().error('FAIL: public action status is not CANCELED: %d', wrapped.status)
+            self.get_logger().error(
+                f'FAIL: public action status is not CANCELED: {wrapped.status}')
             return False
         if result.success or int(result.error_code) != AcquireView.Result.ERROR_CANCELED:
             self.get_logger().error(
-                'FAIL: expected ERROR_CANCELED=%d but got success=%s code=%d',
-                AcquireView.Result.ERROR_CANCELED,
-                result.success,
-                int(result.error_code),
-            )
+                f'FAIL: expected ERROR_CANCELED={AcquireView.Result.ERROR_CANCELED} '
+                f'but got success={result.success} code={int(result.error_code)}')
             return False
 
         # The public node waits for low-level cancellation completion before returning.

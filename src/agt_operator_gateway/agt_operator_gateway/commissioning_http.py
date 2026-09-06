@@ -10,6 +10,14 @@ from .commissioning_port import CommissioningPort
 from .contract import GATEWAY_API_VERSION
 
 
+_PUBLIC_KEY_MAP = {
+    'site_id': 'siteId',
+    'run_id': 'runId',
+    'projection_backend': 'projectionBackend',
+    'site_root': 'siteRoot',
+}
+
+
 def _error(status: int, code: str, message: str) -> web.Response:
     return web.json_response(
         {'apiVersion': GATEWAY_API_VERSION, 'code': code, 'message': message},
@@ -17,8 +25,16 @@ def _error(status: int, code: str, message: str) -> web.Response:
     )
 
 
+def _public_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Translate filesystem/service naming into the browser Gateway contract."""
+    return {
+        _PUBLIC_KEY_MAP.get(key, key): value
+        for key, value in payload.items()
+    }
+
+
 def _with_api(payload: dict[str, Any]) -> dict[str, Any]:
-    return {'apiVersion': GATEWAY_API_VERSION, **payload}
+    return {'apiVersion': GATEWAY_API_VERSION, **_public_payload(payload)}
 
 
 def _map_payload(payload: dict[str, Any]) -> dict[str, Any]:

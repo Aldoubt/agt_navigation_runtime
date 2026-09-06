@@ -1,0 +1,6 @@
+# Local/offline build products and runtime configuration.
+build*/
+install-offline*/
+config.json
+*.log
+vendor/qt-advanced-docking-system/.git/

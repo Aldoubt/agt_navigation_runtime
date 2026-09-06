@@ -64,7 +64,11 @@ def build_site_summary(
 
     manifest_sha = sha256_file(candidate.manifest_path)
     processing_record = ""
-    processing_raw = assets.get("processing_record")
+    # Published Site Packages use the explicit localization asset name; keep
+    # accepting the shorter legacy key for older deployed revisions.
+    processing_raw = assets.get("processing_record") or assets.get(
+        "localization_processing_record"
+    )
     if isinstance(processing_raw, str) and processing_raw:
         processing_record = str(resolve_relative_path(candidate.root, processing_raw))
 

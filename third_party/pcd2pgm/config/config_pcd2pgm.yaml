@@ -1,0 +1,25 @@
+pcd2pgm_node:
+  ros__parameters:
+  
+    # Common Parameters
+    pcd_path: "/home/kazuma/navigation_data/kandai/kandai.pcd"
+    output_dir: "output"
+    save_map_name: "kandai"
+    resolution: 0.1
+    min_points_per_cell: 1
+    h_min: 0.10
+    h_max: 1.50
+    downsample_leaf_size: 0.25
+
+    # PMF parameter
+    max_window_size: 32
+    slope: 1.0
+    initial_distance: 0.3
+    max_distance: 2.5
+
+    # SOR parameter
+    mean_k: 20
+    stddev_mul: 1.0
+
+    # Debug
+    save_all_cloud: false

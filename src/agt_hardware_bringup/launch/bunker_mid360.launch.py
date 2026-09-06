@@ -23,6 +23,7 @@ def _include(path: Path, arguments: dict[str, str] | None = None):
 def _compose(context):
     bringup_share = Path(get_package_share_directory("agt_hardware_bringup"))
     chassis_share = Path(get_package_share_directory("agt_chassis_bunker"))
+    description_share = Path(get_package_share_directory("agt_description"))
     inspection_share = Path(get_package_share_directory("agt_inspection"))
     sensor_adapter_share = Path(get_package_share_directory("agt_sensor_adapters"))
     sensor_monitor_share = Path(get_package_share_directory("agt_sensor_monitor"))
@@ -43,32 +44,58 @@ def _compose(context):
     if not profile_file.is_file():
         raise RuntimeError(f"sensor monitor profile does not exist: {profile_file}")
 
-    actions = [
-        _include(
-            chassis_share / "launch" / "bunker.launch.py",
-            {
-                "use_sim_time": use_sim_time,
-                "operation_mode": operation_mode,
-                "can_interface": can_interface,
-            },
-        ),
-        _include(
-            sensor_adapter_share / "launch" / "mid360.launch.py",
-            {
-                "use_sim_time": use_sim_time,
-                "user_config_path": LaunchConfiguration("mid360_user_config_path").perform(context),
-            },
-        ),
-        _include(
-            sensor_monitor_share / "launch" / "sensor_monitor.launch.py",
-            {
-                "use_sim_time": use_sim_time,
-                "params_file": str(profile_file),
-            },
-        ),
-    ]
+    actions = []
+    if _as_bool(LaunchConfiguration("start_description").perform(context)):
+        actions.append(
+            _include(
+                description_share / "launch" / "bunker_description.launch.py",
+                {"use_sim_time": use_sim_time},
+            )
+        )
+
+    actions.extend(
+        [
+            _include(
+                chassis_share / "launch" / "bunker.launch.py",
+                {
+                    "use_sim_time": use_sim_time,
+                    "operation_mode": operation_mode,
+                    "can_interface": can_interface,
+                    "start_safety": LaunchConfiguration("start_safety").perform(context),
+                    "start_auto_permit": LaunchConfiguration("start_auto_permit").perform(context),
+                    "auto_permit_switch": LaunchConfiguration("auto_permit_switch").perform(context),
+                    "auto_permit_enabled_value": LaunchConfiguration("auto_permit_enabled_value").perform(context),
+                    "auto_permit_status_timeout": LaunchConfiguration("auto_permit_status_timeout").perform(context),
+                },
+            ),
+            _include(
+                sensor_adapter_share / "launch" / "mid360.launch.py",
+                {
+                    "use_sim_time": use_sim_time,
+                    "user_config_path": LaunchConfiguration("mid360_user_config_path").perform(context),
+                },
+            ),
+            _include(
+                sensor_monitor_share / "launch" / "sensor_monitor.launch.py",
+                {
+                    "use_sim_time": use_sim_time,
+                    "params_file": str(profile_file),
+                },
+            ),
+        ]
+    )
 
     start_inspection = _as_bool(LaunchConfiguration("start_inspection").perform(context))
+    if _as_bool(LaunchConfiguration("start_ins").perform(context)):
+        actions.append(
+            Node(
+                package="agt_asensing_driver",
+                executable="asensing_node",
+                name="agt_asensing_driver",
+                output="screen",
+                parameters=[LaunchConfiguration("ins_params_file")],
+            )
+        )
     start_camera = _as_bool(LaunchConfiguration("start_camera").perform(context))
     start_gimbal = _as_bool(LaunchConfiguration("start_gimbal").perform(context))
     if start_inspection and (start_camera or start_gimbal):
@@ -134,6 +161,7 @@ def _compose(context):
 
 def generate_launch_description():
     sensor_adapter_share = Path(get_package_share_directory("agt_sensor_adapters"))
+    ins_share = Path(get_package_share_directory("agt_asensing_driver"))
     default_mid360_config = sensor_adapter_share / "config" / "mid360_network.json"
 
     return LaunchDescription(
@@ -143,6 +171,12 @@ def generate_launch_description():
             DeclareLaunchArgument("can_interface", default_value="can0"),
             DeclareLaunchArgument("expected_can_bitrate", default_value="0"),
             DeclareLaunchArgument("run_can_preflight", default_value="true"),
+            DeclareLaunchArgument("start_description", default_value="true"),
+            DeclareLaunchArgument("start_safety", default_value="true"),
+            DeclareLaunchArgument("start_auto_permit", default_value="false"),
+            DeclareLaunchArgument("auto_permit_switch", default_value=""),
+            DeclareLaunchArgument("auto_permit_enabled_value", default_value="-1"),
+            DeclareLaunchArgument("auto_permit_status_timeout", default_value="0.5"),
             DeclareLaunchArgument(
                 "mid360_user_config_path",
                 default_value=str(default_mid360_config),
@@ -158,6 +192,11 @@ def generate_launch_description():
             DeclareLaunchArgument("start_gimbal", default_value="false"),
             DeclareLaunchArgument("gimbal_launch_file", default_value=""),
             DeclareLaunchArgument("start_inspection", default_value="false"),
+            DeclareLaunchArgument("start_ins", default_value="false"),
+            DeclareLaunchArgument(
+                "ins_params_file",
+                default_value=str(ins_share / "config" / "asensing.yaml"),
+            ),
             DeclareLaunchArgument(
                 "inspection_camera_device_path", default_value="/dev/video0"
             ),

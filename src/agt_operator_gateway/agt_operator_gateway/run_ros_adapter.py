@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from threading import Event, Lock
 from typing import Any
 
@@ -7,14 +8,14 @@ from agt_interfaces.action import Relocalize
 from agt_interfaces.msg import ComponentHealth, LocalizationStatus, RobotState
 from rclpy.action import ActionClient
 from rclpy.node import Node
+from std_msgs.msg import Bool
 
 
 class RunRosAdapter:
     """Authoritative Run readiness plus explicit bounded relocalization.
 
-    AUTO permit deliberately remains false until a dedicated physical/operator
-    permit source is integrated. It is not inferred from system mode or software
-    safety enable.
+    Physical AUTO permission comes only from the dedicated chassis permit topic.
+    It is never inferred from system mode, Nav2 state, or software motion enable.
     """
 
     def __init__(
@@ -29,6 +30,8 @@ class RunRosAdapter:
         camera_gimbal_component_id: str = "camera_gimbal",
         localization_freshness_s: float = 2.0,
         health_freshness_s: float = 2.0,
+        auto_permit_topic: str = "/agt/chassis/auto_permit",
+        auto_permit_freshness_s: float = 0.75,
     ) -> None:
         if timeout_s <= 0.0 or relocalize_timeout_s <= 0.0:
             raise ValueError("run adapter timeouts must be > 0")
@@ -36,6 +39,12 @@ class RunRosAdapter:
             raise ValueError("max_candidates must be > 0")
         if localization_freshness_s <= 0.0 or health_freshness_s <= 0.0:
             raise ValueError("readiness freshness thresholds must be > 0")
+        if auto_permit_freshness_s <= 0.0:
+            raise ValueError("auto_permit_freshness_s must be > 0")
+        normalized_auto_permit_topic = str(auto_permit_topic).strip()
+        if not normalized_auto_permit_topic:
+            raise ValueError("auto_permit_topic must not be empty")
+
         self._node = node
         self._robot_state_provider = robot_state_provider
         self._timeout_s = float(timeout_s)
@@ -45,12 +54,34 @@ class RunRosAdapter:
         self._camera_gimbal_component_id = str(camera_gimbal_component_id).strip()
         self._localization_freshness_s = float(localization_freshness_s)
         self._health_freshness_s = float(health_freshness_s)
+        self._auto_permit_freshness_s = float(auto_permit_freshness_s)
+        self._auto_permit = False
+        self._auto_permit_stamp = float("-inf")
+        self._permit_lock = Lock()
         self._lock = Lock()
+        self._auto_permit_subscription = node.create_subscription(
+            Bool,
+            normalized_auto_permit_topic,
+            self._auto_permit_callback,
+            10,
+        )
         self._relocalize_client = ActionClient(
             node,
             Relocalize,
             '/agt/localization/relocalize',
         )
+
+    def _auto_permit_callback(self, message: Bool) -> None:
+        with self._permit_lock:
+            self._auto_permit = bool(message.data)
+            self._auto_permit_stamp = time.monotonic()
+
+    def _auto_permit_ready(self) -> bool:
+        now = time.monotonic()
+        with self._permit_lock:
+            return self._auto_permit and (
+                now - self._auto_permit_stamp <= self._auto_permit_freshness_s
+            )
 
     def _wait_future(self, future: Any) -> Any:
         event = Event()
@@ -75,17 +106,21 @@ class RunRosAdapter:
 
     def readiness(self) -> dict[str, Any]:
         state = self._robot_state_provider()
+        auto_permit = self._auto_permit_ready()
         blockers: list[str] = []
         if state is None:
+            blockers.append("ROBOT_STATE_UNAVAILABLE")
+            if not auto_permit:
+                blockers.append("AUTO_PERMIT_NOT_READY")
             return {
                 "ready": False,
-                "autoPermit": False,
+                "autoPermit": auto_permit,
                 "siteReady": False,
                 "localizationReady": False,
                 "navigationReady": False,
                 "lidarReady": False,
                 "cameraGimbalReady": False,
-                "blockers": ["ROBOT_STATE_UNAVAILABLE", "AUTO_PERMIT_SOURCE_UNAVAILABLE"],
+                "blockers": blockers,
             }
 
         site_ready = bool(state.active_map_known and state.active_map.active)
@@ -125,11 +160,8 @@ class RunRosAdapter:
             blockers.append("LIDAR_HEALTH_NOT_READY")
         if not camera_gimbal_ready:
             blockers.append("CAMERA_GIMBAL_HEALTH_NOT_READY")
-
-        # Physical RC/operator AUTO permit is intentionally not represented by
-        # RobotState yet. Never substitute system mode or safety_motion_enabled.
-        blockers.append("AUTO_PERMIT_SOURCE_UNAVAILABLE")
-        auto_permit = False
+        if not auto_permit:
+            blockers.append("AUTO_PERMIT_NOT_READY")
 
         for code in list(state.blocker_codes):
             normalized = str(code).strip()
@@ -137,8 +169,8 @@ class RunRosAdapter:
                 blockers.append(normalized)
 
         return {
-            "ready": False,
-            "autoPermit": False,
+            "ready": not blockers,
+            "autoPermit": auto_permit,
             "siteReady": site_ready,
             "localizationReady": localization_ready,
             "navigationReady": navigation_ready,

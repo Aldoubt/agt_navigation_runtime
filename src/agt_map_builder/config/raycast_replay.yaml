@@ -1,0 +1,15 @@
+schema_version: 1
+frame_id: odom
+resolution_m: 0.05
+free_logodds_delta: -0.45
+hit_logodds_delta: 0.85
+min_logodds: -4.0
+max_logodds: 4.0
+free_threshold: -0.9
+occupied_threshold: 1.7
+min_observation_count: 2
+min_ray_range_m: 0.5
+max_ray_range_m: 40.0
+cloud_stride: 1
+point_stride: 8
+pose_max_age_s: 0.15

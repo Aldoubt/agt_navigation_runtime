@@ -16,6 +16,16 @@ class TaskAuthoringPort(Protocol):
     def save(self, task_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]: ...
 
 
+class InspectionAuthoringPort(Protocol):
+    """Gateway-facing adapter for frozen schema-v2 inspection authoring."""
+
+    def save(
+        self,
+        inspection_task_id: str,
+        payload: Mapping[str, Any],
+    ) -> Mapping[str, Any]: ...
+
+
 class RunControlPort(Protocol):
     """Gateway-facing adapter for read-only readiness and explicit relocalization."""
 

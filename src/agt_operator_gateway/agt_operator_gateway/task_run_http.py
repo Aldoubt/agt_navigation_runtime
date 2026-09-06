@@ -9,7 +9,7 @@ from aiohttp import web
 
 from .command_guard import verify_bearer_token
 from .contract import GATEWAY_API_VERSION
-from .delivery_ports import RunControlPort, TaskAuthoringPort
+from .delivery_ports import InspectionAuthoringPort, RunControlPort, TaskAuthoringPort
 
 
 def _error(status: int, code: str, message: str) -> web.Response:
@@ -49,6 +49,12 @@ def _finite_number(value: Any, label: str) -> float:
     return result
 
 
+def _nonnegative_revision(value: Any, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{label} must be a non-negative integer")
+    return value
+
+
 def _validate_task_payload(raw: Any) -> dict[str, Any]:
     if not isinstance(raw, Mapping):
         raise ValueError("request body must be a JSON object")
@@ -57,9 +63,7 @@ def _validate_task_payload(raw: Any) -> dict[str, Any]:
     payload["siteId"] = _required_string(payload, "siteId")
     payload["siteRevision"] = _required_string(payload, "siteRevision")
 
-    expected_revision = payload.get("expectedRevision", 0)
-    if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
-        raise ValueError("expectedRevision must be a non-negative integer")
+    expected_revision = _nonnegative_revision(payload.get("expectedRevision", 0), "expectedRevision")
     payload["expectedRevision"] = expected_revision
 
     loop = payload.get("loop", False)
@@ -97,6 +101,60 @@ def _validate_task_payload(raw: Any) -> dict[str, Any]:
     return payload
 
 
+def _validate_inspection_payload(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, Mapping):
+        raise ValueError("request body must be a JSON object")
+    payload = dict(raw)
+    payload["inspectionTaskId"] = _required_string(payload, "inspectionTaskId")
+    payload["siteId"] = _required_string(payload, "siteId")
+    payload["siteRevision"] = _required_string(payload, "siteRevision")
+    payload["expectedRevision"] = _nonnegative_revision(
+        payload.get("expectedRevision", 0),
+        "expectedRevision",
+    )
+    payload["expectedHomeTaskRevision"] = _nonnegative_revision(
+        payload.get("expectedHomeTaskRevision", 0),
+        "expectedHomeTaskRevision",
+    )
+
+    raw_points = payload.get("points")
+    if not isinstance(raw_points, list) or not raw_points:
+        raise ValueError("points must be a non-empty array")
+    normalized_points: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for index, raw_point in enumerate(raw_points):
+        if not isinstance(raw_point, Mapping):
+            raise ValueError(f"points[{index}] must be an object")
+        point = dict(raw_point)
+        point_id = _required_string(point, "id")
+        if point_id in seen_ids or point_id.lower() == "home":
+            raise ValueError(f"duplicate or reserved inspection point id: {point_id}")
+        seen_ids.add(point_id)
+        normalized_points.append(
+            {
+                "id": point_id,
+                "x": _finite_number(point.get("x"), f"points[{index}].x"),
+                "y": _finite_number(point.get("y"), f"points[{index}].y"),
+                "yaw": _finite_number(point.get("yaw"), f"points[{index}].yaw"),
+                "expectedTaskRevision": _nonnegative_revision(
+                    point.get("expectedTaskRevision", 0),
+                    f"points[{index}].expectedTaskRevision",
+                ),
+            }
+        )
+    payload["points"] = normalized_points
+
+    raw_home = payload.get("home")
+    if not isinstance(raw_home, Mapping):
+        raise ValueError("home must be an explicit map pose")
+    payload["home"] = {
+        "x": _finite_number(raw_home.get("x"), "home.x"),
+        "y": _finite_number(raw_home.get("y"), "home.y"),
+        "yaw": _finite_number(raw_home.get("yaw"), "home.yaw"),
+    }
+    return payload
+
+
 def _with_api_version(payload: Mapping[str, Any]) -> dict[str, Any]:
     return {"apiVersion": GATEWAY_API_VERSION, **dict(payload)}
 
@@ -105,6 +163,7 @@ def register_task_run_routes(
     app: web.Application,
     *,
     task_authoring: TaskAuthoringPort | None,
+    inspection_authoring: InspectionAuthoringPort | None = None,
     run_control: RunControlPort | None,
     write_api_enabled: bool,
     command_token: str,
@@ -177,6 +236,45 @@ def register_task_run_routes(
             return _error(503, "TASK_AUTHORING_UNAVAILABLE", f"task save adapter failed: {exc}")
         return web.json_response(_with_api_version(result))
 
+    async def save_inspection(request: web.Request) -> web.Response:
+        guard = _require_write(
+            request,
+            write_api_enabled=write_api_enabled,
+            command_token=command_token,
+        )
+        if guard is not None:
+            return guard
+        if inspection_authoring is None:
+            return _error(
+                503,
+                "INSPECTION_AUTHORING_UNAVAILABLE",
+                "inspection authoring adapter is unavailable",
+            )
+        try:
+            payload = _validate_inspection_payload(await request.json())
+            inspection_task_id = request.match_info.get("inspection_task_id", "").strip()
+            if not inspection_task_id or inspection_task_id != payload["inspectionTaskId"]:
+                raise ValueError(
+                    "route inspection_task_id must match request inspectionTaskId"
+                )
+        except Exception as exc:
+            return _error(400, "INVALID_INSPECTION_REQUEST", str(exc))
+        try:
+            result = await asyncio.to_thread(
+                inspection_authoring.save,
+                inspection_task_id,
+                payload,
+            )
+        except ValueError as exc:
+            return _error(409, "INSPECTION_SAVE_REJECTED", str(exc))
+        except Exception as exc:
+            return _error(
+                503,
+                "INSPECTION_AUTHORING_UNAVAILABLE",
+                f"inspection save adapter failed: {exc}",
+            )
+        return web.json_response(_with_api_version(result))
+
     async def run_readiness(_request: web.Request) -> web.Response:
         if run_control is None:
             return _error(503, "RUN_CONTROL_UNAVAILABLE", "run control adapter is unavailable")
@@ -211,6 +309,8 @@ def register_task_run_routes(
     app.router.add_options("/api/v1/tasks/preview", options)
     app.router.add_put("/api/v1/tasks/{task_id}", task_save)
     app.router.add_options("/api/v1/tasks/{task_id}", options)
+    app.router.add_put("/api/v1/inspections/{inspection_task_id}", save_inspection)
+    app.router.add_options("/api/v1/inspections/{inspection_task_id}", options)
     app.router.add_get("/api/v1/run/readiness", run_readiness)
     app.router.add_post("/api/v1/run/relocalize", run_relocalize)
     app.router.add_options("/api/v1/run/relocalize", options)

@@ -7,6 +7,8 @@ agt_safety_controller:
     sensor_status_timeout: 1.5
     sensor_diagnostics_topic: /diagnostics
     sensor_summary_name: agt_sensor_monitor/summary
+    require_auto_permit: false
+    auto_permit_timeout: 0.5
     navigation_timeout: 0.50
     manual_timeout: 0.35
     publish_rate: 20.0

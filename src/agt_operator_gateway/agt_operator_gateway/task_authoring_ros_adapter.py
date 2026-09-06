@@ -4,7 +4,6 @@ import json
 import math
 from threading import Event, Lock
 from typing import Any, Mapping
-from uuid import uuid4
 
 from agt_interfaces.srv import PutTaskGroup
 from geometry_msgs.msg import PoseStamped
@@ -12,7 +11,11 @@ from nav2_msgs.action import ComputePathToPose
 from rclpy.action import ActionClient
 from rclpy.node import Node
 
-from .task_authoring_model import ActiveTaskSite, build_task_document
+from .task_authoring_model import (
+    ActiveTaskSite,
+    build_task_document,
+    task_put_client_request_id,
+)
 
 
 class TaskAuthoringRosAdapter:
@@ -178,7 +181,13 @@ class TaskAuthoringRosAdapter:
         request.map_version_id = self._active_site.site_revision
         request.task_group_id = task.task_group_id
         request.expected_revision = expected_revision
-        request.client_request_id = f"hmi-{uuid4().hex}"
+        request.client_request_id = task_put_client_request_id(
+            site_id=self._active_site.site_id,
+            site_revision=self._active_site.site_revision,
+            task_group_id=task.task_group_id,
+            expected_revision=expected_revision,
+            payload=payload,
+        )
         request.task_json = json.dumps(
             task.to_dict(),
             ensure_ascii=False,

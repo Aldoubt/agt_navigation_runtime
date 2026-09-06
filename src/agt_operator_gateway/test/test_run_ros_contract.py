@@ -40,12 +40,17 @@ def test_relocalize_request_is_explicit_bounded_auto_search() -> None:
     assert "MODE_SINGLE_INITIAL_POSE" not in source
 
 
-def test_run_readiness_is_fail_closed_and_does_not_invent_auto_permit() -> None:
+def test_run_readiness_is_fail_closed_on_physical_auto_permit() -> None:
     source = read("agt_operator_gateway/run_ros_adapter.py")
     assert "self._robot_state_provider" in source
     assert "state = self._robot_state_provider()" in source
-    assert '"autoPermit": False' in source
-    assert '"AUTO_PERMIT_SOURCE_UNAVAILABLE"' in source
+    assert "from std_msgs.msg import Bool" in source
+    assert 'auto_permit_topic: str = "/agt/chassis/auto_permit"' in source
+    assert "self._auto_permit_freshness_s" in source
+    assert '"AUTO_PERMIT_NOT_READY"' in source
+    assert '"AUTO_PERMIT_SOURCE_UNAVAILABLE"' not in source
+    assert '"autoPermit": auto_permit' in source
+    assert '"ready": not blockers' in source
     assert "self._lidar_component_id" in source
     assert "self._camera_gimbal_component_id" in source
     assert "component.component_id == component_id" in source

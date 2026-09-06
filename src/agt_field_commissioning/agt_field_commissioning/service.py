@@ -16,7 +16,7 @@ from agt_site_runtime.activation_store import ActivationStore
 from agt_site_runtime.models import ActiveSelection
 
 from .map_review import MapEdit, MapReviewDraft, PgmMap
-from .projection import ProjectionRequest, RtabmapGridBackend
+from .projection import LightweightPcdGridBackend, ProjectionRequest
 
 
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
@@ -53,6 +53,7 @@ def _atomic_text(path: Path, text: str) -> None:
 class CommissioningPaths:
     root: Path
     mapping: Path
+    observation: Path
     projection: Path
     review: Path
     evidence: Path
@@ -83,7 +84,7 @@ class CommissioningService:
         self.vehicle_profile = Path(vehicle_profile).expanduser().resolve()
         self.vehicle_schema = Path(vehicle_schema).expanduser().resolve()
         self.site_schema = Path(site_schema).expanduser().resolve()
-        self.projection_backend = projection_backend or RtabmapGridBackend()
+        self.projection_backend = projection_backend or LightweightPcdGridBackend()
         self._drafts: dict[tuple[str, str], MapReviewDraft] = {}
 
     def _paths(self, site_id: str, run_id: str) -> CommissioningPaths:
@@ -93,6 +94,7 @@ class CommissioningService:
         return CommissioningPaths(
             root=root,
             mapping=root / "mapping",
+            observation=root / "observation",
             projection=root / "projection",
             review=root / "map_review",
             evidence=root / "evidence",
@@ -123,15 +125,21 @@ class CommissioningService:
         pcd = paths.mapping / "localization_map.pcd"
         if not pcd.is_file() or pcd.stat().st_size <= 0:
             raise RuntimeError("finalized localization_map.pcd is required before projection")
+
+        raycast_evidence = paths.observation / "free_space_evidence.bin"
+        raycast_record = paths.observation / "raycast_record.json"
+        has_raycast_pair = raycast_evidence.is_file() and raycast_record.is_file()
         request = ProjectionRequest(
             source_pcd=pcd,
             output_dir=paths.projection,
             resolution_m=float(overrides.get("resolution_m", 0.05)),
             max_ground_angle_deg=float(overrides.get("max_ground_angle_deg", 35.0)),
             normal_k=int(overrides.get("normal_k", 20)),
-            min_ground_height_m=float(overrides.get("min_ground_height_m", -0.4)),
-            max_ground_height_m=float(overrides.get("max_ground_height_m", 0.5)),
-            max_obstacle_height_m=float(overrides.get("max_obstacle_height_m", 2.0)),
+            min_ground_height_m=float(overrides.get("min_ground_height_m", 0.0)),
+            max_ground_height_m=float(overrides.get("max_ground_height_m", 0.0)),
+            max_obstacle_height_m=float(overrides.get("max_obstacle_height_m", 0.0)),
+            raycast_evidence=raycast_evidence if has_raycast_pair else None,
+            raycast_record=raycast_record if has_raycast_pair else None,
         )
         result = self.projection_backend.project(request)
         key = (_identity(site_id, "site_id"), _identity(run_id, "run_id"))

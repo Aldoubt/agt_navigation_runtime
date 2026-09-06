@@ -1,0 +1,25 @@
+agt_map_reconstruction:
+  ros__parameters:
+    cloud_topic: /agt/commissioning/mapping/registered_points
+    odometry_topic: /agt/chassis/odometry
+    output_directory: results/bunker_mid360_mapping_20260901_211105
+    output_frame: map
+    voxel_size: 0.08
+    map_resolution: 0.10
+    ground_cell_size: 0.50
+    ground_threshold: 0.08
+    slope_threshold: 25.0
+    dynamic_time_window: 2.0
+    min_static_observations: 3
+    max_points_per_cloud: 1000
+    frame_stride: 20
+    max_map_points: 300000
+    raytrace_enabled: true
+    max_ray_points_per_cloud: 250
+    obstacle_height_threshold: 0.18
+    height_difference_limit: 0.12
+    slope_limit_deg: 25.0
+    roughness_limit_m: 0.08
+    assume_registered_cloud: true
+    publish_period: 1.0
+    finalize_after_idle_sec: 5.0

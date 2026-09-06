@@ -5,6 +5,7 @@ find_package(ament_cmake REQUIRED)
 
 install(PROGRAMS
   scripts/bunker_status_bridge.py
+  scripts/bunker_rc_auto_permit.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

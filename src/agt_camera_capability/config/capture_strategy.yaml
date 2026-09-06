@@ -1,0 +1,5 @@
+capture_strategy:
+  type: fixed_overview
+  # radians; Camera Capability target_heading/target_pitch are radians
+  pitch: 0.7853981633974483
+  roll: 0.0

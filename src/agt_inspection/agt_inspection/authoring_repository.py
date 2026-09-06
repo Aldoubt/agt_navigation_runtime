@@ -39,12 +39,6 @@ class InspectionAuthoringRepository(InspectionRepository):
         current: InspectionTask | None = None
         if target.exists():
             current = self.load(candidate.inspection_task_id)
-            # Lost-response retry: an already committed byte-equivalent revision is success.
-            if (
-                current.revision == candidate.revision
-                and current.content_sha256 == candidate.content_sha256
-            ):
-                return current
             if current.revision != expected_revision:
                 raise InspectionTaskError(
                     f"inspection task revision conflict: expected {expected_revision}, got {current.revision}"

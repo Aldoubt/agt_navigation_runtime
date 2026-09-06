@@ -8,19 +8,14 @@ from aiohttp import web
 
 from .commissioning_port import CommissioningPort
 from .command_guard import CommandReplayStore
-from .delivery_ports import RunControlPort, TaskAuthoringPort
+from .delivery_ports import InspectionAuthoringPort, RunControlPort, TaskAuthoringPort
 from .delivery_server import create_delivery_app
 from .mission_commands import MissionCommandPort
 from .state_store import GatewayStateStore
 
 
 class DeliveryGatewayHttpServer:
-    """Threaded HTTP server for the field-delivery Gateway composition.
-
-    The stable base Gateway remains untouched. This server only selects the
-    additive delivery application factory used by field commissioning and the
-    later task/run adapters.
-    """
+    """Threaded HTTP server for the field-delivery Gateway composition."""
 
     def __init__(
         self,
@@ -34,6 +29,7 @@ class DeliveryGatewayHttpServer:
         mission_commands: MissionCommandPort | None = None,
         commissioning: CommissioningPort | None = None,
         task_authoring: TaskAuthoringPort | None = None,
+        inspection_authoring: InspectionAuthoringPort | None = None,
         run_control: RunControlPort | None = None,
         write_api_enabled: bool = False,
         command_token: str = "",
@@ -52,6 +48,7 @@ class DeliveryGatewayHttpServer:
         self._mission_commands = mission_commands
         self._commissioning = commissioning
         self._task_authoring = task_authoring
+        self._inspection_authoring = inspection_authoring
         self._run_control = run_control
         self._write_api_enabled = bool(write_api_enabled)
         self._command_token = str(command_token)
@@ -70,6 +67,7 @@ class DeliveryGatewayHttpServer:
             mission_commands=self._mission_commands,
             commissioning=self._commissioning,
             task_authoring=self._task_authoring,
+            inspection_authoring=self._inspection_authoring,
             run_control=self._run_control,
             write_api_enabled=self._write_api_enabled,
             command_token=self._command_token,

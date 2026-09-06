@@ -55,6 +55,35 @@ def test_delivery_gateway_cors_advertises_put_for_task_save() -> None:
     asyncio.run(run())
 
 
+def test_delivery_gateway_accepts_browser_preflight_for_commissioning_writes() -> None:
+    async def run() -> None:
+        server = TestServer(create_delivery_app(_store(), now_ms=lambda: 1000))
+        client = TestClient(server)
+        await client.start_server()
+        try:
+            response = await client.options(
+                '/api/v1/commissioning/project',
+                headers={
+                    'Origin': 'http://localhost:5173',
+                    'Access-Control-Request-Method': 'POST',
+                    'Access-Control-Request-Headers': 'authorization,content-type',
+                },
+            )
+            assert response.status == 204
+            assert response.headers['Access-Control-Allow-Origin'] == '*'
+            methods = response.headers['Access-Control-Allow-Methods'].split(', ')
+            assert 'POST' in methods
+            assert 'PUT' in methods
+            assert 'OPTIONS' in methods
+            allowed_headers = response.headers['Access-Control-Allow-Headers'].lower()
+            assert 'authorization' in allowed_headers
+            assert 'content-type' in allowed_headers
+        finally:
+            await client.close()
+
+    asyncio.run(run())
+
+
 def test_restricted_cors_echoes_allowed_origin_and_rejects_other_origin() -> None:
     async def run() -> None:
         app = create_app(

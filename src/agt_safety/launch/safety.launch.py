@@ -14,6 +14,8 @@ def generate_launch_description():
         [
             DeclareLaunchArgument("safety_config", default_value=str(default_config)),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
+            DeclareLaunchArgument("require_auto_permit", default_value="false"),
+            DeclareLaunchArgument("auto_permit_timeout", default_value="0.5"),
             Node(
                 package="agt_safety",
                 executable="safety_controller.py",
@@ -24,7 +26,13 @@ def generate_launch_description():
                     {
                         "use_sim_time": ParameterValue(
                             LaunchConfiguration("use_sim_time"), value_type=bool
-                        )
+                        ),
+                        "require_auto_permit": ParameterValue(
+                            LaunchConfiguration("require_auto_permit"), value_type=bool
+                        ),
+                        "auto_permit_timeout": ParameterValue(
+                            LaunchConfiguration("auto_permit_timeout"), value_type=float
+                        ),
                     },
                 ],
             ),

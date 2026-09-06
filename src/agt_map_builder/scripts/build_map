@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""ROS 2 executable wrapper; implementation is shared with build_map.py."""
+from pathlib import Path
+import sys
+
+# Keep the source-tree CLI useful while exposing the ROS executable as `build_map`.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from agt_map_builder.scripts_impl import main  # noqa: E402
+
+raise SystemExit(main())

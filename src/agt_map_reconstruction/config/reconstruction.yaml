@@ -1,0 +1,21 @@
+agt_map_reconstruction:
+  ros__parameters:
+    cloud_topic: /cloud_registered
+    odometry_topic: /Odometry
+    output_directory: results
+    output_frame: map
+    voxel_size: 0.08
+    map_resolution: 0.10
+    max_points_per_cloud: 30000
+    frame_stride: 1
+    max_map_points: 500000
+    raytrace_enabled: true
+    assume_registered_cloud: false
+    obstacle_height_threshold: 0.18
+    height_difference_limit: 0.12
+    slope_limit_deg: 25.0
+    roughness_limit_m: 0.08
+    ray_step_limit: 500
+    max_ray_points_per_cloud: 500
+    publish_period: 1.0
+    finalize_after_idle_sec: 5.0

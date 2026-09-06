@@ -16,7 +16,9 @@ if [[ ! -f "$ROS_SETUP" ]]; then
   fail "ROS2 Humble setup not found at $ROS_SETUP"
 fi
 # shellcheck disable=SC1090
+set +u
 source "$ROS_SETUP"
+set -u
 command -v colcon >/dev/null || fail "colcon not found"
 
 run_source_tests() {
@@ -47,7 +49,9 @@ build_and_test() {
   log "building workspace"
   colcon build --symlink-install --event-handlers console_direct+ 2>&1 | tee "$RUN_DIR/colcon_build.log"
   # shellcheck disable=SC1091
+  set +u
   source "$ROOT/install/setup.bash"
+  set -u
   log "running colcon tests"
   colcon test --event-handlers console_direct+ 2>&1 | tee "$RUN_DIR/colcon_test.log"
   colcon test-result --verbose 2>&1 | tee "$RUN_DIR/colcon_test_result.log"
@@ -63,6 +67,10 @@ wait_for_action() {
     sleep 0.25
   done
   return 1
+}
+
+wait_for_health() {
+  timeout 15s ros2 topic echo --once /camera_gimbal/health >/dev/null 2>&1
 }
 
 run_capability_acceptance() {
@@ -83,7 +91,9 @@ case "$MODE" in
   simulated)
     build_and_test
     # shellcheck disable=SC1091
+    set +u
     source "$ROOT/install/setup.bash"
+    set -u
 
     start_fake() {
       local label="$1"
@@ -93,7 +103,7 @@ case "$MODE" in
         capture_output_root:="$RUN_DIR/captured_images" "$@" \
         >"$RUN_DIR/${label}.log" 2>&1 &
       LAUNCH_PID=$!
-      wait_for_action /camera_gimbal/acquire_view || {
+      wait_for_action /camera_gimbal/acquire_view && wait_for_health || {
         kill "$LAUNCH_PID" 2>/dev/null || true
         wait "$LAUNCH_PID" 2>/dev/null || true
         fail "AcquireView action did not appear for $label"
@@ -141,7 +151,9 @@ case "$MODE" in
   hardware)
     build_and_test
     # shellcheck disable=SC1091
+    set +u
     source "$ROOT/install/setup.bash"
+    set -u
     CAMERA_DEVICE="${CAMERA_DEVICE:-/dev/video4}"
     GIMBAL_PORT="${GIMBAL_PORT:-/dev/ttyUSB0}"
     MANAGE_LAUNCH="${MANAGE_LAUNCH:-1}"
