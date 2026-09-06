@@ -83,9 +83,11 @@ def test_workflow_does_not_claim_physical_hardware_acceptance():
     forbidden = (
         "can0 up",
         "candump can0",
-        "livox_ros_driver2",
         "fast_livo2",
         "BUNKER FIELD PASS",
     )
     for marker in forbidden:
         assert marker not in text
+
+    assert "third_party/livox_ros_driver2/COLCON_IGNORE" in text
+    assert "third_party/FAST_LIO_SLAM_ros2/COLCON_IGNORE" in text
