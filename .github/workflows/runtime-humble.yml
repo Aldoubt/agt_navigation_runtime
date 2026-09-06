@@ -82,7 +82,7 @@ jobs:
           colcon build \
             --event-handlers console_direct+ \
             --packages-up-to agt_operator_gateway \
-            --packages-skip-regex 'livox.*'
+            --packages-skip-regex 'livox.*|fast_lio'
 
       - name: Test convergence core on Humble
         shell: bash

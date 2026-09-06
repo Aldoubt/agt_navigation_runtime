@@ -115,10 +115,11 @@ def test_phase_c_uses_sequential_field_capture_backend_by_default():
     assert '"field_capture_enabled": "true"' in text
     assert '"field_capture_backend": LaunchConfiguration("field_capture_backend").perform(context)' in text
     assert '"field_capture_continue_on_failure": LaunchConfiguration("field_capture_continue_on_failure").perform(context)' in text
-    assert 'DeclareLaunchArgument("field_capture_backend", default_value="placeholder")' in text
+    assert 'DeclareLaunchArgument("field_capture_backend", default_value="camera_capability")' in text
     assert 'DeclareLaunchArgument("field_capture_retry_count", default_value="1")' in text
     assert 'DeclareLaunchArgument("field_capture_continue_on_failure", default_value="false")' in text
-    assert 'DeclareLaunchArgument("field_capture_service", default_value="/agt/camera/capture")' in text
+    assert 'DeclareLaunchArgument("field_capture_service", default_value="/agt/camera/capability/capture")' in text
+    assert 'DeclareLaunchArgument("camera_capability_backend", default_value="mock")' in text
 
 
 def test_phase_c_passes_site_derived_hashes_not_operator_map_paths():
