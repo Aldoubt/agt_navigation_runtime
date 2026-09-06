@@ -24,14 +24,16 @@ rclcomm::rclcomm() {
   SET_DEFAULT_TOPIC_NAME(DISPLAY_LASER, "/scan")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_GLOBAL_PATH, "/plan")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_LOCAL_PATH, "/local_plan")
-  SET_DEFAULT_TOPIC_NAME(DISPLAY_ROBOT, "/odom")
+  // The field navigation stack publishes the base odometry on this
+  // namespaced topic.  /odom is not produced by the commissioning launch.
+  SET_DEFAULT_TOPIC_NAME(DISPLAY_ROBOT, "/agt/odometry/odometry")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SET_ROBOT_SPEED, "/cmd_vel")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_BATTERY_STATE, "/battery")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DIAGNOSTIC, "/diagnostics")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT, "/local_costmap/published_footprint")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP, "/map/topology")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE, "/map/topology/update")
-  SET_DEFAULT_KEY_VALUE("BaseFrameId", "base_link")
+  SET_DEFAULT_KEY_VALUE("BaseFrameId", "base_footprint")
   if (Config::ConfigManager::Instance()->GetRootConfig().images.empty()) {
     Config::ConfigManager::Instance()->GetRootConfig().images.push_back(
         Config::ImageDisplayConfig{.location = "front",

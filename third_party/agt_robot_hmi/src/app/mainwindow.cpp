@@ -791,12 +791,15 @@ void MainWindow::setupUi() {
   
   QPushButton *btn_load_task_chain = new QPushButton("Load Task Chain");
   QPushButton *btn_save_task_chain = new QPushButton("Save Task Chain");
+  QPushButton *btn_capture_group = new QPushButton("Capture Group");
   btn_load_task_chain->setStyleSheet(modernButtonStyle);
   btn_save_task_chain->setStyleSheet(modernButtonStyle);
+  btn_capture_group->setStyleSheet(modernButtonStyle);
   
   QHBoxLayout *horizontalLayout_16 = new QHBoxLayout();
   horizontalLayout_16->addWidget(btn_load_task_chain);
   horizontalLayout_16->addWidget(btn_save_task_chain);
+  horizontalLayout_16->addWidget(btn_capture_group);
 
   horizontalLayout_13->addLayout(horizontalLayout_15);
   horizontalLayout_13->addLayout(horizontalLayout_14);
@@ -850,6 +853,13 @@ void MainWindow::setupUi() {
                               QMessageBox::Ok);
     }
   });
+  connect(btn_capture_group, &QPushButton::clicked, [this]() {
+    CaptureGroupDialog dialog(nav_goal_table_view_->GetCaptureGroup(), this);
+    if (dialog.exec() == QDialog::Accepted) {
+      nav_goal_table_view_->SetCaptureGroup(dialog.group());
+      QMessageBox::information(this, "Capture Group", "Capture group updated. Save the task chain to persist it.");
+    }
+  });
 
   // nav_goal_list_dock_widget->toggleView(false);
   ui->menuView->addAction(nav_goal_list_dock_widget->toggleViewAction());
@@ -874,6 +884,8 @@ void MainWindow::setupUi() {
   connect(display_manager_,
           SIGNAL(signalTopologyMapUpdate(const TopologyMap &)),
           nav_goal_table_view_, SLOT(UpdateTopologyMap(const TopologyMap &)));
+  connect(nav_goal_table_view_, &NavGoalTableView::signalTopologyMapChanged,
+          display_manager_, &Display::DisplayManager::UpdateTopologyMap);
   connect(
       display_manager_,
       SIGNAL(signalCurrentSelectPointChanged(const TopologyMap::PointInfo &)),
@@ -1061,10 +1073,6 @@ void MainWindow::setupUi() {
           SIGNAL(signalCursorPose(QPointF)), this,
           SLOT(signalCursorPose(QPointF)));
 
-  inspection_panel_ = new InspectionPanel(this);
-  auto *inspection_dock = new QDockWidget(tr("Inspection Task"), this);
-  inspection_dock->setWidget(inspection_panel_);
-  addDockWidget(Qt::RightDockWidgetArea, inspection_dock);
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {

@@ -84,6 +84,7 @@ def _compose(context):
                 executable="hmi_task_adapter.py",
                 name="agt_hmi_task_adapter",
                 output="screen",
+                parameters=[{"runtime_maps_root": str(Path(runtime_dir) / "maps")}],
                 condition=IfCondition(LaunchConfiguration("start_hmi_adapter")),
             ),
             _include(
@@ -153,7 +154,20 @@ def _compose(context):
         [
             _include(
                 odometry_share / "launch" / "fast_livo2_odometry.launch.py",
-                {"use_sim_time": use_sim_time},
+                {
+                    "use_sim_time": use_sim_time,
+                    # Keep the odometry parameter files explicit here.  This
+                    # launch also includes Nav2, whose ``params_file`` name
+                    # otherwise leaks into the nested LIO launch and leaves
+                    # FAST-LIVO with empty calibration arrays.
+                    "params_file": str(odometry_share / "config" / "mid360_lio_only.yaml"),
+                    "camera_params_file": str(
+                        odometry_share / "config" / "camera_disabled_placeholder.yaml"
+                    ),
+                    "adapter_params_file": str(
+                        odometry_share / "config" / "fast_livo2_adapter.yaml"
+                    ),
+                },
             ),
             _include(
                 perception_share / "launch" / "local_obstacles.launch.py",

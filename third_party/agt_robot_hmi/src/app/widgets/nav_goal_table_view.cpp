@@ -44,6 +44,24 @@ void NavGoalTableView::onItemChanged(QStandardItem *item) {
 }
 void NavGoalTableView::UpdateTopologyMap(const TopologyMap &_topology_map) {
   topologyMap_ = _topology_map;
+
+  // Refresh rows when points are added after the task panel was opened.
+  for (int row = 0; row < table_model_->rowCount(); ++row) {
+    auto *combo = static_cast<QComboBox *>(
+        indexWidget(table_model_->index(row, 0)));
+    if (combo == nullptr) continue;
+    const QString selected = combo->currentText();
+    combo->blockSignals(true);
+    combo->clear();
+    for (const auto &point : topologyMap_.points) {
+      combo->addItem(QString::fromStdString(point.name));
+    }
+    combo->addItem("");
+    const int selected_index = combo->findText(selected);
+    combo->setCurrentIndex(selected_index >= 0 ? selected_index
+                                               : combo->count() - 1);
+    combo->blockSignals(false);
+  }
 }
 void NavGoalTableView::UpdateSelectPoint(const TopologyMap::PointInfo &point) {
   if (!this->isEnabled())
@@ -118,6 +136,23 @@ bool NavGoalTableView::LoadTaskChain(const std::string &name) {
     return false;
   }
   file.close();
+
+  // A task JSON contains the complete point pose. If the topology sidecar was
+  // not saved yet, import missing task points into the in-memory topology so
+  // the task remains editable instead of silently dropping rows.
+  bool imported_points = false;
+  for (const auto &point : task_chain_.points) {
+    if (topologyMap_.GetPoint(point.name).name.empty()) {
+      topologyMap_.AddPoint(point);
+      imported_points = true;
+      LOG_WARN("Imported task point into topology map: " << point.name);
+    }
+  }
+  if (imported_points) {
+    UpdateTopologyMap(topologyMap_);
+    emit signalTopologyMapChanged(topologyMap_);
+  }
+
   for (auto point : task_chain_.points) {
     QComboBox *comboBox = new QComboBox();
     bool find_point = false;
@@ -128,8 +163,8 @@ bool NavGoalTableView::LoadTaskChain(const std::string &name) {
       }
     }
     if (!find_point) {
-      LOG_ERROR(
-          "Can't find point " << point.name << " in topology map skip this point!");
+      LOG_ERROR("Can't load task point " << point.name
+                                         << " into topology map");
       delete comboBox;
       continue;
     }
@@ -155,12 +190,12 @@ bool NavGoalTableView::LoadTaskChain(const std::string &name) {
   return true;
 }
 bool NavGoalTableView::SaveTaskChain(const std::string &name) {
+  task_chain_.points.clear();
   for (int row = 0; row < table_model_->rowCount(); ++row) {
     QComboBox *comboBoxName =
         static_cast<QComboBox *>(indexWidget(model()->index(row, 0)));
     QLabel *label_status =
         static_cast<QLabel *>(indexWidget(model()->index(row, 1)));
-    label_status->setText("Running");
     TopologyMap::PointInfo point =
         topologyMap_.GetPoint(comboBoxName->currentText().toStdString());
     if (point.name == "") {
@@ -168,6 +203,7 @@ bool NavGoalTableView::SaveTaskChain(const std::string &name) {
       continue;
     }
     task_chain_.points.push_back(point);
+    label_status->setText("None");
   }
   nlohmann::json j = task_chain_;
   std::string pretty_json = j.dump(2);

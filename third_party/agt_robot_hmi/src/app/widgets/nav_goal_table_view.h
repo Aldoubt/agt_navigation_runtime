@@ -29,11 +29,14 @@ class NavGoalTableView : public QTableView {
   void UpdateTaskStatus(const std::string &status_json);
   bool LoadTaskChain(const std::string &name);
   bool SaveTaskChain(const std::string &name);
+  CaptureGroup GetCaptureGroup() const { return task_chain_.capture_group; }
+  void SetCaptureGroup(const CaptureGroup &group) { task_chain_.capture_group = group; }
  signals:
   void signalSendNavGoal(const RobotPose &pose);
   void signalSendTaskChain(const std::string &task_chain_json);
   void signalCancelTaskChain();
   void signalTaskFinish();
+  void signalTopologyMapChanged(const TopologyMap &topology_map);
 
  private:
   void onItemChanged(QStandardItem *item);

@@ -11,11 +11,14 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
-from agt_interfaces.action import ExecuteWaypointTask
+from agt_interfaces.action import ExecuteInspectionTask, ExecuteWaypointTask
 from agt_interfaces.msg import MapVersionSummary
 from agt_interfaces.srv import PutTaskGroup
 from agt_navigation.task_group import MapBinding, TaskGroup, Waypoint
+from agt_inspection.schema import canonical_hash
+from agt_inspection.authoring_repository import InspectionAuthoringRepository
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -31,10 +34,21 @@ class HmiTaskAdapter(Node):
         self._active: MapVersionSummary | None = None
         self._map: OccupancyGrid | None = None
         self._goal_handle = None
+        self._inspection_goal_handle = None
         self._busy = False
+        self._capture_mode = False
+        self._capture_document = None
+        self._capture_points = []
+        self._capture_bindings = []
+        self._capture_index = 0
+        self._capture_run_id = ""
+        self._runtime_maps_root = Path(
+            str(self.declare_parameter("runtime_maps_root", "runtime/maps").value)
+        ).expanduser()
         group = ReentrantCallbackGroup()
         self._put = self.create_client(PutTaskGroup, "/agt/navigation/tasks/put", callback_group=group)
         self._execute = ActionClient(self, ExecuteWaypointTask, "/agt/navigation/execute_waypoint_task", callback_group=group)
+        self._inspect = ActionClient(self, ExecuteInspectionTask, "/agt/inspection/execute_task", callback_group=group)
         self._status = self.create_publisher(String, "/agt/hmi/task_status", 10)
         self.create_subscription(MapVersionSummary, "/agt/maps/active", self._active_callback, 10, callback_group=group)
         self.create_subscription(OccupancyGrid, "/map", self._map_callback, 10, callback_group=group)
@@ -54,7 +68,10 @@ class HmiTaskAdapter(Node):
         self._map = message
 
     def _cancel_callback(self, _message: String) -> None:
-        if self._goal_handle is not None:
+        if self._inspection_goal_handle is not None:
+            self._inspection_goal_handle.cancel_goal_async()
+            self._publish("CANCEL_REQUESTED")
+        elif self._goal_handle is not None:
             self._goal_handle.cancel_goal_async()
             self._publish("CANCEL_REQUESTED")
         elif self._busy:
@@ -105,6 +122,10 @@ class HmiTaskAdapter(Node):
         task_group_id = str(document.get("task_group_id", "")).strip()
         if not task_group_id:
             task_group_id = f"hmi_task_{uuid.uuid4().hex}"
+        capture = document.get("capture_group", {})
+        if isinstance(capture, dict) and bool(capture.get("enabled", False)):
+            self._start_capture_task(document, active, current_map, now)
+            return
         task = TaskGroup(
             task_group_id=task_group_id,
             name="Qt5 HMI Task",
@@ -128,6 +149,186 @@ class HmiTaskAdapter(Node):
         future = self._put.call_async(request)
         future.add_done_callback(self._put_done)
         self._publish("REGISTERING", point_count=len(points))
+
+    def _start_capture_task(self, document, active, current_map, now) -> None:
+        capture = document.get("capture_group", {})
+        views = capture.get("views", [])
+        if not isinstance(views, list) or not views:
+            self._publish("REJECTED", "拍照任务组至少需要一个视角")
+            return
+        for view in views:
+            if not isinstance(view, dict) or not str(view.get("id", "")).strip():
+                self._publish("REJECTED", "拍照视角缺少有效 ID")
+                return
+            if float(view.get("timeout_s", 0.0)) <= 0.0 or float(view.get("settle_duration_s", -1.0)) < 0.0:
+                self._publish("REJECTED", "拍照视角的超时/稳定时间无效")
+                return
+        self._capture_mode = True
+        self._capture_document = document
+        self._capture_points = list(document["points"])
+        self._capture_bindings = []
+        self._capture_index = 0
+        self._capture_run_id = uuid.uuid4().hex[:10]
+        self._capture_active = active
+        self._capture_map = current_map
+        self._capture_now = now
+        self._register_capture_point()
+
+    def _register_capture_point(self) -> None:
+        if self._capture_index >= len(self._capture_points):
+            self._finish_capture_registration()
+            return
+        raw = self._capture_points[self._capture_index]
+        index = self._capture_index + 1
+        active = self._capture_active
+        binding = MapBinding(
+            map_id=active.map_id, map_version_id=active.map_version_id,
+            map_yaml_sha256=active.navigation_yaml_sha256,
+            map_image_sha256=active.navigation_image_sha256,
+            localization_pcd_sha256=active.localization_pcd_sha256,
+            resolution=float(self._capture_map.info.resolution),
+            width=int(self._capture_map.info.width), height=int(self._capture_map.info.height),
+            origin=(float(self._capture_map.info.origin.position.x),
+                    float(self._capture_map.info.origin.position.y), 0.0),
+        )
+        task = TaskGroup(
+            task_group_id=f"{self._capture_document['capture_group'].get('task_id', 'inspection')}-P{index:02d}-nav-{self._capture_run_id}",
+            name="HMI inspection waypoint", description="Generated by Qt5 HMI",
+            created_at=self._capture_now, updated_at=self._capture_now, revision=1,
+            map_binding=binding,
+            points=[Waypoint(id=f"P{index:02d}", name=str(raw["name"]),
+                             x=float(raw["x"]), y=float(raw["y"]), yaw=float(raw["theta"]))],
+            loop=False, loop_count=1,
+        )
+        task.content_sha256 = task.canonical_hash()
+        request = PutTaskGroup.Request()
+        request.map_id = active.map_id
+        request.map_version_id = active.map_version_id
+        request.task_group_id = task.task_group_id
+        request.expected_revision = 0
+        request.client_request_id = f"hmi-inspection-put-{uuid.uuid4()}"
+        request.task_json = json.dumps(task.to_dict(), ensure_ascii=False, separators=(",", ":"))
+        self._busy = True
+        future = self._put.call_async(request)
+        future.add_done_callback(self._capture_put_done)
+        self._publish("REGISTERING", point_count=len(self._capture_points), current_point=index)
+
+    def _capture_put_done(self, future) -> None:
+        try:
+            result = future.result()
+        except Exception as exc:
+            self._capture_failed(f"导航子任务注册失败: {exc}")
+            return
+        if not result.success:
+            self._capture_failed(result.operator_message or result.technical_message)
+            return
+        self._capture_bindings.append({
+            "pointId": f"P{self._capture_index + 1:02d}",
+            "taskGroupId": result.task_group_id,
+            "revision": int(result.revision),
+            "contentSha256": result.content_sha256,
+        })
+        self._capture_index += 1
+        self._register_capture_point()
+
+    def _capture_failed(self, message: str) -> None:
+        self._capture_mode = False
+        self._busy = False
+        self._publish("FAILED", message)
+
+    def _finish_capture_registration(self) -> None:
+        capture = self._capture_document["capture_group"]
+        active = self._capture_active
+        task_id = str(capture.get("task_id", "inspection_route_01")).strip()
+        views = []
+        for raw in capture["views"]:
+            views.append({
+                "id": str(raw["id"]),
+                "gimbal": {
+                    "pan_rad": float(raw.get("pan_deg", 0.0)) * 3.141592653589793 / 180.0,
+                    "tilt_rad": float(raw.get("tilt_deg", -10.0)) * 3.141592653589793 / 180.0,
+                    "timeout_s": float(raw.get("timeout_s", 5.0)),
+                    "settle_duration_s": float(raw.get("settle_duration_s", 0.5)),
+                },
+            })
+        points = []
+        for index, binding in enumerate(self._capture_bindings):
+            points.append({
+                "id": binding["pointId"], "navigation": {
+                    "task_group_id": binding["taskGroupId"],
+                    "task_revision": binding["revision"],
+                    "expected_content_sha256": binding["contentSha256"],
+                },
+                "stabilization": {"linear_velocity_max_mps": 0.02, "angular_velocity_max_radps": 0.03,
+                                   "stable_duration_s": 0.8, "timeout_s": 5.0},
+                "camera": {"camera_id": str(capture.get("camera_id", "inspection_camera")),
+                           "capture_count": 1, "capture_interval_s": 0.0},
+                "vision": {"task_id": "litchi_flower_instance_seg", "model_profile": "default",
+                            "minimum_confidence": 0.6, "timeout_s": 10.0, "execution_mode": "DEFERRED"},
+                "retry": {"navigation": 1, "gimbal": 1, "capture": 2, "inference": 1},
+                "aggregation": {"enabled": False, "aggregation_profile": "default"}, "views": views,
+            })
+        doc = {"schema_version": 2, "inspection_task_id": task_id,
+               "name": task_id, "description": "Created by Qt5 HMI Capture Group",
+               "revision": 1, "content_sha256": "sha256:" + "0" * 64,
+               "count_target": "litchi_flower",
+               "map_binding": {"map_id": active.map_id, "map_version_id": active.map_version_id,
+                                "manifest_sha256": active.manifest_sha256}, "points": points}
+        try:
+            repository = InspectionAuthoringRepository(
+                self._runtime_maps_root, active.map_id, active.map_version_id
+            )
+            try:
+                expected = repository.load(task_id).revision
+            except Exception:
+                expected = 0
+            doc["revision"] = expected + 1
+            doc["content_sha256"] = canonical_hash(doc)
+            stored = repository.put_document(doc, expected_revision=expected)
+        except Exception as exc:
+            self._capture_failed(f"拍照任务组保存失败: {exc}")
+            return
+        if not self._inspect.wait_for_server(timeout_sec=2.0):
+            self._capture_failed("ExecuteInspectionTask 服务不可用")
+            return
+        goal = ExecuteInspectionTask.Goal()
+        goal.map_id = active.map_id
+        goal.map_version_id = active.map_version_id
+        goal.inspection_task_id = stored.inspection_task_id
+        goal.task_revision = stored.revision
+        goal.expected_content_sha256 = stored.content_sha256
+        goal.client_request_id = f"hmi-inspection-start-{uuid.uuid4()}"
+        future = self._inspect.send_goal_async(goal, feedback_callback=self._inspection_feedback)
+        future.add_done_callback(self._inspection_response)
+        self._publish("INSPECTION_REGISTERED", point_count=len(points), view_count=len(views))
+
+    def _inspection_feedback(self, feedback) -> None:
+        value = feedback.feedback
+        self._publish("RUNNING", current_point=value.current_point,
+                      total_points=value.total_points, stage=value.stage)
+
+    def _inspection_response(self, future) -> None:
+        try:
+            handle = future.result()
+        except Exception as exc:
+            self._capture_failed(str(exc)); return
+        if not handle.accepted:
+            self._capture_failed("拍照巡检任务被拒绝"); return
+        self._inspection_goal_handle = handle
+        self._publish("ACCEPTED")
+        result_future = handle.get_result_async()
+        result_future.add_done_callback(self._inspection_result)
+
+    def _inspection_result(self, future) -> None:
+        self._inspection_goal_handle = None
+        self._capture_mode = False
+        self._busy = False
+        try:
+            result = future.result().result
+            self._publish("FINISHED" if result.success else "FAILED", result.message,
+                          evidence_root_uri=result.evidence_root_uri)
+        except Exception as exc:
+            self._publish("FAILED", str(exc))
 
     def _put_done(self, future) -> None:
         try:

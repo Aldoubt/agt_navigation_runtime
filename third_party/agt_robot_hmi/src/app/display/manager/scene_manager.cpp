@@ -234,6 +234,7 @@ void SceneManager::AddPointAtRobotPosition() {
   
   // 添加到拓扑地图
   topology_map_.AddPoint(point_info);
+  emit signalTopologyMapUpdate(topology_map_);
   
   LOG_INFO("Add nav point at robot position: " << name << " at world pose(" 
            << robot_pose.x << ", " << robot_pose.y << ", " << robot_pose.theta 
@@ -303,6 +304,7 @@ void SceneManager::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
       goal_point->SetRotateEnable(true)->SetMoveEnable(true)->setVisible(true);
       goal_point->UpdateData(map_pose);
       topology_map_.AddPoint(point_info);
+      emit signalTopologyMapUpdate(topology_map_);
 
       
       LOG_INFO("Add nav point: " << name << " at scene pose(" 

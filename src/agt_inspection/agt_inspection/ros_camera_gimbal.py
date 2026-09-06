@@ -61,6 +61,10 @@ class RosCameraGimbalAcquireRunner:
             roll_rad=0.0,
             timeout_s=max(float(view.gimbal.timeout_s), 0.1),
             settle_time_s=max(float(view.gimbal.settle_duration_s), 0.0),
+            # The tested C1 unit has about 5 degrees of encoder/ground-angle
+            # discrepancy near both heading limits. Keep the accepted margin
+            # explicit for the field template; actual feedback is still stored.
+            tolerance_deg=6.0,
             tag=request_id,
         )
         goal = AcquireView.Goal()

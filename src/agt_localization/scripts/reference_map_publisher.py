@@ -16,6 +16,7 @@ class ReferenceMapPublisher(Node):
         self.declare_parameter("pcd", "")
         self.declare_parameter("topic", "/agt/localization/reference_map")
         self.declare_parameter("max_points", 300000)
+        self.declare_parameter("frame_id", "map")
         map_qos = QoSProfile(depth=1)
         map_qos.reliability = ReliabilityPolicy.RELIABLE
         map_qos.durability = DurabilityPolicy.TRANSIENT_LOCAL
@@ -61,7 +62,11 @@ class ReferenceMapPublisher(Node):
                 PointField(name=name, offset=4 * i, datatype=PointField.FLOAT32, count=1)
                 for i, name in enumerate(("x", "y", "z"))
             ]
-            message = point_cloud2.create_cloud(Header(frame_id="map"), fields_msg, points)
+            message = point_cloud2.create_cloud(
+                Header(frame_id=str(self.get_parameter("frame_id").value)),
+                fields_msg,
+                points,
+            )
             self.publisher.publish(message)
             self.get_logger().info("Published %d reference points from %s" % (len(points), path))
         except Exception as error:
