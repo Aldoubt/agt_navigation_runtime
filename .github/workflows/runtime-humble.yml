@@ -75,14 +75,19 @@ jobs:
               /opt/ros/humble/lib/libbehaviortree_cpp.so
           fi
 
+      - name: Exclude hardware-only lidar backends from the core closure
+        shell: bash
+        run: |
+          touch third_party/livox_ros_driver2/COLCON_IGNORE
+          touch third_party/FAST_LIO_SLAM_ros2/COLCON_IGNORE
+
       - name: Build convergence core on Humble
         shell: bash
         run: |
           source /opt/ros/humble/setup.bash
           colcon build \
             --event-handlers console_direct+ \
-            --packages-up-to agt_operator_gateway \
-            --packages-skip-regex 'livox.*|fast_lio'
+            --packages-up-to agt_operator_gateway
 
       - name: Test convergence core on Humble
         shell: bash
